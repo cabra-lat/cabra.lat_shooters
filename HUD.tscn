@@ -1,0 +1,79 @@
+[gd_scene load_steps=5 format=3 uid="uid://bxlbq0drdtji4"]
+
+[ext_resource type="Script" uid="uid://cg2frdbwbs5qx" path="res://addons/cabra.lat_shooters/src/core/hud.gd" id="1"]
+
+[sub_resource type="FontFile" id="41"]
+subpixel_positioning = 0
+msdf_pixel_range = 14
+msdf_size = 128
+cache/0/16/0/ascent = 0.0
+cache/0/16/0/descent = 0.0
+cache/0/16/0/underline_position = 0.0
+cache/0/16/0/underline_thickness = 0.0
+cache/0/16/0/scale = 1.0
+
+[sub_resource type="FontFile" id="FontFile_k5de2"]
+fallbacks = Array[Font]([SubResource("41"), SubResource("41"), SubResource("41")])
+subpixel_positioning = 0
+msdf_pixel_range = 14
+msdf_size = 128
+cache/0/16/0/ascent = 0.0
+cache/0/16/0/descent = 0.0
+cache/0/16/0/underline_position = 0.0
+cache/0/16/0/underline_thickness = 0.0
+cache/0/16/0/scale = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_efote"]
+bg_color = Color(0, 0, 0, 1)
+border_color = Color(1, 1, 1, 1)
+corner_detail = 9
+
+[node name="HUD" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -0.297302
+offset_top = -2.37842
+offset_right = -0.297302
+offset_bottom = -2.37842
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="BottomRightPopup" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 654.297
+offset_top = 325.378
+offset_right = -197.702
+offset_bottom = -363.622
+grow_horizontal = 0
+grow_vertical = 2
+size_flags_vertical = 1
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.552941)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.180392)
+theme_override_constants/shadow_outline_size = 1
+text = "Safe"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Visibility" type="Timer" parent="."]
+
+[node name="CurrentState" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 647.297
+offset_top = 275.378
+offset_right = -204.703
+offset_bottom = -413.622
+size_flags_vertical = 1
+theme_override_fonts/font = SubResource("FontFile_k5de2")
+theme_override_styles/normal = SubResource("StyleBoxFlat_efote")
+text = "No State"
+horizontal_alignment = 1
+vertical_alignment = 1

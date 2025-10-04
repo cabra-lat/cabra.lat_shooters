@@ -1,8 +1,8 @@
 class_name WeaponNode
 extends Node
 
-@onready var ak47_magazine  = preload("res://src/resources/magazine_ak47.tres")
-@onready var ammo_762x39mm  = preload("res://src/resources/ammo_7.62x39mm.tres")
+@onready var ak47_magazine  = preload("../resources/magazine_ak47.tres")
+@onready var ammo_762x39mm  = preload("../resources/ammo_7.62x39mm.tres")
 
 @export var weapon: Resource
 var firerate_cooldown

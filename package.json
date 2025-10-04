@@ -1,0 +1,30 @@
+{
+  "name": "@cabra-lat/shooters",
+  "version": "1.0.0",
+  "description": "A very detailed addon for my shooters",
+  "keywords": [
+	"godot",
+	"godot-engine"
+  ],
+  "homepage": "https://github.com/cabra-lat/cabra.lat_shooters#readme",
+  "bugs": {
+	"url": "https://github.com/cabra-lat/cabra.lat_shooters/issues"
+  },
+  "repository": {
+	"type": "git",
+	"url": "git+https://github.com/cabra-lat/cabra.lat_shooters.git"
+  },
+  "license": "MIT",
+  "author": "Cabra Lat",
+  "type": "commonjs",
+  "main": "plugin.gd",
+  "scripts": {
+	"test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "publishConfig": {
+	"registry": "https://npm.pkg.github.com"
+  },
+  "packages": {
+	"@cabra-lat/state_machines": "1.0.0"
+  }
+}

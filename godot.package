@@ -1,0 +1,3 @@
+packages: {
+  "@cabra-lat/state_machines": 1.0.0
+}
