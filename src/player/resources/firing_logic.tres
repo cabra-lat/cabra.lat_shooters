@@ -1,14 +1,18 @@
-[gd_resource type="AnimationNodeStateMachine" load_steps=26 format=3 uid="uid://1cwd24iv33k8"]
+[gd_resource type="AnimationNodeStateMachine" load_steps=32 format=3 uid="uid://1cwd24iv33k8"]
 
 [sub_resource type="AnimationNodeStateMachine" id="1"]
+
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_pmml0"]
+
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_g8hl1"]
+
+[sub_resource type="AnimationNodeStateMachine" id="5"]
 
 [sub_resource type="AnimationNodeStateMachine" id="2"]
 
 [sub_resource type="AnimationNodeStateMachine" id="3"]
 
 [sub_resource type="AnimationNodeStateMachine" id="4"]
-
-[sub_resource type="AnimationNodeStateMachine" id="5"]
 
 [sub_resource type="AnimationNodeStateMachine" id="6"]
 
@@ -84,22 +88,42 @@ advance_condition = &"+aim_pressed"
 advance_mode = 2
 advance_condition = &"+fire_pressed"
 
-[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_74hbg"]
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_rmw8f"]
 advance_mode = 2
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_g8hl1"]
+advance_mode = 2
+advance_condition = &"+equip"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_pmml0"]
+advance_mode = 2
+advance_condition = &"-equip"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_k7anp"]
+advance_mode = 2
+advance_condition = &"+fire"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_uipgm"]
+advance_mode = 2
+advance_condition = &"-fire"
 
 [resource]
 states/Aim/node = SubResource("1")
-states/Aim/position = Vector2(180, -17)
+states/Aim/position = Vector2(92, -81)
+states/Atack/node = SubResource("AnimationNodeStateMachine_pmml0")
+states/Atack/position = Vector2(18.1253, -193.667)
+states/Bare/node = SubResource("AnimationNodeStateMachine_g8hl1")
+states/Bare/position = Vector2(-200.06, -180.667)
+states/Equip/node = SubResource("5")
+states/Equip/position = Vector2(-205.277, -16.4445)
 states/Fire/node = SubResource("2")
 states/Fire/position = Vector2(332.792, 112)
 states/FireModes/node = SubResource("3")
-states/FireModes/position = Vector2(-206.208, 120)
+states/FireModes/position = Vector2(-200.233, 230.667)
 states/Focus/node = SubResource("4")
 states/Focus/position = Vector2(332.792, -146)
-states/Idle/node = SubResource("5")
-states/Idle/position = Vector2(-13, 113.333)
 states/Reload/node = SubResource("6")
 states/Reload/position = Vector2(180, 253)
-states/Start/position = Vector2(-14.2222, -18.6667)
-transitions = ["Idle", "Reload", SubResource("7"), "Reload", "Idle", SubResource("8"), "Aim", "Reload", SubResource("9"), "Aim", "Idle", SubResource("10"), "Aim", "Focus", SubResource("11"), "Focus", "Fire", SubResource("12"), "Fire", "Reload", SubResource("13"), "Fire", "Idle", SubResource("14"), "Focus", "Aim", SubResource("15"), "Reload", "Aim", SubResource("16"), "Reload", "Fire", SubResource("17"), "Aim", "Fire", SubResource("18"), "Aim", "FireModes", SubResource("19"), "Idle", "FireModes", SubResource("20"), "Reload", "FireModes", SubResource("21"), "FireModes", "Idle", SubResource("22"), "Idle", "Aim", SubResource("23"), "Idle", "Fire", SubResource("24"), "Start", "Idle", SubResource("AnimationNodeStateMachineTransition_74hbg")]
-graph_offset = Vector2(-243.208, -129)
+states/Start/position = Vector2(-387.259, -239.556)
+transitions = ["Equip", "Reload", SubResource("7"), "Reload", "Equip", SubResource("8"), "Aim", "Reload", SubResource("9"), "Aim", "Equip", SubResource("10"), "Aim", "Focus", SubResource("11"), "Focus", "Fire", SubResource("12"), "Fire", "Reload", SubResource("13"), "Fire", "Equip", SubResource("14"), "Focus", "Aim", SubResource("15"), "Reload", "Aim", SubResource("16"), "Reload", "Fire", SubResource("17"), "Aim", "Fire", SubResource("18"), "Aim", "FireModes", SubResource("19"), "Equip", "FireModes", SubResource("20"), "Reload", "FireModes", SubResource("21"), "FireModes", "Equip", SubResource("22"), "Equip", "Aim", SubResource("23"), "Equip", "Fire", SubResource("24"), "Start", "Bare", SubResource("AnimationNodeStateMachineTransition_rmw8f"), "Bare", "Equip", SubResource("AnimationNodeStateMachineTransition_g8hl1"), "Equip", "Bare", SubResource("AnimationNodeStateMachineTransition_pmml0"), "Bare", "Atack", SubResource("AnimationNodeStateMachineTransition_k7anp"), "Atack", "Bare", SubResource("AnimationNodeStateMachineTransition_uipgm")]
+graph_offset = Vector2(-513.208, -358)

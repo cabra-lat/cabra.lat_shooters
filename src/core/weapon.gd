@@ -21,7 +21,7 @@ signal ammofeed_incompatible
 @export var feed_sound: AudioStream   # Sound to be played when reloading
 @export var empty_sound: AudioStream  # Sound to be played when empty
 @export var extra_sound: AudioStream  # Sound to be played when pumped or cocked
-@export var ammofeed: Resource
+@export var ammofeed: AmmoFeed
 
 @export var attach_points: enums.MountPoint = enums.MountPoint.NONE
 @export var firemodes: enums.Firemode = enums.Firemode.SEMI
@@ -29,7 +29,7 @@ signal ammofeed_incompatible
 
 # Statistics Variables
 @export var firerate: float  = 100 # Rounds per minute
-@export var burstfire: int = 3   # Round
+@export var burstfire: int   = 3   # Round
 @export var mass: float      = 1.0 # Kg
 
 # State Variables
@@ -50,6 +50,9 @@ func get_reload_time() -> float:
 var firemode = enums.Firemode.SAFE
 var semi_control  = false
 var burst_control = burstfire
+
+func is_automatic() -> bool:
+	return firemode ==  enums.Firemode.AUTO or firemode ==  enums.Firemode.BURST
 
 func get_firemode():
 	for firemode_name in enums.Firemode:

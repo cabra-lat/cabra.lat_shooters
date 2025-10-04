@@ -4,7 +4,7 @@ extends Node
 @onready var ak47_magazine  = preload("../resources/magazine_ak47.tres")
 @onready var ammo_762x39mm  = preload("../resources/ammo_7.62x39mm.tres")
 
-@export var weapon: Resource
+@export var weapon: Weapon
 var firerate_cooldown
 var reload_cooldown
 
@@ -48,6 +48,7 @@ func _ready():
 	weapon.connect("ammofeed_changed", Callable(self, "_on_ammofeed_changed"))
 	weapon.connect("ammofeed_missing", Callable(self, "_on_ammofeed_missing"))
 	weapon.connect("ammofeed_incompatible", Callable(self, "_on_ammofeed_incompatible"))
+	add_child(weapon.viewmodel.instantiate())
 	
 	for i in range(ak47_magazine.max_capacity):
 		ak47_magazine.insert(ammo_762x39mm)

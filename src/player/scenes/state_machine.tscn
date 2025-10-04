@@ -1,9 +1,9 @@
 [gd_scene load_steps=5 format=3 uid="uid://c42qkmjwa8k8j"]
 
-[ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/resources/logic/moving_logic.tres" id="1"]
-[ext_resource type="AnimationNodeStateMachine" uid="uid://1cwd24iv33k8" path="res://addons/cabra.lat_shooters/src/resources/logic/firing_logic.tres" id="2"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/resources/moving_logic.tres" id="1"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://1cwd24iv33k8" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="2"]
 [ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="2_5uhtu"]
-[ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/resources/logic/crouch_prone_stand_logic.tres" id="3"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="3"]
 
 [node name="StateMachine" type="AnimationPlayer"]
 
@@ -31,6 +31,8 @@ parameters/conditions/+prone = false
 parameters/conditions/-crouch = false
 parameters/conditions/-lean = false
 parameters/conditions/-prone = false
+parameters/conditions/lean_left = false
+parameters/conditions/lean_right = false
 script = ExtResource("2_5uhtu")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
@@ -40,12 +42,14 @@ tree_root = ExtResource("2")
 anim_player = NodePath("..")
 parameters/conditions/+aim = false
 parameters/conditions/+aim_pressed = false
+parameters/conditions/+equip = false
 parameters/conditions/+fire = false
 parameters/conditions/+fire_pressed = false
 parameters/conditions/+firemode = false
 parameters/conditions/+focus = false
 parameters/conditions/+reload = false
 parameters/conditions/-aim = false
+parameters/conditions/-equip = false
 parameters/conditions/-fire = false
 parameters/conditions/-firemode = false
 parameters/conditions/-focus = false

@@ -1,0 +1,62 @@
+[gd_scene load_steps=7 format=3 uid="uid://ly33hk8t667t"]
+
+[ext_resource type="Script" uid="uid://ckkfeu1o5htfm" path="res://addons/cabra.lat_shooters/src/player/controls.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://c42qkmjwa8k8j" path="res://addons/cabra.lat_shooters/src/player/scenes/state_machine.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://c6mfjk8v5pslc" path="res://addons/cabra.lat_interactions/interactor.tscn" id="4_ntvkq"]
+[ext_resource type="PackedScene" uid="uid://8x85dbyhhwva" path="res://addons/cabra.lat_cursors/cursor_3d.tscn" id="4_xourr"]
+
+[sub_resource type="CapsuleShape3D" id="1"]
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_5m4bh"]
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1")
+
+[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("1")
+
+[node name="Head" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+
+[node name="Camera3D" type="Camera3D" parent="Head"]
+fov = 46.0
+near = 0.01
+far = 937.3
+
+[node name="Shoulder" type="Marker3D" parent="Head"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.14, -0.115, -0.275)
+
+[node name="Hand" type="Marker3D" parent="Head/Shoulder"]
+
+[node name="StateMachine" parent="." instance=ExtResource("2")]
+libraries = {
+&"": SubResource("AnimationLibrary_5m4bh")
+}
+
+[node name="FocusTimer" type="Timer" parent="."]
+one_shot = true
+
+[node name="ReloadTimer" type="Timer" parent="."]
+one_shot = true
+
+[node name="FiremodeTimer" type="Timer" parent="."]
+wait_time = 0.5
+one_shot = true
+
+[node name="FirerateTimer" type="Timer" parent="."]
+one_shot = true
+
+[node name="Cursor3D" parent="." instance=ExtResource("4_xourr")]
+position = Vector2(474, 355)
+scale = Vector2(0.839807, 0.839807)
+
+[node name="Interactor3D" parent="." node_paths=PackedStringArray("follow", "Cursor") instance=ExtResource("4_ntvkq")]
+follow = NodePath("../Head/Camera3D")
+Cursor = NodePath("../Cursor3D")
+
+[connection signal="timeout" from="FocusTimer" to="." method="_on_focus_timeout"]
+[connection signal="timeout" from="ReloadTimer" to="." method="_on_reload_timeout"]
+[connection signal="timeout" from="FiremodeTimer" to="." method="_on_firemode_timeout"]
+[connection signal="timeout" from="FirerateTimer" to="." method="_on_weapon_cycle_timeout"]

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="InventoryItem" load_steps=2 format=3 uid="uid://cep0f5gr1e07q"]
+
+[ext_resource type="Script" uid="uid://bsbgkapw1smq8" path="res://addons/cabra.lat_shooters/src/inventory/inventory_item.gd" id="2_anfha"]
+
+[resource]
+script = ExtResource("2_anfha")
+max_stack = 0
+dimensions = Vector2i(5, 1)
+metadata/_custom_type_script = "uid://bsbgkapw1smq8"

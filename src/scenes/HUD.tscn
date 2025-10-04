@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://bxlbq0drdtji4"]
 
-[ext_resource type="Script" uid="uid://cg2frdbwbs5qx" path="res://addons/cabra.lat_shooters/src/core/hud.gd" id="1"]
+[ext_resource type="Script" uid="uid://cg2frdbwbs5qx" path="res://addons/cabra.lat_shooters/src/hud/hud.gd" id="1"]
 
 [sub_resource type="FontFile" id="41"]
 subpixel_positioning = 0
@@ -46,10 +46,10 @@ layout_mode = 1
 anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 654.297
-offset_top = 325.378
-offset_right = -197.702
-offset_bottom = -363.622
+offset_left = 431.297
+offset_top = 277.378
+offset_right = -420.702
+offset_bottom = -411.622
 grow_horizontal = 0
 grow_vertical = 2
 size_flags_vertical = 1
@@ -67,10 +67,10 @@ layout_mode = 1
 anchors_preset = -1
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 647.297
-offset_top = 275.378
-offset_right = -204.703
-offset_bottom = -413.622
+offset_left = 40.2973
+offset_top = 77.3784
+offset_right = -811.703
+offset_bottom = -611.622
 size_flags_vertical = 1
 theme_override_fonts/font = SubResource("FontFile_k5de2")
 theme_override_styles/normal = SubResource("StyleBoxFlat_efote")
