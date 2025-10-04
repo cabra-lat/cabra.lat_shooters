@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Ammo" load_steps=2 format=3 uid="uid://bedjn8n65irei"]
+
+[ext_resource type="Script" uid="uid://bdyogq2oufx0o" path="res://src/core/ammo.gd" id="1"]
+
+[resource]
+resource_local_to_scene = true
+script = ExtResource("1")
+caliber = "7.62×39mm"
+description = "7.62×39mm is a rimless bottlenecked cartridge of Soviet origin."
+penetration = 1.0
+speed = 718.0
+accuracy = 75.0
+armor_damage = 0.0
+bleeding_chance = 0.0
+ricochet_chance = 0.0
+fragment_chance = 0.0
+bullet_mass = 7.9
+cartridge_mass = 16.3

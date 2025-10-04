@@ -1,0 +1,17 @@
+[gd_resource type="Resource" load_steps=2 format=2]
+
+[ext_resource type="Script" uid="uid://bdyogq2oufx0o" path="res://src/core/ammo.gd" id="1"]
+
+[resource]
+script = ExtResource( 1 )
+caliber = "12G"
+description = "12 Gauge ammo"
+penetration = 1.0
+speed = 1.0
+accuracy = 1.0
+armor_damage = 0.0
+bleeding_chance = 0.0
+ricochet_chance = 0.0
+fragment_chance = 0.0
+bullet_mass = 1.0
+cartridge_mass = 1.0

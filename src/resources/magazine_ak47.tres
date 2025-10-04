@@ -1,0 +1,11 @@
+[gd_resource type="Resource" load_steps=2 format=2]
+
+[ext_resource type="Script" uid="uid://i1a2beubqkyr" path="res://src/core/ammo_feed.gd" id="1"]
+
+[resource]
+resource_local_to_scene = true
+script = ExtResource( 1 )
+max_capacity = 30
+contents = [  ]
+type = 1
+empty_mass = 0.0
