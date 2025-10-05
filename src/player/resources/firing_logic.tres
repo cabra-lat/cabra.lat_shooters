@@ -1,18 +1,18 @@
-[gd_resource type="AnimationNodeStateMachine" load_steps=27 format=3 uid="uid://cr8hjyxyw6huw"]
+[gd_resource type="AnimationNodeStateMachine" load_steps=33 format=3 uid="uid://cr8hjyxyw6huw"]
 
 [sub_resource type="AnimationNodeStateMachine" id="s_aiming"]
+
+[sub_resource type="AnimationNodeStateMachine" id="s_firingaim"]
 
 [sub_resource type="AnimationNodeStateMachine" id="s_barehands"]
 
 [sub_resource type="AnimationNodeStateMachine" id="s_changemode"]
 
-[sub_resource type="AnimationNodeStateMachine" id="s_firingaim"]
-
-[sub_resource type="AnimationNodeStateMachine" id="s_firingfocus"]
-
 [sub_resource type="AnimationNodeStateMachine" id="s_firingidle"]
 
 [sub_resource type="AnimationNodeStateMachine" id="s_holdingbreath"]
+
+[sub_resource type="AnimationNodeStateMachine" id="s_firingfocus"]
 
 [sub_resource type="AnimationNodeStateMachine" id="s_idle"]
 
@@ -73,37 +73,61 @@ advance_condition = &"-fire"
 advance_mode = 2
 advance_condition = &"+reload"
 
-[sub_resource type="AnimationNodeStateMachineTransition" id="t_reloading_to_any"]
-advance_mode = 2
-advance_condition = &"-reload"
-
 [sub_resource type="AnimationNodeStateMachineTransition" id="t_any_to_changemode"]
 advance_mode = 2
 advance_condition = &"+firemode"
 
-[sub_resource type="AnimationNodeStateMachineTransition" id="t_changemode_to_any"]
+[sub_resource type="AnimationNodeStateMachineTransition" id="t_reloading_to_any"]
+advance_mode = 2
+advance_condition = &"-reload"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_g8hl1"]
 advance_mode = 2
 advance_condition = &"-firemode"
 
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_pmml0"]
+advance_mode = 2
+advance_condition = &"-aim"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_k7anp"]
+advance_mode = 2
+advance_condition = &"-focus"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_uipgm"]
+advance_mode = 2
+advance_condition = &"+aim"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_rmw8f"]
+advance_mode = 2
+advance_condition = &"+focus"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_kfbfd"]
+advance_mode = 2
+advance_condition = &"-aim"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_m8des"]
+advance_mode = 2
+advance_condition = &"-aim"
+
 [resource]
 states/Aiming/node = SubResource("s_aiming")
-states/Aiming/position = Vector2(50, -100)
+states/Aiming/position = Vector2(81.3526, 28.2963)
+states/AimingFiring/node = SubResource("s_firingaim")
+states/AimingFiring/position = Vector2(80.6331, 279.391)
 states/BareHands/node = SubResource("s_barehands")
-states/BareHands/position = Vector2(-400, 0)
+states/BareHands/position = Vector2(-456, -38.6667)
 states/ChangingMode/node = SubResource("s_changemode")
-states/ChangingMode/position = Vector2(-150, 250)
-states/FiringAim/node = SubResource("s_firingaim")
-states/FiringAim/position = Vector2(50, 50)
-states/FiringFocus/node = SubResource("s_firingfocus")
-states/FiringFocus/position = Vector2(250, 50)
-states/FiringIdle/node = SubResource("s_firingidle")
-states/FiringIdle/position = Vector2(-150, 150)
+states/ChangingMode/position = Vector2(71.3333, -223.333)
+states/Firing/node = SubResource("s_firingidle")
+states/Firing/position = Vector2(-206.346, 366.504)
 states/HoldingBreath/node = SubResource("s_holdingbreath")
-states/HoldingBreath/position = Vector2(250, -100)
+states/HoldingBreath/position = Vector2(368.173, -46.2716)
+states/HoldingBreathFiring/node = SubResource("s_firingfocus")
+states/HoldingBreathFiring/position = Vector2(377.342, 354.601)
 states/Idle/node = SubResource("s_idle")
-states/Idle/position = Vector2(-150, 0)
+states/Idle/position = Vector2(-214.889, -45.251)
 states/Reloading/node = SubResource("s_reloading")
-states/Reloading/position = Vector2(50, 250)
-states/Start/position = Vector2(-600, 0)
-transitions = ["Start", "BareHands", SubResource("t_start_to_bare"), "BareHands", "Idle", SubResource("t_bare_to_equipped"), "Idle", "BareHands", SubResource("t_equipped_to_bare"), "Idle", "Aiming", SubResource("t_idle_to_aiming"), "Aiming", "Idle", SubResource("t_aiming_to_idle"), "Aiming", "HoldingBreath", SubResource("t_aiming_to_holdingbreath"), "HoldingBreath", "Aiming", SubResource("t_holdingbreath_to_aiming"), "Idle", "FiringIdle", SubResource("t_idle_to_firingidle"), "FiringIdle", "Idle", SubResource("t_firingidle_to_idle"), "Aiming", "FiringAim", SubResource("t_aiming_to_firingaim"), "FiringAim", "Aiming", SubResource("t_firingaim_to_aiming"), "HoldingBreath", "FiringFocus", SubResource("t_holdingbreath_to_firingfocus"), "FiringFocus", "HoldingBreath", SubResource("t_firingfocus_to_holdingbreath"), "Idle", "Reloading", SubResource("t_any_to_reloading"), "Aiming", "Reloading", SubResource("t_any_to_reloading"), "HoldingBreath", "Reloading", SubResource("t_any_to_reloading"), "FiringIdle", "Reloading", SubResource("t_any_to_reloading"), "FiringAim", "Reloading", SubResource("t_any_to_reloading"), "FiringFocus", "Reloading", SubResource("t_any_to_reloading"), "Reloading", "Idle", SubResource("t_reloading_to_any"), "Reloading", "Aiming", SubResource("t_reloading_to_any"), "Reloading", "HoldingBreath", SubResource("t_reloading_to_any"), "Idle", "ChangingMode", SubResource("t_any_to_changemode"), "Aiming", "ChangingMode", SubResource("t_any_to_changemode"), "HoldingBreath", "ChangingMode", SubResource("t_any_to_changemode"), "ChangingMode", "Idle", SubResource("t_changemode_to_any"), "ChangingMode", "Aiming", SubResource("t_changemode_to_any"), "ChangingMode", "HoldingBreath", SubResource("t_changemode_to_any")]
-graph_offset = Vector2(-528, -122)
+states/Reloading/position = Vector2(-48.1728, 162)
+states/Start/position = Vector2(-662.667, -39.1111)
+transitions = ["Start", "BareHands", SubResource("t_start_to_bare"), "BareHands", "Idle", SubResource("t_bare_to_equipped"), "Idle", "BareHands", SubResource("t_equipped_to_bare"), "Idle", "Aiming", SubResource("t_idle_to_aiming"), "Aiming", "Idle", SubResource("t_aiming_to_idle"), "Aiming", "HoldingBreath", SubResource("t_aiming_to_holdingbreath"), "HoldingBreath", "Aiming", SubResource("t_holdingbreath_to_aiming"), "Idle", "Firing", SubResource("t_idle_to_firingidle"), "Firing", "Idle", SubResource("t_firingidle_to_idle"), "Aiming", "AimingFiring", SubResource("t_aiming_to_firingaim"), "AimingFiring", "Aiming", SubResource("t_firingaim_to_aiming"), "HoldingBreath", "HoldingBreathFiring", SubResource("t_holdingbreath_to_firingfocus"), "HoldingBreathFiring", "HoldingBreath", SubResource("t_firingfocus_to_holdingbreath"), "Idle", "Reloading", SubResource("t_any_to_reloading"), "Aiming", "Reloading", SubResource("t_any_to_reloading"), "HoldingBreath", "Reloading", SubResource("t_any_to_reloading"), "Firing", "Reloading", SubResource("t_any_to_reloading"), "AimingFiring", "Reloading", SubResource("t_any_to_reloading"), "HoldingBreathFiring", "Reloading", SubResource("t_any_to_reloading"), "Idle", "ChangingMode", SubResource("t_any_to_changemode"), "Aiming", "ChangingMode", SubResource("t_any_to_changemode"), "HoldingBreath", "ChangingMode", SubResource("t_any_to_changemode"), "Reloading", "Idle", SubResource("t_reloading_to_any"), "ChangingMode", "Idle", SubResource("AnimationNodeStateMachineTransition_g8hl1"), "AimingFiring", "Firing", SubResource("AnimationNodeStateMachineTransition_pmml0"), "HoldingBreathFiring", "AimingFiring", SubResource("AnimationNodeStateMachineTransition_k7anp"), "Firing", "AimingFiring", SubResource("AnimationNodeStateMachineTransition_uipgm"), "AimingFiring", "HoldingBreathFiring", SubResource("AnimationNodeStateMachineTransition_rmw8f"), "HoldingBreathFiring", "Firing", SubResource("AnimationNodeStateMachineTransition_kfbfd"), "HoldingBreath", "Idle", SubResource("AnimationNodeStateMachineTransition_m8des")]
+graph_offset = Vector2(-496, 41)

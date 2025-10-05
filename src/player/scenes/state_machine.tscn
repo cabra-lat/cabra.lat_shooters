@@ -1,10 +1,10 @@
 [gd_scene load_steps=6 format=3 uid="uid://c42qkmjwa8k8j"]
 
-[ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/scenes/resources/moving_logic.tres" id="1"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/resources/moving_logic.tres" id="1"]
 [ext_resource type="Script" uid="uid://btocqd0ckq2x0" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="1_gg1ss"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cr8hjyxyw6huw" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="2"]
 [ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="2_5uhtu"]
-[ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/scenes/resources/crouch_prone_stand_logic.tres" id="3"]
-[ext_resource type="AnimationNodeStateMachine" path="res://addons/cabra.lat_shooters/src/player/scenes/resources/firing_logic-2.tres" id="4_xvxgy"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="3"]
 
 [node name="StateMachine" type="AnimationPlayer"]
 script = ExtResource("1_gg1ss")
@@ -41,7 +41,7 @@ metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
 [node name="FiringLogic" type="AnimationTree" parent="."]
 root_node = NodePath("../..")
-tree_root = ExtResource("4_xvxgy")
+tree_root = ExtResource("2")
 anim_player = NodePath("..")
 parameters/conditions/+aim = false
 parameters/conditions/+equip = false
