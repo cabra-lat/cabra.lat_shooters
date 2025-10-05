@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://ly33hk8t667t"]
+[gd_scene load_steps=6 format=3 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://ckkfeu1o5htfm" path="res://addons/cabra.lat_shooters/src/player/controls.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://c42qkmjwa8k8j" path="res://addons/cabra.lat_shooters/src/player/scenes/state_machine.tscn" id="2"]
@@ -6,8 +6,6 @@
 [ext_resource type="PackedScene" uid="uid://8x85dbyhhwva" path="res://addons/cabra.lat_cursors/cursor_3d.tscn" id="4_xourr"]
 
 [sub_resource type="CapsuleShape3D" id="1"]
-
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_5m4bh"]
 
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1")
@@ -31,9 +29,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.14, -0.115, -0.275)
 [node name="Hand" type="Marker3D" parent="Head/Shoulder"]
 
 [node name="StateMachine" parent="." instance=ExtResource("2")]
-libraries = {
-&"": SubResource("AnimationLibrary_5m4bh")
-}
 
 [node name="FocusTimer" type="Timer" parent="."]
 one_shot = true
@@ -56,6 +51,18 @@ scale = Vector2(0.839807, 0.839807)
 follow = NodePath("../Head/Camera3D")
 Cursor = NodePath("../Cursor3D")
 
+[connection signal="aiming" from="." to="StateMachine" method="_on_player_aiming"]
+[connection signal="check_ammofeed" from="." to="StateMachine" method="_on_player_check_ammofeed"]
+[connection signal="crouched" from="." to="StateMachine" method="_on_player_crouched"]
+[connection signal="equipped" from="." to="StateMachine" method="_on_player_equipped"]
+[connection signal="insert_ammofeed" from="." to="StateMachine" method="_on_player_insert_ammofeed"]
+[connection signal="jumped" from="." to="StateMachine" method="_on_player_jumped"]
+[connection signal="landed" from="." to="StateMachine" method="_on_player_landed"]
+[connection signal="leaned" from="." to="StateMachine" method="_on_player_leaned"]
+[connection signal="moved" from="." to="StateMachine" method="_on_player_moved"]
+[connection signal="proned" from="." to="StateMachine" method="_on_player_proned"]
+[connection signal="reloaded" from="." to="StateMachine" method="_on_player_reloaded"]
+[connection signal="unequiped" from="." to="StateMachine" method="_on_player_unequiped"]
 [connection signal="timeout" from="FocusTimer" to="." method="_on_focus_timeout"]
 [connection signal="timeout" from="ReloadTimer" to="." method="_on_reload_timeout"]
 [connection signal="timeout" from="FiremodeTimer" to="." method="_on_firemode_timeout"]

@@ -1,16 +1,14 @@
 class_name PlayerConfig
 extends Resource
 
-
 @export_group("Maximum")
-@export var max_weight: int = 100
-@export var max_slots: int = 100
-@export var max_weapons: int = 100
-@export var letal_acceleration: float = 50 # g
+@export var max_weight: int = 100 ## Maximum amount of weight player can carry
+@export var letal_acceleration: float = 50 ## Maximum amount of acceleration player can take
 
-@export_group("Normal")
+@export_group("Default")
 @export var default_fov: int = 50
-@export var default_height: float = 0.9
+@export var default_height: float = 2.0
+@export var default_shoulder: float = 0.14
 @export var not_moving: int = 0
 @export var no_bobbing: int = 0
 @export var turn_speed: int = 1
@@ -48,26 +46,31 @@ extends Resource
 @export var prone_height: float = 0.09  # 0.1 * default_height
 @export var prone_speed: float = 1.0  # 0.25 * walk_speed
 
+@export_group("Leaning")
+@export var lean_angle_while_idling = 45
+@export var lean_angle_while_walking = 30
+@export var lean_speed: float = 0.2
+
 var speed = 4
 var camera_fov: float = 70.0
-var head_bobbing = 0
+var head_bobbing = 0.01
 var camera_height = 0.9
 var lean_angle = 0.2
-var jump_impulse = 2
+var jump_impulse = 5
 
 func idle():
 	speed = not_moving
 	camera_fov = default_fov
 	head_bobbing = no_bobbing
 	camera_height = default_height
-	lean_angle = 10
+	lean_angle = lean_angle_while_idling
 
 func walk():
 	speed = walk_speed
 	camera_fov = walk_fov
 	head_bobbing = walk_bobbing
 	camera_height = walk_height
-	lean_angle = 5
+	lean_angle = lean_angle_while_walking
 
 func sprint():
 	speed = sprint_speed
