@@ -1,12 +1,97 @@
-[gd_scene load_steps=6 format=3 uid="uid://ly33hk8t667t"]
+[gd_scene load_steps=30 format=3 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://ckkfeu1o5htfm" path="res://addons/cabra.lat_shooters/src/player/controls.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://c42qkmjwa8k8j" path="res://addons/cabra.lat_shooters/src/player/scenes/state_machine.tscn" id="2"]
+[ext_resource type="Script" uid="uid://btocqd0ckq2x0" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="2_1l6ly"]
+[ext_resource type="Script" uid="uid://s5lb4v32m65a" path="res://addons/cabra.lat_shooters/src/weapons/weapon_node.gd" id="2_i7om4"]
+[ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="3_i7om4"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="4_le7o6"]
 [ext_resource type="PackedScene" uid="uid://c6mfjk8v5pslc" path="res://addons/cabra.lat_interactions/interactor.tscn" id="4_ntvkq"]
 [ext_resource type="PackedScene" uid="uid://8x85dbyhhwva" path="res://addons/cabra.lat_cursors/cursor_3d.tscn" id="4_xourr"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cr8hjyxyw6huw" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="5_ya1ri"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_5m4bh"]
 height = 1.7
+radius = 0.4
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_le7o6"]
+
+[sub_resource type="AnimationNodeStateMachine" id="1"]
+
+[sub_resource type="AnimationNodeStateMachine" id="3"]
+
+[sub_resource type="AnimationNodeStateMachine" id="4"]
+
+[sub_resource type="AnimationNodeStateMachine" id="5"]
+
+[sub_resource type="AnimationNodeStateMachine" id="6"]
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="7"]
+advance_mode = 2
+advance_condition = &"+move"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="8"]
+advance_mode = 2
+advance_condition = &"+jump"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="9"]
+advance_mode = 2
+advance_condition = &"on_air"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="10"]
+advance_mode = 2
+advance_condition = &"on_ground"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="11"]
+advance_mode = 2
+advance_condition = &"+jump"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="12"]
+advance_mode = 2
+advance_condition = &"on_air"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="13"]
+advance_mode = 2
+advance_condition = &"-move"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="14"]
+advance_mode = 2
+advance_condition = &"on_air"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="15"]
+advance_mode = 2
+advance_condition = &"+sprint"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="16"]
+advance_mode = 2
+advance_condition = &"-sprint"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="17"]
+advance_mode = 2
+advance_condition = &"+jump"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="18"]
+advance_mode = 2
+advance_condition = &"on_air"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_2gstt"]
+advance_mode = 2
+advance_expression = "true"
+
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_gd4lp"]
+resource_local_to_scene = true
+states/Fall/node = SubResource("1")
+states/Fall/position = Vector2(228, 252)
+states/Idle/node = SubResource("3")
+states/Idle/position = Vector2(228.148, -9.06173)
+states/Jump/node = SubResource("4")
+states/Jump/position = Vector2(639, 252)
+states/Sprint/node = SubResource("5")
+states/Sprint/position = Vector2(639, -10)
+states/Start/position = Vector2(78.6667, -10.963)
+states/Walk/node = SubResource("6")
+states/Walk/position = Vector2(427, -139)
+transitions = ["Idle", "Walk", SubResource("7"), "Walk", "Jump", SubResource("8"), "Jump", "Fall", SubResource("9"), "Fall", "Idle", SubResource("10"), "Idle", "Jump", SubResource("11"), "Walk", "Fall", SubResource("12"), "Walk", "Idle", SubResource("13"), "Idle", "Fall", SubResource("14"), "Walk", "Sprint", SubResource("15"), "Sprint", "Walk", SubResource("16"), "Sprint", "Jump", SubResource("17"), "Sprint", "Fall", SubResource("18"), "Start", "Idle", SubResource("AnimationNodeStateMachineTransition_2gstt")]
+graph_offset = Vector2(-27, 31)
 
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1")
@@ -25,11 +110,68 @@ near = 0.01
 far = 937.3
 
 [node name="Shoulder" type="Marker3D" parent="Head"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.14, -0.115, -0.275)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.215)
 
 [node name="Hand" type="Marker3D" parent="Head/Shoulder"]
 
-[node name="StateMachine" parent="." instance=ExtResource("2")]
+[node name="WeaponNode" type="Node3D" parent="Head/Shoulder/Hand"]
+script = ExtResource("2_i7om4")
+metadata/_custom_type_script = "uid://s5lb4v32m65a"
+
+[node name="StateMachine" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_le7o6")
+}
+script = ExtResource("2_1l6ly")
+metadata/_custom_type_script = "uid://btocqd0ckq2x0"
+
+[node name="MovingLogic" type="AnimationTree" parent="StateMachine"]
+root_node = NodePath("../..")
+tree_root = SubResource("AnimationNodeStateMachine_gd4lp")
+anim_player = NodePath("..")
+parameters/conditions/+jump = false
+parameters/conditions/+move = false
+parameters/conditions/+sprint = false
+parameters/conditions/-move = false
+parameters/conditions/-sprint = false
+parameters/conditions/on_air = false
+parameters/conditions/on_ground = false
+script = ExtResource("3_i7om4")
+metadata/_custom_type_script = "uid://x8rsaq0qwxag"
+
+[node name="CrouchLogic" type="AnimationTree" parent="StateMachine"]
+root_node = NodePath("../..")
+tree_root = ExtResource("4_le7o6")
+anim_player = NodePath("..")
+parameters/conditions/+crouch = false
+parameters/conditions/+lean = false
+parameters/conditions/+prone = false
+parameters/conditions/-crouch = false
+parameters/conditions/-lean = false
+parameters/conditions/-prone = false
+parameters/conditions/lean_left = false
+parameters/conditions/lean_right = false
+script = ExtResource("3_i7om4")
+metadata/_custom_type_script = "uid://x8rsaq0qwxag"
+
+[node name="FiringLogic" type="AnimationTree" parent="StateMachine"]
+root_node = NodePath("../..")
+tree_root = ExtResource("5_ya1ri")
+anim_player = NodePath("..")
+parameters/conditions/+aim = false
+parameters/conditions/+equip = false
+parameters/conditions/+fire = false
+parameters/conditions/+firemode = false
+parameters/conditions/+focus = false
+parameters/conditions/+reload = false
+parameters/conditions/-aim = false
+parameters/conditions/-equip = false
+parameters/conditions/-fire = false
+parameters/conditions/-firemode = false
+parameters/conditions/-focus = false
+parameters/conditions/-reload = false
+script = ExtResource("3_i7om4")
+metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
 [node name="FocusTimer" type="Timer" parent="."]
 one_shot = true
@@ -38,10 +180,6 @@ one_shot = true
 one_shot = true
 
 [node name="FiremodeTimer" type="Timer" parent="."]
-wait_time = 0.5
-one_shot = true
-
-[node name="FirerateTimer" type="Timer" parent="."]
 one_shot = true
 
 [node name="Cursor3D" parent="." instance=ExtResource("4_xourr")]
@@ -68,4 +206,3 @@ Cursor = NodePath("../Cursor3D")
 [connection signal="timeout" from="FocusTimer" to="." method="_on_focus_timeout"]
 [connection signal="timeout" from="ReloadTimer" to="." method="_on_reload_timeout"]
 [connection signal="timeout" from="FiremodeTimer" to="." method="_on_firemode_timeout"]
-[connection signal="timeout" from="FirerateTimer" to="." method="_on_weapon_cycle_timeout"]

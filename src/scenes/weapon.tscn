@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://caaek07fq57mv"]
+
+[ext_resource type="Script" uid="uid://s5lb4v32m65a" path="res://addons/cabra.lat_shooters/src/weapons/weapon_node.gd" id="1_toc32"]
+
+[node name="WeaponNode" type="Node3D"]
+script = ExtResource("1_toc32")
+metadata/_custom_type_script = "uid://s5lb4v32m65a"

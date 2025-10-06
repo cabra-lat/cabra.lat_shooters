@@ -39,7 +39,6 @@ signal check_ammofeed(player: Player, ammofeed: AmmoFeed)
 signal debug(player: Player, text: String)
 
 @export var config: PlayerConfig  # No default instance — created in _ready if needed
-@export var weapon: Weapon
 @export var inventory: Inventory
 
 @onready var moving_logic = $StateMachine/MovingLogic
@@ -50,10 +49,10 @@ signal debug(player: Player, text: String)
 @onready var camera:    Camera3D         = $Head/Camera3D
 @onready var shoulder:  Node3D           = $Head/Shoulder
 @onready var hand:      Node3D           = $Head/Shoulder/Hand
+@onready var weapon:    WeaponNode       = $Head/Shoulder/Hand/WeaponNode
 @onready var focus_timer:    Timer = $FocusTimer
 @onready var reload_timer:   Timer = $ReloadTimer
 @onready var firemode_timer: Timer = $FiremodeTimer
-@onready var weapon_cycle:   Timer = $FirerateTimer
 
 var push = 10
 var damping = 1
@@ -110,16 +109,6 @@ func _on_reload_timeout():
 func _on_firemode_timeout():
 	Input.action_release("firemode")
 
-
-func _on_weapon_cycle_timeout():
-	var state = firing_logic.get_current_state()
-	if weapon \
-	and (state in FIRING_STATES \
-	or weapon.burst_control > 0):
-		weapon.pull_trigger()
-		if weapon.is_automatic():
-			weapon_cycle.start()
-
 func handle_conditions():
 	moving_logic.set_condition("on_ground", is_on_floor())
 	moving_logic.set_condition("on_air", not is_on_floor())
@@ -138,9 +127,9 @@ func handle_conditions():
 	crouch_logic.set_condition("+prone", Input.is_action_just_pressed("prone") or Input.is_action_just_pressed("prone_toggle"))
 	crouch_logic.set_condition("-prone", Input.is_action_just_released("prone") or Input.is_action_just_pressed("prone_toggle"))
 	
-	firing_logic.set_condition("+focus", Input.is_action_pressed("focus"))
+	firing_logic.set_condition("+focus", Input.is_action_just_pressed("focus"))
 	firing_logic.set_condition("-focus", Input.is_action_just_released("focus"))
-	firing_logic.set_condition("+aim", Input.is_action_pressed("aim"))
+	firing_logic.set_condition("+aim", Input.is_action_just_pressed("aim"))
 	firing_logic.set_condition("-aim", Input.is_action_just_released("aim"))
 	firing_logic.set_condition("+fire", Input.is_action_just_pressed("fire"))
 	firing_logic.set_condition("-fire", Input.is_action_just_released("fire"))
@@ -163,9 +152,9 @@ func _on_state_exited(state: String):
 		CHANGING_MODE:
 			if weapon:
 				if firemode_timer.time_left == 0:
-					weapon.safe_firemode()
+					weapon.data.safe_firemode()
 				else:
-					weapon.cycle_firemode()
+					weapon.data.cycle_firemode()
 			firemode_timer.stop()
 		FALLING:
 			landed.emit(self, max_velocity, get_process_delta_time())
@@ -175,7 +164,7 @@ func _on_state_exited(state: String):
 				if reload_timer.time_left == 0:
 					insert_ammofeed.emit(self)
 				else:
-					check_ammofeed.emit(self, weapon.ammofeed)
+					check_ammofeed.emit(self, weapon.data.ammofeed)
 				firing_logic.get("parameters/playback").travel(_base_posture)
 			reload_timer.stop()
 			
@@ -184,18 +173,17 @@ func _on_state_exited(state: String):
 	
 	if weapon and state in FIRING_STATES:
 		weapon.release_trigger()
-		weapon_cycle.stop()
 
 func _on_state_entered(state: String):
 	match state:
 		# Track base postures
 		IDLE, AIMING, FOCUSING:
 			_base_posture = state
-		AIMING:        aiming.emit(self)
-		CROUCHING:     crouched.emit(self)
-		PRONING:       proned.emit(self)
-		LEANING_RIGHT: leaned.emit(self, -1)
-		LEANING_LEFT:  leaned.emit(self, +1)
+		AIMING:        aiming   .emit(self, false)
+		CROUCHING:     crouched .emit(self)
+		PRONING:       proned   .emit(self)
+		LEANING_RIGHT: leaned   .emit(self, -1)
+		LEANING_LEFT:  leaned   .emit(self, +1)
 		BARE_HANDED:   unequiped.emit(self)
 		CHANGING_MODE:
 			if firemode_timer.is_stopped():
@@ -205,7 +193,7 @@ func _on_state_entered(state: String):
 				focus_timer.start()
 		RELOADING:
 			if weapon:
-				reload_timer.wait_time = weapon.reload_time
+				reload_timer.wait_time = weapon.data.reload_time
 				if reload_timer.is_stopped():
 					reload_timer.start()
 				reloaded.emit(self)
@@ -215,10 +203,7 @@ func _on_state_entered(state: String):
 
 		# Firing states
 	if weapon and state in FIRING_STATES:
-		weapon_cycle.wait_time = 60.0 / float(weapon.firerate)
 		weapon.pull_trigger()  # First shot
-		if weapon.is_automatic():
-			weapon_cycle.start()
 
 func _on_state_changed(new_state: String, old_state: String):
 	# Uncrouch on Idle
@@ -226,13 +211,8 @@ func _on_state_changed(new_state: String, old_state: String):
 		[ CROUCHING, IDLE ]: crouched.emit(self, true)
 		[ BARE_HANDED, _ ]:
 			if len(inventory.contents) == 0: return
-			weapon = inventory.contents[0].content as Weapon
+			weapon.data = inventory.contents[0].content as Weapon
 			equipped.emit(self)
-		[ AIMING, _ ]:
-			# Stop aiming when leaving aim postures (and not entering firing)
-			if new_state not in FIRING_STATES:
-				aiming.emit(self, true)
-
 
 func handle_process(delta):
 	var debug_text = "FPS: %d\n" % Engine.get_frames_per_second()

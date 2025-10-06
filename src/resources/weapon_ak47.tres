@@ -1,12 +1,10 @@
-[gd_resource type="Resource" script_class="Weapon" load_steps=3 format=3 uid="uid://cyvvso58mdyts"]
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://cyvvso58mdyts"]
 
 [ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://cpqqv1tvvtk7a" path="res://addons/cabra.lat_shooters/src/scenes/weapon_ak47.tscn" id="2_3ydbg"]
 
 [resource]
 resource_local_to_scene = true
 script = ExtResource("1")
-viewmodel = ExtResource("2_3ydbg")
 attach_points = 25
 firemodes = 7
 feed_type = 1

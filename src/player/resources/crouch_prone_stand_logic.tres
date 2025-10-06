@@ -103,5 +103,5 @@ states/Prone/node = SubResource("5")
 states/Prone/position = Vector2(328, 404)
 states/Start/position = Vector2(18.6667, 243.21)
 transitions = ["Idle", "Crouch", SubResource("6"), "Crouch", "Prone", SubResource("7"), "Prone", "Crouch", SubResource("8"), "Idle", "Prone", SubResource("9"), "Prone", "Idle", SubResource("10"), "Crouch", "Idle", SubResource("11"), "Crouch", "Lean", SubResource("12"), "Lean", "Crouch", SubResource("13"), "Lean", "Prone", SubResource("14"), "Idle", "Lean", SubResource("15"), "Lean", "Idle", SubResource("16"), "Start", "Idle", SubResource("AnimationNodeStateMachineTransition_qyqoc"), "Lean", "LeanRight", SubResource("AnimationNodeStateMachineTransition_543k5"), "Lean", "LeanLeft", SubResource("AnimationNodeStateMachineTransition_e6iy4"), "LeanRight", "Lean", SubResource("AnimationNodeStateMachineTransition_4uhh7"), "LeanLeft", "Lean", SubResource("AnimationNodeStateMachineTransition_e6ee4"), "LeanRight", "LeanLeft", SubResource("AnimationNodeStateMachineTransition_sb5g6"), "LeanLeft", "LeanRight", SubResource("AnimationNodeStateMachineTransition_cgyya")]
-graph_offset = Vector2(-101, -27.878)
+graph_offset = Vector2(-117, 195.122)
 script = SubResource("1")

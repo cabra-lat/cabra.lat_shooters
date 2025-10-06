@@ -14,17 +14,45 @@ signal ammofeed_changed
 signal ammofeed_missing
 signal ammofeed_incompatible
 
+const SIGNALS = [
+	"trigger_locked", 
+	"trigger_pressed", 
+	"trigger_released",
+	"firemode_changed", 
+	"cartridge_fired", 
+	"ammofeed_empty",
+	"ammofeed_changed",
+	"ammofeed_missing",
+	"ammofeed_incompatible"
+]
+
 # Visual and sound variables
-@export var viewmodel: PackedScene
+@export var viewmodel:   PackedScene
 @export var equip_sound: AudioStream  # Sound to be played when equiped
-@export var fire_sound: AudioStream   # Sound to be played when firing
-@export var feed_sound: AudioStream   # Sound to be played when reloading
+@export var fire_sound:  AudioStream  # Sound to be played when firing
+@export var feed_sound:  AudioStream  # Sound to be played when reloading
 @export var empty_sound: AudioStream  # Sound to be played when empty
 @export var extra_sound: AudioStream  # Sound to be played when pumped or cocked
-@export var ammofeed: AmmoFeed
+@export var ammofeed:    AmmoFeed
 
-@export var attach_points: enums.MountPoint = enums.MountPoint.NONE
-@export var firemodes: enums.Firemode = enums.Firemode.SEMI
+## End of barrel (suppressors, flash hiders),
+## Left rail (vertical grips, lasers),
+## Right rail (tactical lights),
+## Top rail (scopes, red dots),
+## Underbarrel (grenade launchers, grips),
+## No mount point (or not applicable)
+@export_flags("MUZZLE", "LEFT_RAIL", "RIGHT_RAIL", "TOP_RAIL", "UNDER", "NONE"
+) var attach_points: int = enums.MountPoint.NONE
+
+## Safe — trigger disabled,
+## Fully automatic,
+## Semi-automatic (one shot per trigger pull),
+## Burst fire (e.g., 3-round burst),
+## Pump-action (shotguns),
+## Bolt-action (manual cycling)
+@export_flags("SAFE", "AUTO", "SEMI", "BURST", "PUMP", "BOLT"
+) var firemodes: int = enums.Firemode.SEMI
+
 @export var feed_type: enums.FeedType = enums.FeedType.INTERNAL
 
 # Statistics Variables
@@ -52,87 +80,84 @@ var semi_control  = false
 var burst_control = burstfire
 
 func is_automatic() -> bool:
-	return firemode ==  enums.Firemode.AUTO or firemode ==  enums.Firemode.BURST
+	return firemode ==  enums.Firemode.AUTO \
+		or firemode ==  enums.Firemode.BURST
 
 func get_firemode():
 	for firemode_name in enums.Firemode:
-		if (enums.Firemode.get(firemode_name) & firemode): return firemode_name
+		if (enums.Firemode.get(firemode_name) \
+		   & firemode): return firemode_name
 
 func safe_firemode():
 	firemode = enums.Firemode.SAFE
-	emit_signal("firemode_changed", "SAFE")
+	firemode_changed.emit(get_firemode())
 
-func _is_active_firemode(firemode_name):
-	return bool(enums.Firemode.get(firemode_name) & firemodes &~enums.Firemode.SAFE)
+func is_firemode_active(firemode_name):
+	return bool(enums.Firemode.get(firemode_name) \
+			 & firemodes &~enums.Firemode.SAFE)
 
 func cycle_firemode():
 	var firemode_names = enums.Firemode.keys()
-	var active_firemodes = Callable(self, "_is_active_firemode")
+	var active_firemodes = Callable(self, "is_firemode_active")
 	var modes = firemode_names.filter(active_firemodes)
 	for try in range(2):
 		for mode in modes:
 			var new_firemode = enums.Firemode.get(mode)
 			if new_firemode > firemode:
 				firemode = new_firemode
-				emit_signal("firemode_changed", mode)
+				firemode_changed.emit(get_firemode())
 				return
 		firemode = enums.Firemode.SAFE
 
 func pull_trigger():
 	if firemode == enums.Firemode.SAFE:
 		if semi_control: return
-		emit_signal("trigger_locked")
+		trigger_locked.emit()
 		semi_control = true
 		return
 	if ammofeed and ammofeed.is_empty():
 		if semi_control: return
-		emit_signal("ammofeed_empty")
+		ammofeed_empty.emit()
 		semi_control = true
 		return
 	if not ammofeed:
 		if semi_control: return
-		emit_signal("ammofeed_missing")
+		ammofeed_missing.emit()
 		semi_control = true
 		return
+	
 	match firemode:
-		enums.Firemode.AUTO:
-			var cartridge = ammofeed.eject()
-			if cartridge is Ammo:
-				emit_signal("cartridge_fired", [cartridge])
 		enums.Firemode.SEMI:
 			if semi_control: return
-			var cartridge = ammofeed.eject()
-			if cartridge is Ammo:
-				emit_signal("cartridge_fired", [cartridge])
 			semi_control = true
 		enums.Firemode.BURST:
 			if not burst_control > 0: return
-			var cartridge = ammofeed.eject()
-			if cartridge is Ammo:
-				emit_signal("cartridge_fired", [cartridge])
-				burst_control -= 1
+			burst_control -= 1
+
+	var cartridge: Ammo = ammofeed.eject()
+	cartridge_fired.emit([cartridge])
 
 func release_trigger():
 	semi_control  = false
 	burst_control = burstfire
-	emit_signal("trigger_released")
+	trigger_released.emit()
 
 func remove_cartridge():
-	emit_signal("cartridge_ejected")
+	cartridge_ejected.emit()
 	return ammofeed.eject()
 
 func insert_cartridge(new_cartridge: Ammo):
 	if feed_type != enums.FeedType.INTERNAL:
-		emit_signal("ammofeed_incompatible")
+		ammofeed_incompatible.emit()
 		return
-	emit_signal("cartridge_inserted")
+	cartridge_inserted.emit()
 	ammofeed.insert(new_cartridge)
 
 func change_magazine(new_magazine: AmmoFeed):
 	if feed_type == enums.FeedType.INTERNAL \
 	or new_magazine.type != feed_type:
-		emit_signal("ammofeed_incompatible")
+		ammofeed_incompatible.emit()
 		return
 	var old_magazine = ammofeed
 	ammofeed = new_magazine.duplicate()
-	emit_signal("ammofeed_changed", old_magazine, new_magazine)
+	ammofeed_changed.emit(old_magazine, new_magazine)
