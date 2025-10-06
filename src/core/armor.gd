@@ -31,10 +31,11 @@ enum ArmorType {
 @export var type: ArmorType = ArmorType.GENERIC
 
 # ─── METADATA ─────────────────────────────────────
-@export var viewmodel: PackedScene
+@export var name: String = "Generic Armor"  ## e.g., "Stock"
+@export_multiline var description: String = "This Armor is the default one."
+@export var view_model: PackedScene
 @export var equip_sound: AudioStream
 @export var hit_sound: AudioStream
-@export_multiline var description: String = "Generic armor"
 
 # ─── CLASSIFICATION ───────────────────────────────
 enum Standard { NIJ, VPAM, GOST, GA141, MILITARY }

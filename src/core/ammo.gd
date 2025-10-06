@@ -3,8 +3,8 @@ class_name Ammo extends Resource
 
 # ─── CORE METADATA ───────────────────────────────
 @export var caliber: String = ""  # e.g., "7.62x39mm", "5.56x45mm NATO"
-@export var description: String = "Generic ammunition"
-@export var viewmodel: PackedScene
+@export_multiline var description: String = "Generic ammunition"
+@export var view_model: PackedScene
 @export var shell_model: PackedScene
 @export var shell_sound: AudioStream
 
@@ -27,7 +27,7 @@ enum Type {
 @export var cartridge_mass: float = 1.0  # grams
 @export var muzzle_velocity: float = 1.0 # m/s
 @export var penetration: float = 1.0     # relative or mm RHA
-var standard_ref: String = ""
+
 # ─── GAMEPLAY EFFECTS ────────────────────────────
 @export_range(0.0, 1.0) var armor_damage: float = 0.0    # % armor durability loss
 @export_range(0.0, 1.0) var bleeding_chance: float = 0.0 # % chance to cause bleed

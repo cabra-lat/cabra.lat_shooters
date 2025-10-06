@@ -65,16 +65,19 @@ func _run():
 	ammo_list.append(_create_ammo("FSP_64gr", "64gr FSP", 4.1, 510, Ammo.Type.FSP, "MIL FSP"))
 
 	# Save all
-	for ammo in ammo_list:
-		var safe_name = ammo.caliber.replace(".", "_").replace(" ", "_").replace("x", "_") + "_" + ammo.standard_ref.replace(" ", "_")
+	for info in ammo_list:
+		var ammo = info[0]
+		var standard_ref = info[1]
+		var safe_name = ammo.caliber.replace(".", "_").replace(" ", "_").replace("x", "_") + "_" + standard_ref.replace(" ", "_")
 		var path = OUTPUT_PATH + safe_name + ".tres"
 		ResourceSaver.save(ammo, path)
 	
 	print("Generated %d ammo resources in %s" % [ammo_list.size(), OUTPUT_PATH])
 
-func _create_ammo(name: String, caliber: String, mass_g: float, velocity_mps: float, type: Ammo.Type, standard_ref: String) -> Ammo:
+func _create_ammo(name: String, caliber: String, 
+				  mass_g: float, velocity_mps: float,
+				  type: Ammo.Type, standard_ref: String):
 	var ammo = Ammo.new(mass_g, velocity_mps, type)
 	ammo.caliber = caliber
-	ammo.standard_ref = standard_ref
 	ammo.description = "%s (%s)" % [caliber, standard_ref]
-	return ammo
+	return [ammo, standard_ref]

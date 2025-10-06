@@ -1,11 +1,17 @@
-[gd_resource type="Resource" load_steps=2 format=2]
+[gd_resource type="Resource" script_class="AmmoFeed" load_steps=2 format=3 uid="uid://cbehsxktvsr47"]
 
-[ext_resource type="Script" uid="uid://i1a2beubqkyr" path="res://src/core/ammo_feed.gd" id="1"]
+[ext_resource type="Script" uid="uid://i1a2beubqkyr" path="res://addons/cabra.lat_shooters/src/core/ammo_feed.gd" id="1"]
 
 [resource]
 resource_local_to_scene = true
-script = ExtResource( 1 )
-max_capacity = 8
-contents = [  ]
+script = ExtResource("1")
+name = null
+description = null
 type = 0
 empty_mass = 0.0
+compatible_calibers = PackedStringArray()
+bore_tolerance = 0.1
+case_tolerance = 1.0
+strict_mode = false
+max_capacity = 8
+contents = Array[Resource]([])

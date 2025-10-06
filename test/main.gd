@@ -6,3 +6,4 @@ func _run():
 	TestAmmoFeed.new()._run()
 	TestArmor.new()._run()
 	TestWeapons.new()._run()
+	TestWeaponAttachments.new()._run()

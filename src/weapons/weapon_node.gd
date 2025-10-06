@@ -14,8 +14,8 @@ var _data: Weapon
 	set(value):
 		var old_vm = get_node_or_null(VIEWMODEL_NAME)
 		if old_vm: old_vm.queue_free()
-		if value.viewmodel:
-			var new_vm = value.viewmodel.instantiate()
+		if value.view_model:
+			var new_vm = value.view_model.instantiate()
 			add_child(new_vm)
 		for signal_name in value.SIGNALS:
 			value.connect(signal_name, Callable(self, "_on_" + signal_name))

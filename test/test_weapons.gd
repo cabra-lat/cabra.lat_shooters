@@ -28,131 +28,6 @@ func _run():
 		print(result)
 	print("\nDone.")
 
-# ─── SIGNAL CAPTURE SYSTEM ──────────────────────
-
-class SignalCapture:
-	var captured_signals: Array = []
-	var weapon: Weapon
-	
-	func _init(weapon_instance: Weapon):
-		weapon = weapon_instance
-		_connect_weapon_signals()
-	
-	func _connect_weapon_signals():
-		# Connect each signal with the correct signature
-		weapon.trigger_locked.connect(_on_trigger_locked)
-		weapon.trigger_pressed.connect(_on_trigger_pressed)
-		weapon.trigger_released.connect(_on_trigger_released)
-		weapon.firemode_changed.connect(_on_firemode_changed)
-		weapon.shell_ejected.connect(_on_shell_ejected)
-		weapon.weapon_racked.connect(_on_weapon_racked)
-		
-		weapon.cartridge_fired.connect(_on_cartridge_fired)
-		weapon.cartridge_ejected.connect(_on_cartridge_ejected)
-		weapon.cartridge_inserted.connect(_on_cartridge_inserted)
-		
-		weapon.ammofeed_empty.connect(_on_ammofeed_empty)
-		weapon.ammofeed_changed.connect(_on_ammofeed_changed)
-		weapon.ammofeed_missing.connect(_on_ammofeed_missing)
-		weapon.ammofeed_incompatible.connect(_on_ammofeed_incompatible)
-	
-	# Single parameter signals
-	func _on_trigger_locked(weapon_param: Weapon):
-		_capture_signal("trigger_locked", [weapon_param])
-	
-	func _on_trigger_pressed(weapon_param: Weapon):
-		_capture_signal("trigger_pressed", [weapon_param])
-	
-	func _on_trigger_released(weapon_param: Weapon):
-		_capture_signal("trigger_released", [weapon_param])
-	
-	func _on_firemode_changed(weapon_param: Weapon, mode: String):
-		_capture_signal("firemode_changed", [weapon_param, mode])
-	
-	func _on_shell_ejected(weapon_param: Weapon):
-		_capture_signal("shell_ejected", [weapon_param])
-	
-	func _on_weapon_racked(weapon_param: Weapon):
-		_capture_signal("weapon_racked", [weapon_param])
-	
-	func _on_ammofeed_missing(weapon_param: Weapon):
-		_capture_signal("ammofeed_missing", [weapon_param])
-	
-	# Two parameter signals
-	func _on_cartridge_fired(weapon_param: Weapon, cartridge: Ammo):
-		_capture_signal("cartridge_fired", [weapon_param, cartridge])
-	
-	func _on_cartridge_ejected(weapon_param: Weapon, cartridge: Ammo):
-		_capture_signal("cartridge_ejected", [weapon_param, cartridge])
-	
-	func _on_cartridge_inserted(weapon_param: Weapon, cartridge: Ammo):
-		_capture_signal("cartridge_inserted", [weapon_param, cartridge])
-	
-	func _on_ammofeed_incompatible(weapon_param: Weapon, ammofeed_param: AmmoFeed):
-		_capture_signal("ammofeed_incompatible", [weapon_param, ammofeed_param])
-	
-	# Three parameter signals
-	func _on_ammofeed_empty(weapon_param: Weapon, ammofeed_param: AmmoFeed):
-		_capture_signal("ammofeed_empty", [weapon_param, ammofeed_param])
-	
-	func _on_ammofeed_changed(weapon_param: Weapon, old_feed: AmmoFeed, new_feed: AmmoFeed):
-		_capture_signal("ammofeed_changed", [weapon_param, old_feed, new_feed])
-	
-	func _capture_signal(signal_name: String, args: Array):
-		var signal_data = {
-			"signal": signal_name,
-			"timestamp": Time.get_ticks_msec(),
-			"args": args
-		}
-		
-		captured_signals.append(signal_data)
-		print("📡 [%s] %s - Args: %s" % [weapon.name, signal_name, _format_args(args)])
-	
-	func _format_args(args: Array) -> String:
-		var formatted = []
-		for arg in args:
-			if arg is Weapon:
-				formatted.append("Weapon(%s)" % arg.name)
-			elif arg is Ammo:
-				formatted.append("Ammo(%s)" % arg.caliber)
-			elif arg is AmmoFeed:
-				formatted.append("AmmoFeed(%s)" % arg.compatible_calibers[0] if not arg.compatible_calibers.is_empty() else "AmmoFeed(empty)")
-			elif arg == null:
-				formatted.append("null")
-			else:
-				formatted.append(str(arg))
-		return ", ".join(formatted)
-	
-	func clear():
-		captured_signals.clear()
-	
-	func get_signal_count(signal_name: String) -> int:
-		var count = 0
-		for signal_data in captured_signals:
-			if signal_data.signal == signal_name:
-				count += 1
-		return count
-	
-	func has_signal(signal_name: StringName) -> bool:
-		return get_signal_count(signal_name) > 0
-	
-	func get_last_signal(signal_name: String = ""):
-		if captured_signals.is_empty():
-			return null
-		
-		if signal_name.is_empty():
-			return captured_signals[-1]
-		
-		for i in range(captured_signals.size() - 1, -1, -1):
-			if captured_signals[i].signal == signal_name:
-				return captured_signals[i]
-		
-		return null
-	
-	func get_last_signal_args(signal_name: String) -> Array:
-		var last_signal = get_last_signal(signal_name)
-		return last_signal.args if last_signal else []
-
 # ─── TEST 1: WEAPON CREATION & BASIC PROPERTIES ──
 func _test_weapon_creation():
 	print("\n🎯 Testing Weapon Creation:")
@@ -294,7 +169,7 @@ func _test_firemode_cycling():
 		AmmoFeed.Type.EXTERNAL)
 	
 	# Setup signal capture
-	var signal_capture = SignalCapture.new(weapon)
+	var signal_capture = TestUtils.SignalCapture.new(weapon)
 	
 	if weapon.firemode == Weapon.Firemode.SEMI:
 		TEST_RESULTS.append("✅ PASS: Defaults to SEMI with multiple options")
@@ -346,7 +221,7 @@ func _test_magazine_changing():
 		[Weapon.Firemode.SEMI], AmmoFeed.Type.EXTERNAL)
 	
 	# Setup signal capture
-	var signal_capture = SignalCapture.new(weapon)
+	var signal_capture = TestUtils.SignalCapture.new(weapon)
 	
 	var compatible_mag = AmmoFeed.new()
 	compatible_mag.type = AmmoFeed.Type.EXTERNAL
@@ -393,7 +268,7 @@ func _test_firing_sequence():
 		[Weapon.Firemode.SEMI], AmmoFeed.Type.EXTERNAL)
 	
 	# Setup signal capture
-	var signal_capture = SignalCapture.new(weapon)
+	var signal_capture = TestUtils.SignalCapture.new(weapon)
 	
 	# Load magazine
 	var feed = AmmoFeed.new()
@@ -475,7 +350,7 @@ func _test_burst_fire():
 	weapon.burst_counter = weapon.burst_count
 	
 	# Setup signal capture
-	var signal_capture = SignalCapture.new(weapon)
+	var signal_capture = TestUtils.SignalCapture.new(weapon)
 	
 	# Load magazine
 	var feed = AmmoFeed.new()
@@ -538,11 +413,11 @@ func _test_burst_fire():
 
 # ─── HELPER FUNCTIONS ────────────────────────────
 
-func _create_test_weapon(name: String, caliber: String, mass: float, firerate: int,
+func _create_test_weapon(name: String, caliber: String, base_mass: float, firerate: int,
 						capacity: int, firemodes: Array, feed_type: int) -> Weapon:
 	var weapon = Weapon.new()
 	weapon.name = name
-	weapon.mass = mass
+	weapon.base_mass = base_mass
 	weapon.firerate = firerate
 	weapon.feed_type = feed_type
 	
@@ -568,11 +443,11 @@ func _create_test_weapon(name: String, caliber: String, mass: float, firerate: i
 	
 	return weapon
 
-func _create_advanced_weapon(name: String, caliber: String, mass: float, firerate: int,
+func _create_advanced_weapon(name: String, caliber: String, base_mass: float, firerate: int,
 							capacity: int, firemodes: Array, feed_type: int) -> Weapon:
 	var weapon = Weapon.new()
 	weapon.name = name
-	weapon.mass = mass
+	weapon.base_mass = base_mass
 	weapon.firerate = firerate
 	weapon.feed_type = feed_type
 	weapon.base_reload_time = 2.0

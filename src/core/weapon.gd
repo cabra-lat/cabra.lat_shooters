@@ -8,6 +8,9 @@ signal firemode_changed(weapon: Weapon, mode: String)
 signal shell_ejected(weapon: Weapon)
 signal weapon_racked(weapon: Weapon)
 
+signal attachment_added(weapon: Weapon, attachment: Attachment, point: int)
+signal attachment_removed(weapon: Weapon, attachment: Attachment, point: int)
+
 signal cartridge_fired(weapon: Weapon, cartridge: Ammo)
 signal cartridge_ejected(weapon: Weapon, cartridge: Ammo)
 signal cartridge_inserted(weapon: Weapon, cartridge: Ammo)
@@ -60,7 +63,7 @@ enum AttachmentPoint {
 
 # Visual and sound variables
 @export var name: String
-@export var viewmodel: PackedScene
+@export var view_model: PackedScene
 @export var equip_sound: AudioStream
 @export var fire_sound: AudioStream
 @export var feed_sound: AudioStream
@@ -76,14 +79,37 @@ var firemodes: int = Firemode.SEMI
 
 @export var feed_type: AmmoFeed.Type = AmmoFeed.Type.INTERNAL
 
-# Statistics
+# Statistics - make base stats separate from current stats
 @export var firerate: float = 600
 @export var burst_count: int = 3
-@export var mass: float = 3.5
+@export var base_mass: float = 3.5
 @export var base_reload_time: float = 2.5
 @export var base_accuracy: float = 2.0
-@export var recoil_vertical: float = 1.0
-@export var recoil_horizontal: float = 0.5
+@export var base_recoil_vertical: float = 1.0
+@export var base_recoil_horizontal: float = 0.5
+
+
+# Current stats (computed properties)
+var mass: float:
+	get: return get_mass()
+
+var accuracy: float:
+	get: return get_current_accuracy()
+	
+var reload_time: float:
+	get: return get_reload_time()
+
+var recoil_vertical: float:
+	get: return get_current_recoil_vertical()
+
+var recoil_horizontal: float:
+	get: return get_current_recoil_horizontal()
+
+var can_fire: bool:
+	get: return _can_fire()
+
+var cycle_time: float:
+	get: return 60.0 / firerate
 
 # State variables
 var firemode = Firemode.SAFE
@@ -92,15 +118,92 @@ var burst_counter = 0
 var chambered_round: Ammo = null
 var is_cycled = true
 var current_durability = 100.0
+var attachments: Dictionary = {}  # point: Attachment
 
-var reload_time: float:
-	get: return get_reload_time()
+func get_current_accuracy() -> float:
+	var durability_factor = 1.0 + (100.0 - current_durability) / 200.0
+	var modified_accuracy = base_accuracy * durability_factor
+	
+	# Apply attachment modifiers
+	for attachment in attachments.values():
+		modified_accuracy *= attachment.accuracy_modifier
+	
+	return modified_accuracy
 
-var can_fire: bool:
-	get: return _can_fire()
+func get_current_recoil_vertical() -> float:
+	var modified_recoil = base_recoil_vertical
+	
+	# Apply attachment modifiers
+	for attachment in attachments.values():
+		modified_recoil *= attachment.recoil_modifier
+	
+	return modified_recoil
 
-var cycle_time: float:
-	get: return 60.0 / firerate
+func get_current_recoil_horizontal() -> float:
+	var modified_recoil = base_recoil_horizontal
+	
+	# Apply attachment modifiers
+	for attachment in attachments.values():
+		modified_recoil *= attachment.recoil_modifier
+	
+	return modified_recoil
+
+func get_reload_time() -> float:
+	var time_multiplier = 1.0
+	if ammofeed and ammofeed.is_empty():
+		time_multiplier = 1.0  # Quick reload
+	else:
+		time_multiplier = 1.5  # Tactical reload
+	
+	var modified_time = base_reload_time * time_multiplier
+	
+	# Apply attachment modifiers
+	for attachment in attachments.values():
+		modified_time *= attachment.reload_speed_modifier
+	
+	return modified_time
+
+func get_mass() -> float:
+	var total_mass = base_mass
+	
+	# Add ammo feed mass
+	if ammofeed:
+		total_mass += ammofeed.mass
+	
+	# Add attachment masses
+	for attachment in attachments.values():
+		total_mass += attachment.mass
+	
+	return total_mass
+
+func attach_attachment(point: int, attachment: Attachment) -> bool:
+	# Check if point is available
+	if not attach_points & point:
+		return false
+	
+	# Check if point is already occupied
+	if attachments.has(point):
+		return false
+	
+	# Check attachment compatibility
+	if not attachment.attach_to_weapon(self):
+		return false
+	
+	attachments[point] = attachment
+	attachment_added.emit(self, attachment, point)
+	
+	return true  # No need to recalculate stats - computed properties handle it
+
+func detach_attachment(point: int) -> bool:
+	if not attachments.has(point):
+		return false
+	
+	var attachment = attachments[point]
+	attachment.detach_from_weapon()
+	attachments.erase(point)
+	attachment_removed.emit(self, attachment, point)
+	
+	return true  # No need to recalculate stats - computed properties handle it
 
 func is_automatic() -> bool:
 	return firemode == Firemode.AUTO || firemode == Firemode.BURST
@@ -214,12 +317,6 @@ func _update_firing_state():
 		Firemode.PUMP, Firemode.BOLT:
 			is_cycled = false
 
-func get_reload_time() -> float:
-	if ammofeed and ammofeed.is_empty():
-		return base_reload_time
-	else:
-		return base_reload_time * 1.5
-
 func cycle_weapon():
 	if not is_cycled and ammofeed and not ammofeed.is_empty():
 		chambered_round = ammofeed.eject()
@@ -268,10 +365,6 @@ func change_magazine(new_magazine: AmmoFeed):
 	ammofeed_changed.emit(self, old_magazine, new_magazine)
 	return true
 
-func get_current_accuracy() -> float:
-	var durability_factor = 1.0 + (100.0 - current_durability) / 200.0
-	return base_accuracy * durability_factor
-
 func get_recoil_vector() -> Vector2:
 	return Vector2(
 		randf_range(-recoil_horizontal, recoil_horizontal),
@@ -299,3 +392,9 @@ func _init():
 		firemode = Firemode.BOLT
 	else:
 		firemode = Firemode.SAFE
+
+func get_attachment(point: int) -> Attachment:
+	return attachments.get(point)
+
+func get_all_attachments() -> Array:
+	return attachments.values()

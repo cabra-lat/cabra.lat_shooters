@@ -15,7 +15,10 @@ enum Type {
 	EXTERNAL,  ## Detachable box magazine (e.g., AK-47, M4)
 }
 
-@export var viewmodel: PackedScene
+
+@export var name: String = "Generic Ammofeed"  ## e.g., "Stock"
+@export_multiline var description: String = "This Ammofeed is the default one."
+@export var view_model: PackedScene
 @export var type: Type = Type.INTERNAL
 @export var empty_mass: float = 0.0 ## mass when empty
 @export var compatible_calibers: PackedStringArray = []
