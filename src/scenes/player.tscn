@@ -117,6 +117,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.215)
 [node name="WeaponNode" type="Node3D" parent="Head/Shoulder/Hand"]
 script = ExtResource("2_i7om4")
 metadata/_custom_type_script = "uid://s5lb4v32m65a"
+metadata/_edit_group_ = true
 
 [node name="StateMachine" type="AnimationPlayer" parent="."]
 libraries = {

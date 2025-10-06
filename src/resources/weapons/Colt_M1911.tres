@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://dpg0a1m0r4vxp"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_s4qyt"]
+
+[resource]
+script = ExtResource("1_s4qyt")
+name = "Colt_M1911"
+attach_points = 7
+firemodes = 4
+feed_type = 1
+firerate = 850.0
+burst_count = 3
+mass = 1.1
+base_reload_time = 2.2
+base_accuracy = 1.8
+recoil_vertical = 5.0
+recoil_horizontal = 1.2

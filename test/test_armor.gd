@@ -1,28 +1,25 @@
-@tool
-extends EditorScript
 
-const AMMO_PATH = "res://addons/cabra.lat_shooters/src/resources/ammo/"
+
+@tool
+class_name TestArmor extends EditorScript
+
 var TEST_RESULTS = []
 
 func _run():
 	run_armor_tests()
 
 func run_armor_tests():
-	print("s🔍 Loading ammo resources...")
-	var ammo_files = _get_ammo_files()
-	var ammo_list = []
-	for file in ammo_files:
-		var path = AMMO_PATH + file
-		if ResourceLoader.exists(path):
-			var ammo: Ammo = ResourceLoader.load(path)
-			ammo_list.append(ammo)
-		else:
-			push_warning("Missing file: %s" % path)
+	print("🔍 Loading ammo resources...")
+	var ammo_list = TestUtils.load_all_ammo()
+	if ammo_list.is_empty():
+		push_error("No ammo resources found!")
+		return
 
 	print("🛡️ Testing armor penetration logic...")
 	_test_certified_threats(ammo_list)
 	_test_energy_thresholds()
 	_test_durability_failure()
+	_test_detailed_penetration_analysis(ammo_list)  # NEW: Detailed analysis
 
 	# Print results
 	print("\n✅ TEST SUMMARY:")
@@ -104,16 +101,45 @@ func _test_durability_failure():
 	else:
 		TEST_RESULTS.append("✅ PASS: Broken armor penetrates")
 
-# ─── HELPER: GET AMMO FILES ────────────────────────
+# ─── TEST 4: DETAILED PENETRATION ANALYSIS ─────────
 
-func _get_ammo_files():
-	var files = []
-	if DirAccess.dir_exists_absolute(AMMO_PATH):
-		var dir = DirAccess.open(AMMO_PATH)
-		dir.list_dir_begin()
-		var file = dir.get_next()
-		while file != "":
-			if file.ends_with(".tres"):
-				files.append(file)
-			file = dir.get_next()
-	return files
+func _test_detailed_penetration_analysis(ammo_list):
+	print("\n🔍 Detailed Penetration Analysis:")
+	
+	# Focus on the failing case
+	var armor = Armor.new()
+	armor.standard = Armor.Standard.NIJ
+	armor.level = 8
+	
+	var m855_ammo = ammo_list.filter(func(a): return "5.56x45mm M855" in a.caliber)[0]
+	
+	# Debug information
+	print("  Armor: %s Level %d" % [armor.standard, armor.level])
+	print("  Ammo: %s" % m855_ammo.caliber)
+	print("  Mass: %.1fg" % m855_ammo.bullet_mass)
+	print("  Velocity: %.0f m/s" % m855_ammo.muzzle_velocity)
+	print("  Energy: %.0f J" % m855_ammo.get_energy())
+	print("  Type: %s" % m855_ammo.type)
+	
+	var penetrated = armor.is_penetrated_by(m855_ammo)
+	print("  Penetrated: %s" % penetrated)
+	
+	# Check if this is a steel core round that should be handled differently
+	if m855_ammo.type == Ammo.Type.STEEL_CORE:
+		print("  ⚠️ M855 has steel core - may require special handling")
+	
+	# Test with different armor standards at same level
+	print("\n  Comparing standards at similar levels:")
+	var comparison_armors = [
+		{"standard": Armor.Standard.NIJ, "level": 8},
+		{"standard": Armor.Standard.VPAM, "level": 7},
+		{"standard": Armor.Standard.GA141, "level": 6}
+	]
+	
+	for comp_armor_data in comparison_armors:
+		var comp_armor = Armor.new()
+		comp_armor.standard = comp_armor_data.standard
+		comp_armor.level = comp_armor_data.level
+		var comp_penetrated = comp_armor.is_penetrated_by(m855_ammo)
+		print("    %s Level %d: %s" % [comp_armor_data.standard, comp_armor_data.level,
+			"PENETRATED" if comp_penetrated else "STOPPED"])

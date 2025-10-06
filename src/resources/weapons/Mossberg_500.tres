@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://be7g58xlclir8"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_efrjs"]
+
+[resource]
+script = ExtResource("1_efrjs")
+name = "Mossberg_500"
+attach_points = 9
+firemodes = 16
+feed_type = 0
+firerate = 60.0
+burst_count = 3
+mass = 3.4
+base_reload_time = 3.5
+base_accuracy = 2.5
+recoil_vertical = 8.0
+recoil_horizontal = 3.0

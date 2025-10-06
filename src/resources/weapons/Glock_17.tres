@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://6nklinornvwq"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_3n7f8"]
+
+[resource]
+script = ExtResource("1_3n7f8")
+name = "Glock_17"
+attach_points = 7
+firemodes = 4
+feed_type = 1
+firerate = 1200.0
+burst_count = 3
+mass = 0.62
+base_reload_time = 2.0
+base_accuracy = 1.5
+recoil_vertical = 4.0
+recoil_horizontal = 0.8

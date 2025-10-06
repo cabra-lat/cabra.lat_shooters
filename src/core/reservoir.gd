@@ -1,11 +1,11 @@
-class_name Reservoir
-extends Resource
+@tool
+class_name Reservoir extends Resource
 
 @export var max_capacity: int = 30
 @export var contents: Array[Resource] = [] 
-var remaining : get = get_remaining
+var capacity : get = get_capacity
 
-func get_remaining() -> int:
+func get_capacity() -> int:
 	return len(contents)
 
 func is_empty() -> int:
@@ -18,6 +18,6 @@ func insert(thing) -> bool:
 	if not is_full(): contents.push_back(thing.duplicate())
 	return not is_full()
 
-func eject() -> bool:
+func pop() -> Resource:
 	if not is_empty(): return contents.pop_back()
-	return not is_empty()
+	return null

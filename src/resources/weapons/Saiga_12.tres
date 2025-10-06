@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://bgci2styvhu6m"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_phnxg"]
+
+[resource]
+script = ExtResource("1_phnxg")
+name = "Saiga_12"
+attach_points = 9
+firemodes = 6
+feed_type = 1
+firerate = 300.0
+burst_count = 3
+mass = 3.6
+base_reload_time = 3.0
+base_accuracy = 2.0
+recoil_vertical = 6.0
+recoil_horizontal = 2.5

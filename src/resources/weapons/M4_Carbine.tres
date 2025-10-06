@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://dxcmgjmc5taby"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_oh2s6"]
+
+[resource]
+script = ExtResource("1_oh2s6")
+name = "M4_Carbine"
+attach_points = 31
+firemodes = 14
+feed_type = 1
+firerate = 800.0
+burst_count = 3
+mass = 3.4
+base_reload_time = 2.2
+base_accuracy = 0.7
+recoil_vertical = 2.5
+recoil_horizontal = 0.8

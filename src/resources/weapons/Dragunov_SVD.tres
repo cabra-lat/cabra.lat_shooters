@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://3k078e4vr7wp"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_m28xj"]
+
+[resource]
+script = ExtResource("1_m28xj")
+name = "Dragunov_SVD"
+attach_points = 25
+firemodes = 4
+feed_type = 1
+firerate = 650.0
+burst_count = 3
+mass = 4.3
+base_reload_time = 4.0
+base_accuracy = 1.5
+recoil_vertical = 1.5
+recoil_horizontal = 2.5

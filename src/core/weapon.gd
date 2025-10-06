@@ -1,24 +1,28 @@
-class_name Weapon
-extends Resource
+@tool
+class_name Weapon extends Resource
 
-signal trigger_locked
-signal trigger_pressed
-signal trigger_released
-signal shell_ejected
-signal cartridge_fired
-signal cartridge_ejected
-signal cartridge_inserted
-signal firemode_changed
-signal ammofeed_empty
-signal ammofeed_changed
-signal ammofeed_missing
-signal ammofeed_incompatible
+signal trigger_locked(weapon: Weapon)
+signal trigger_pressed(weapon: Weapon)
+signal trigger_released(weapon: Weapon)
+signal firemode_changed(weapon: Weapon, mode: String)
+signal shell_ejected(weapon: Weapon)
+signal weapon_racked(weapon: Weapon)
+
+signal cartridge_fired(weapon: Weapon, cartridge: Ammo)
+signal cartridge_ejected(weapon: Weapon, cartridge: Ammo)
+signal cartridge_inserted(weapon: Weapon, cartridge: Ammo)
+
+signal ammofeed_empty(weapon: Weapon, ammofeed: AmmoFeed)
+signal ammofeed_changed(weapon: Weapon, old: AmmoFeed, new: AmmoFeed)
+signal ammofeed_missing(weapon: Weapon)
+signal ammofeed_incompatible(weapon: Weapon, ammofeed: AmmoFeed)
 
 const SIGNALS = [
  "trigger_locked",
  "trigger_pressed",
  "trigger_released",
  "shell_ejected",
+ "weapon_racked",
  "cartridge_fired",
  "cartridge_ejected",
  "cartridge_inserted",
@@ -29,138 +33,269 @@ const SIGNALS = [
  "ammofeed_incompatible"
 ]
 
+## Fire modes supported by weapons.
+## 
+## Bit flags allow weapons to support multiple modes (e.g., `SEMI | BURST`).
+## Use bitwise AND (`&`) to check if a mode is available.
+enum Firemode {
+	SAFE  = 1 << 0,  ## Safe — trigger disabled
+	AUTO  = 1 << 1,  ## Fully automatic
+	SEMI  = 1 << 2,  ## Semi-automatic (one shot per trigger pull)
+	BURST = 1 << 3,  ## Burst fire (e.g., 3-round burst)
+	PUMP  = 1 << 4,  ## Pump-action (shotguns)
+	BOLT  = 1 << 5   ## Bolt-action (manual cycling)
+}
+
+## Weapon attachment/mount points.
+## 
+## Defines where accessories (scopes, grips, etc.) can be mounted.
+## Bit flags allow multiple compatible mounts (rare, but possible).
+enum AttachmentPoint {
+	MUZZLE     = 1 << 0,  ## End of barrel (suppressors, flash hiders)
+	LEFT_RAIL  = 1 << 1,  ## Left rail (vertical grips, lasers)
+	RIGHT_RAIL = 1 << 2,  ## Right rail (tactical lights)
+	TOP_RAIL   = 1 << 3,  ## Top rail (scopes, red dots)
+	UNDER      = 1 << 4,  ## Underbarrel (grenade launchers, grips)
+}
+
 # Visual and sound variables
-@export var viewmodel:   PackedScene
-@export var equip_sound: AudioStream  # Sound to be played when equiped
-@export var fire_sound:  AudioStream  # Sound to be played when firing
-@export var feed_sound:  AudioStream  # Sound to be played when reloading
-@export var empty_sound: AudioStream  # Sound to be played when empty
-@export var extra_sound: AudioStream  # Sound to be played when pumped or cocked
-@export var ammofeed:    AmmoFeed
+@export var name: String
+@export var viewmodel: PackedScene
+@export var equip_sound: AudioStream
+@export var fire_sound: AudioStream
+@export var feed_sound: AudioStream
+@export var empty_sound: AudioStream
+@export var extra_sound: AudioStream
+@export var ammofeed: AmmoFeed
 
-## End of barrel (suppressors, flash hiders),
-## Left rail (vertical grips, lasers),
-## Right rail (tactical lights),
-## Top rail (scopes, red dots),
-## Underbarrel (grenade launchers, grips),
-## No mount point (or not applicable)
-@export_flags("MUZZLE", "LEFT_RAIL", "RIGHT_RAIL", "TOP_RAIL", "UNDER", "NONE"
-) var attach_points: int = 0
+@export_flags("MUZZLE", "LEFT_RAIL", "RIGHT_RAIL", "TOP_RAIL", "UNDER", "NONE") 
+var attach_points: int = 0
 
-## Safe — trigger disabled,
-## Fully automatic,
-## Semi-automatic (one shot per trigger pull),
-## Burst fire (e.g., 3-round burst),
-## Pump-action (shotguns),
-## Bolt-action (manual cycling)
-@export_flags("SAFE", "AUTO", "SEMI", "BURST", "PUMP", "BOLT"
-) var firemodes: int = enums.Firemode.SEMI
+@export_flags("SAFE", "AUTO", "SEMI", "BURST", "PUMP", "BOLT")
+var firemodes: int = Firemode.SEMI
 
 @export var feed_type: AmmoFeed.Type = AmmoFeed.Type.INTERNAL
 
-# Statistics Variables
-@export var firerate: float  = 100 # Rounds per minute
-@export var burstfire: int   = 3   # Round
-@export var mass: float      = 1.0 # Kg
+# Statistics
+@export var firerate: float = 600
+@export var burst_count: int = 3
+@export var mass: float = 3.5
+@export var base_reload_time: float = 2.5
+@export var base_accuracy: float = 2.0
+@export var recoil_vertical: float = 1.0
+@export var recoil_horizontal: float = 0.5
 
-# State Variables
-# Base reload time (exported, editable in inspector)
-@export var base_reload_time: float = 0.5  # Average reload time
+# State variables
+var firemode = Firemode.SAFE
+var semi_control = false
+var burst_counter = 0
+var chambered_round: Ammo = null
+var is_cycled = true
+var current_durability = 100.0
 
-# Computed property — not exported, read-only
 var reload_time: float:
-	get:
-		return get_reload_time()
+	get: return get_reload_time()
+
+var can_fire: bool:
+	get: return _can_fire()
+
+var cycle_time: float:
+	get: return 60.0 / firerate
+
+func is_automatic() -> bool:
+	return firemode == Firemode.AUTO || firemode == Firemode.BURST
+
+func get_firemode_name() -> String:
+	for firemode_name in Firemode:
+		if Firemode[firemode_name] == firemode:
+			return firemode_name
+	return "UNKNOWN"
+
+func safe_firemode():
+	firemode = Firemode.SAFE
+	firemode_changed.emit(self, get_firemode_name())
+
+func is_firemode_available(firemode_check: int) -> bool:
+	return bool(firemodes & firemode_check)
+
+func _can_fire() -> bool:
+	match firemode:
+		Firemode.SAFE:
+			return false
+		Firemode.SEMI:
+			if semi_control: return false
+		Firemode.BURST:
+			if burst_counter <= 0: return false
+		Firemode.PUMP, Firemode.BOLT:
+			if not is_cycled: return false
+	
+	# Check if we have ammo to fire
+	if chambered_round:
+		return true
+	if ammofeed and not ammofeed.is_empty():
+		return true
+	
+	return false
+
+func cycle_firemode():
+	var available_modes = []
+	var priority_order = [Firemode.AUTO, Firemode.BURST, Firemode.SEMI, Firemode.PUMP, Firemode.BOLT]
+	
+	for mode in priority_order:
+		if is_firemode_available(mode):
+			available_modes.append(mode)
+	
+	if available_modes.is_empty():
+		return
+	
+	var current_index = available_modes.find(firemode)
+	var next_index = (current_index + 1) % available_modes.size()
+	firemode = available_modes[next_index]
+	
+	# Reset burst counter when switching to burst mode
+	if firemode == Firemode.BURST:
+		burst_counter = burst_count
+	
+	firemode_changed.emit(self, get_firemode_name())
+
+func pull_trigger() -> bool:
+	if not _can_fire():
+		_handle_fire_failure()
+		return false
+	
+	# Get round to fire
+	var round_to_fire = null
+	if chambered_round:
+		round_to_fire = chambered_round
+		chambered_round = null
+	elif ammofeed and not ammofeed.is_empty():
+		round_to_fire = ammofeed.eject()
+	
+	if not round_to_fire:
+		_handle_fire_failure()
+		return false
+	
+	# Update firing state
+	_update_firing_state()
+	
+	# Emit firing signals
+	cartridge_fired.emit(self, round_to_fire)
+	trigger_pressed.emit(self)
+	
+	# Auto-chamber next round for automatic weapons
+	if is_automatic() and ammofeed and not ammofeed.is_empty():
+		chambered_round = ammofeed.eject()
+	
+	# Eject shell for non-revolver systems
+	if feed_type != AmmoFeed.Type.INTERNAL:
+		shell_ejected.emit(self)
+	
+	return true
+
+func _handle_fire_failure():
+	if firemode == Firemode.SAFE:
+		if not semi_control:
+			trigger_locked.emit(self)
+			semi_control = true
+	else:
+		if (not ammofeed or ammofeed.is_empty()) and not semi_control:
+			ammofeed_empty.emit(self, ammofeed)
+			semi_control = true
+		elif not ammofeed and not semi_control:
+			ammofeed_missing.emit(self)
+			semi_control = true
+
+func _update_firing_state():
+	match firemode:
+		Firemode.SEMI:
+			semi_control = true
+		Firemode.BURST:
+			burst_counter -= 1
+		Firemode.PUMP, Firemode.BOLT:
+			is_cycled = false
 
 func get_reload_time() -> float:
 	if ammofeed and ammofeed.is_empty():
-		return base_reload_time  # Quick reload
+		return base_reload_time
 	else:
-		return base_reload_time * 1.5  # Tactical reload
+		return base_reload_time * 1.5
 
-var firemode = enums.Firemode.SAFE
-var semi_control  = false
-var burst_control = burstfire
-
-func is_automatic() -> bool:
-	return firemode ==  enums.Firemode.AUTO \
-		or firemode ==  enums.Firemode.BURST
-
-func get_firemode():
-	for firemode_name in enums.Firemode:
-		if (enums.Firemode.get(firemode_name) \
-		   & firemode): return firemode_name
-
-func safe_firemode():
-	firemode = enums.Firemode.SAFE
-	firemode_changed.emit(get_firemode())
-
-func is_firemode_active(firemode_name):
-	return bool(enums.Firemode.get(firemode_name) \
-			 & firemodes &~enums.Firemode.SAFE)
-
-func cycle_firemode():
-	var firemode_names = enums.Firemode.keys()
-	var active_firemodes = Callable(self, "is_firemode_active")
-	var modes = firemode_names.filter(active_firemodes)
-	for try in range(2):
-		for mode in modes:
-			var new_firemode = enums.Firemode.get(mode)
-			if new_firemode > firemode:
-				firemode = new_firemode
-				firemode_changed.emit(get_firemode())
-				return
-		firemode = enums.Firemode.SAFE
-
-func pull_trigger():
-	if firemode == enums.Firemode.SAFE:
-		if semi_control: return
-		trigger_locked.emit()
-		semi_control = true
-		return
-	if ammofeed and ammofeed.is_empty():
-		if semi_control: return
-		ammofeed_empty.emit()
-		semi_control = true
-		return
-	if not ammofeed:
-		if semi_control: return
-		ammofeed_missing.emit()
-		semi_control = true
-		return
-	
-	match firemode:
-		enums.Firemode.SEMI:
-			if semi_control: return
-			semi_control = true
-		enums.Firemode.BURST:
-			if not burst_control > 0: return
-			burst_control -= 1
-
-	var cartridge: Ammo = ammofeed.eject()
-	cartridge_fired.emit([cartridge])
-
-func release_trigger():
-	semi_control  = false
-	burst_control = burstfire
-	trigger_released.emit()
-
-func remove_cartridge():
-	cartridge_ejected.emit()
-	return ammofeed.eject()
+func cycle_weapon():
+	if not is_cycled and ammofeed and not ammofeed.is_empty():
+		chambered_round = ammofeed.eject()
+		is_cycled = true
+		cartridge_inserted.emit(self, chambered_round)
 
 func insert_cartridge(new_cartridge: Ammo):
 	if feed_type != AmmoFeed.Type.INTERNAL:
-		ammofeed_incompatible.emit()
+		ammofeed_incompatible.emit(self, new_cartridge)
 		return
-	cartridge_inserted.emit()
-	ammofeed.insert(new_cartridge)
+	
+	if not chambered_round:
+		chambered_round = new_cartridge
+		cartridge_inserted.emit(self, new_cartridge)
+	elif ammofeed:
+		ammofeed.insert(new_cartridge)
 
 func change_magazine(new_magazine: AmmoFeed):
-	if feed_type == AmmoFeed.Type.INTERNAL \
-	or new_magazine.type != feed_type:
-		ammofeed_incompatible.emit()
-		return
+	if feed_type == AmmoFeed.Type.INTERNAL or new_magazine.type != feed_type:
+		ammofeed_incompatible.emit(self, new_magazine)
+		return false
+	
+	# Check caliber compatibility
+	var caliber_compatible = false
+	if ammofeed:
+		for caliber in new_magazine.compatible_calibers:
+			if ammofeed.compatible_calibers.has(caliber):
+				caliber_compatible = true
+				break
+	else:
+		# If no current ammofeed, assume compatible if it has calibers
+		caliber_compatible = not new_magazine.compatible_calibers.is_empty()
+	
+	if not caliber_compatible:
+		ammofeed_incompatible.emit(self, new_magazine)
+		return false
+	
 	var old_magazine = ammofeed
 	ammofeed = new_magazine.duplicate()
-	ammofeed_changed.emit(old_magazine, new_magazine)
+	
+	# Chamber a round from new magazine if possible
+	if ammofeed and not ammofeed.is_empty():
+		chambered_round = ammofeed.eject()
+		cartridge_inserted.emit(self, chambered_round)
+	
+	ammofeed_changed.emit(self, old_magazine, new_magazine)
+	return true
+
+func get_current_accuracy() -> float:
+	var durability_factor = 1.0 + (100.0 - current_durability) / 200.0
+	return base_accuracy * durability_factor
+
+func get_recoil_vector() -> Vector2:
+	return Vector2(
+		randf_range(-recoil_horizontal, recoil_horizontal),
+		-recoil_vertical * (0.8 + randf() * 0.4)
+	)
+
+func release_trigger():
+	if firemode == Firemode.BURST:
+		burst_counter = burst_count
+	semi_control = false
+	trigger_released.emit(self)
+
+func _init():
+	# Set initial firemode
+	if firemodes & Firemode.SEMI:
+		firemode = Firemode.SEMI
+	elif firemodes & Firemode.AUTO:
+		firemode = Firemode.AUTO
+	elif firemodes & Firemode.BURST:
+		firemode = Firemode.BURST
+		burst_counter = burst_count
+	elif firemodes & Firemode.PUMP:
+		firemode = Firemode.PUMP
+	elif firemodes & Firemode.BOLT:
+		firemode = Firemode.BOLT
+	else:
+		firemode = Firemode.SAFE

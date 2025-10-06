@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://chc0yquduww1y"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_1iorx"]
+
+[resource]
+script = ExtResource("1_1iorx")
+name = "Remington_700"
+attach_points = 25
+firemodes = 32
+feed_type = 0
+firerate = 30.0
+burst_count = 3
+mass = 4.5
+base_reload_time = 5.0
+base_accuracy = 3.0
+recoil_vertical = 1.0
+recoil_horizontal = 3.5

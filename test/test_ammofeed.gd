@@ -1,8 +1,7 @@
-# test_ammofeed_compatibility.gd
+# test_ammofeed.gd
 @tool
-extends EditorScript
+class_name TestAmmoFeed extends EditorScript
 
-const AMMO_PATH = "res://addons/cabra.lat_shooters/src/resources/ammo/"
 var TEST_RESULTS = []
 
 func _run():
@@ -10,7 +9,7 @@ func _run():
 
 func run_ammofeed_tests():
 	print("🔍 Loading ammo resources...")
-	var ammo_list = _load_all_ammo()
+	var ammo_list = TestUtils.load_all_ammo()
 	if ammo_list.is_empty():
 		push_error("No ammo resources found!")
 		return
@@ -29,25 +28,6 @@ func run_ammofeed_tests():
 	for result in TEST_RESULTS:
 		print(result)
 	print("\nDone.")
-
-# ─── HELPER: LOAD ALL AMMO ─────────────────────────
-
-func _load_all_ammo():
-	var ammo_list = []
-	if not DirAccess.dir_exists_absolute(AMMO_PATH):
-		return ammo_list
-	var dir = DirAccess.open(AMMO_PATH)
-	dir.list_dir_begin()
-	var file = dir.get_next()
-	while file != "":
-		if file.ends_with(".tres"):
-			var path = AMMO_PATH + file
-			if ResourceLoader.exists(path):
-				var res = ResourceLoader.load(path)
-				if res is Ammo:
-					ammo_list.append(res)
-		file = dir.get_next()
-	return ammo_list
 
 # ─── TEST 1: AK-47 MAGAZINE (7.62x39mm ONLY) ──────
 # From KB: GA5 = 8.05g @ 725 m/s | VPAM PM6 = 8.0g @ 720 m/s → compatible

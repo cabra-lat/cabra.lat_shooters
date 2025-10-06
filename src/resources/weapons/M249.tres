@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://t05nr25hd8ud"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_r5ib2"]
+
+[resource]
+script = ExtResource("1_r5ib2")
+name = "M249"
+attach_points = 8
+firemodes = 2
+feed_type = 1
+firerate = 850.0
+burst_count = 3
+mass = 7.5
+base_reload_time = 3.5
+base_accuracy = 2.5
+recoil_vertical = 3.5
+recoil_horizontal = 1.2

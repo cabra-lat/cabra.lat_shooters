@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://8adlkdbcnj7h"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_vgjfi"]
+
+[resource]
+script = ExtResource("1_vgjfi")
+name = "Desert_Eagle"
+attach_points = 7
+firemodes = 4
+feed_type = 1
+firerate = 600.0
+burst_count = 3
+mass = 2.0
+base_reload_time = 2.5
+base_accuracy = 2.5
+recoil_vertical = 8.0
+recoil_horizontal = 2.5

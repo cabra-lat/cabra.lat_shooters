@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://d2udydqlabbbe"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_768ti"]
+
+[resource]
+script = ExtResource("1_768ti")
+name = "UZI"
+attach_points = 31
+firemodes = 6
+feed_type = 1
+firerate = 600.0
+burst_count = 3
+mass = 3.5
+base_reload_time = 2.0
+base_accuracy = 1.5
+recoil_vertical = 4.0
+recoil_horizontal = 0.8

@@ -6,7 +6,14 @@ signal incompatible_ammo(feed: AmmoFeed, ammo: Ammo)
 signal inserted_ammo(feed: AmmoFeed, ammo: Ammo)
 signal ejected_ammo(feed: AmmoFeed, ammo: Ammo)
 
-enum Type { INTERNAL, EXTERNAL }
+
+## Feed/magazine types for weapons.
+## 
+## Used to determine how ammunition is loaded and fed into a weapon.
+enum Type {
+	INTERNAL,  ## Internal magazine (e.g., bolt-action rifles)
+	EXTERNAL,  ## Detachable box magazine (e.g., AK-47, M4)
+}
 
 @export var viewmodel: PackedScene
 @export var type: Type = Type.INTERNAL
@@ -33,10 +40,10 @@ func insert(ammo: Ammo) -> bool:
 	super.insert(ammo)
 	return true
 
-func eject():
-	var ammo = super.eject()
+func eject() -> Ammo:
+	var ammo = super.pop()
 	ejected_ammo.emit(self, ammo)
-	return ammo
+	return ammo as Ammo
 
 func is_compatible(ammo: Ammo) -> bool:
 	# No restrictions → accept anything

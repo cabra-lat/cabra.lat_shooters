@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://dp22t6kqappd3"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_phgqk"]
+
+[resource]
+script = ExtResource("1_phgqk")
+name = "M14"
+attach_points = 25
+firemodes = 6
+feed_type = 1
+firerate = 750.0
+burst_count = 3
+mass = 5.1
+base_reload_time = 3.5
+base_accuracy = 1.0
+recoil_vertical = 2.0
+recoil_horizontal = 2.2

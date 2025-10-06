@@ -23,10 +23,10 @@ enum Type {
 }
 @export var type: Type = Type.FMJ
 
-@export var bullet_mass: float = 1.0    # grams
-@export var cartridge_mass: float = 1.0 # grams
-@export var speed: float = 1.0          # m/s
-@export var penetration: float = 1.0    # relative or mm RHA
+@export var bullet_mass: float = 1.0     # grams
+@export var cartridge_mass: float = 1.0  # grams
+@export var muzzle_velocity: float = 1.0 # m/s
+@export var penetration: float = 1.0     # relative or mm RHA
 var standard_ref: String = ""
 # ─── GAMEPLAY EFFECTS ────────────────────────────
 @export_range(0.0, 1.0) var armor_damage: float = 0.0    # % armor durability loss
@@ -48,14 +48,14 @@ func get_bore_mm() -> float:
 func get_case_mm() -> float:
 	return _caliber_data.get("case_mm", 0.0)
 
-func _init(mass: float = bullet_mass, speed: float = speed, type: Type = type) -> void:
+func _init(mass: float = bullet_mass, speed: float = muzzle_velocity, type: Type = type) -> void:
 	self.bullet_mass = mass
-	self.speed = speed
+	self.muzzle_velocity = speed
 	self.type = type
 
 # ─── PHYSICS ─────────────────────────────────────
 func get_energy() -> float:
-	return Utils.bullet_energy(bullet_mass, speed)
+	return Utils.bullet_energy(bullet_mass, muzzle_velocity)
 
 func get_momentum() -> float:
-	return (bullet_mass / 1000.0) * speed  # kg·m/s
+	return (bullet_mass / 1000.0) * muzzle_velocity  # kg·m/s

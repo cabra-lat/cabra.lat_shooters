@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Weapon" load_steps=2 format=3 uid="uid://ci0s48f8q4lq5"]
+
+[ext_resource type="Script" uid="uid://57chxkjo83lo" path="res://addons/cabra.lat_shooters/src/core/weapon.gd" id="1_rlcdh"]
+
+[resource]
+script = ExtResource("1_rlcdh")
+name = "PKM"
+attach_points = 8
+firemodes = 2
+feed_type = 1
+firerate = 650.0
+burst_count = 3
+mass = 9.0
+base_reload_time = 4.5
+base_accuracy = 3.0
+recoil_vertical = 4.0
+recoil_horizontal = 1.8
