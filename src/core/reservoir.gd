@@ -5,17 +5,19 @@ extends Resource
 @export var contents: Array[Resource] = [] 
 var remaining : get = get_remaining
 
-func get_remaining():
+func get_remaining() -> int:
 	return len(contents)
 
-func is_empty():
+func is_empty() -> int:
 	return len(contents) == 0
 
-func full():
+func is_full() -> bool:
 	return len(contents) == max_capacity
 
-func insert(thing):
-	if not full(): contents.push_back(thing.duplicate())
+func insert(thing) -> bool:
+	if not is_full(): contents.push_back(thing.duplicate())
+	return not is_full()
 
-func eject():
+func eject() -> bool:
 	if not is_empty(): return contents.pop_back()
+	return not is_empty()

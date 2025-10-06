@@ -66,5 +66,4 @@ enum MountPoint {
 	RIGHT_SIDE = 1 << 2,  ## Right rail (tactical lights)
 	SIGHTS     = 1 << 3,  ## Top rail (scopes, red dots)
 	UNDER      = 1 << 4,  ## Underbarrel (grenade launchers, grips)
-	NONE       = 1 << 5   ## No mount point (or not applicable)
 }

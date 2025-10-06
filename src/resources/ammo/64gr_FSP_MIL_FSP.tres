@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Ammo" load_steps=2 format=3 uid="uid://vfd0gatag1mi"]
+
+[ext_resource type="Script" uid="uid://bdyogq2oufx0o" path="res://addons/cabra.lat_shooters/src/core/ammo.gd" id="1_jbfxa"]
+
+[resource]
+script = ExtResource("1_jbfxa")
+caliber = "64gr FSP"
+description = "64gr FSP (MIL FSP)"
+type = 8
+bullet_mass = 4.1
+cartridge_mass = 1.0
+speed = 510.0
+penetration = 1.0
+armor_damage = 0.0
+bleeding_chance = 0.0
+ricochet_chance = 0.0
+fragment_chance = 0.0
+accuracy = 1.0

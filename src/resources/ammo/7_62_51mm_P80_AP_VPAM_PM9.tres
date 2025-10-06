@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Ammo" load_steps=2 format=3 uid="uid://ckn0qijtoj7gh"]
+
+[ext_resource type="Script" uid="uid://bdyogq2oufx0o" path="res://addons/cabra.lat_shooters/src/core/ammo.gd" id="1_ufr5g"]
+
+[resource]
+script = ExtResource("1_ufr5g")
+caliber = "7.62x51mm P80 AP"
+description = "7.62x51mm P80 AP (VPAM PM9)"
+type = 3
+bullet_mass = 9.7
+cartridge_mass = 1.0
+speed = 820.0
+penetration = 1.0
+armor_damage = 0.0
+bleeding_chance = 0.0
+ricochet_chance = 0.0
+fragment_chance = 0.0
+accuracy = 1.0

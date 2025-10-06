@@ -1,6 +1,5 @@
 @tool
-class_name LogicChance
-extends Resource
+class_name Luck extends Resource
 
 static func succeed(chance):
 	randomize()

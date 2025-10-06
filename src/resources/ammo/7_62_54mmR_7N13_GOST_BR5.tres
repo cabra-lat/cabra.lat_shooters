@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Ammo" load_steps=2 format=3 uid="uid://bnhiwt17h1elo"]
+
+[ext_resource type="Script" uid="uid://bdyogq2oufx0o" path="res://addons/cabra.lat_shooters/src/core/ammo.gd" id="1_emuox"]
+
+[resource]
+script = ExtResource("1_emuox")
+caliber = "7.62x54mmR 7N13"
+description = "7.62x54mmR 7N13 (GOST BR5)"
+type = 5
+bullet_mass = 9.4
+cartridge_mass = 1.0
+speed = 830.0
+penetration = 1.0
+armor_damage = 0.0
+bleeding_chance = 0.0
+ricochet_chance = 0.0
+fragment_chance = 0.0
+accuracy = 1.0

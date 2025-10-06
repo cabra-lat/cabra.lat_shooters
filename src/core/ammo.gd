@@ -1,19 +1,61 @@
-class_name Ammo
-extends Resource
+@tool
+class_name Ammo extends Resource
 
-@export var caliber: String = ""
-
+# ─── CORE METADATA ───────────────────────────────
+@export var caliber: String = ""  # e.g., "7.62x39mm", "5.56x45mm NATO"
+@export var description: String = "Generic ammunition"
 @export var viewmodel: PackedScene
 @export var shell_model: PackedScene
 @export var shell_sound: AudioStream
 
-@export var description = "A generic ammo" # (String, MULTILINE)
-@export var penetration: float = 1 # Penetration Power
-@export var speed: float       = 1 # m/s Projectile Speed
-@export var accuracy: float    = 1 # mm Accuracy R_50 at 300m
-@export var armor_damage    = 0.0 # (%) Armor damage modifier # (float, 0, 1)
-@export var bleeding_chance = 0.0 # (%) Bleeding Chance # (float, 0, 1)
-@export var ricochet_chance = 0.0 # (%) Ricochet Chance # (float, 0, 1)
-@export var fragment_chance = 0.0 # (%) Fragment Chance # (float, 0, 1)
-@export var bullet_mass: float    = 1.0 # g
-@export var cartridge_mass: float = 1.0 # g
+# ─── BALLISTIC PROPERTIES ─────────────────────────
+enum Type {
+	FMJ,           # Full Metal Jacket
+	JSP,           # Jacketed Soft Point
+	JHP,           # Jacketed Hollow Point
+	AP,            # Armor-Piercing
+	API,           # Armor-Piercing Incendiary
+	STEEL_CORE,    # Mild/Steel Core (e.g., 7.62x39mm PS)
+	GREEN_TIP,     # SS109 / M855 (steel penetrator tip)
+	M995,          # Tungsten AP (5.56mm)
+	FSP,           # Fragment (military sim)
+	SLUG           # Shotgun slug
+}
+@export var type: Type = Type.FMJ
+
+@export var bullet_mass: float = 1.0    # grams
+@export var cartridge_mass: float = 1.0 # grams
+@export var speed: float = 1.0          # m/s
+@export var penetration: float = 1.0    # relative or mm RHA
+var standard_ref: String = ""
+# ─── GAMEPLAY EFFECTS ────────────────────────────
+@export_range(0.0, 1.0) var armor_damage: float = 0.0    # % armor durability loss
+@export_range(0.0, 1.0) var bleeding_chance: float = 0.0 # % chance to cause bleed
+@export_range(0.0, 1.0) var ricochet_chance: float = 0.0 # % chance to ricochet
+@export_range(0.0, 1.0) var fragment_chance: float = 0.0 # % chance to fragment
+@export var accuracy: float = 1.0  # mm R50 at 300m (lower = better)
+
+
+# Normalized caliber data (computed from string)
+var _caliber_data: Dictionary = {}
+
+func _ready():
+	_caliber_data = Utils.parse_caliber(caliber)
+
+func get_bore_mm() -> float:
+	return _caliber_data.get("bore_mm", 0.0)
+
+func get_case_mm() -> float:
+	return _caliber_data.get("case_mm", 0.0)
+
+func _init(mass: float = bullet_mass, speed: float = speed, type: Type = type) -> void:
+	self.bullet_mass = mass
+	self.speed = speed
+	self.type = type
+
+# ─── PHYSICS ─────────────────────────────────────
+func get_energy() -> float:
+	return Utils.bullet_energy(bullet_mass, speed)
+
+func get_momentum() -> float:
+	return (bullet_mass / 1000.0) * speed  # kg·m/s

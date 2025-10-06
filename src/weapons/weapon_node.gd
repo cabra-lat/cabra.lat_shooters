@@ -17,14 +17,8 @@ var _data: Weapon
 		if value.viewmodel:
 			var new_vm = value.viewmodel.instantiate()
 			add_child(new_vm)
-		value.connect("trigger_locked", Callable(self, "_on_trigger_locked"))
-		value.connect("cartridge_fired", Callable(self, "_on_cartridge_fired"))  # Fixed signal name
-		value.connect("trigger_released", Callable(self, "_on_trigger_released"))
-		value.connect("firemode_changed", Callable(self, "_on_firemode_changed"))
-		value.connect("ammofeed_empty", Callable(self, "_on_ammofeed_empty"))
-		value.connect("ammofeed_changed", Callable(self, "_on_ammofeed_changed"))
-		value.connect("ammofeed_missing", Callable(self, "_on_ammofeed_missing"))
-		value.connect("ammofeed_incompatible", Callable(self, "_on_ammofeed_incompatible"))
+		for signal_name in value.SIGNALS:
+			value.connect(signal_name, Callable(self, "_on_" + signal_name))
 		self._data = value
 		
 

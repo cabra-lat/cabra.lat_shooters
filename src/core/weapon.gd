@@ -15,15 +15,18 @@ signal ammofeed_missing
 signal ammofeed_incompatible
 
 const SIGNALS = [
-	"trigger_locked", 
-	"trigger_pressed", 
-	"trigger_released",
-	"firemode_changed", 
-	"cartridge_fired", 
-	"ammofeed_empty",
-	"ammofeed_changed",
-	"ammofeed_missing",
-	"ammofeed_incompatible"
+ "trigger_locked",
+ "trigger_pressed",
+ "trigger_released",
+ "shell_ejected",
+ "cartridge_fired",
+ "cartridge_ejected",
+ "cartridge_inserted",
+ "firemode_changed",
+ "ammofeed_empty",
+ "ammofeed_changed",
+ "ammofeed_missing",
+ "ammofeed_incompatible"
 ]
 
 # Visual and sound variables
@@ -42,7 +45,7 @@ const SIGNALS = [
 ## Underbarrel (grenade launchers, grips),
 ## No mount point (or not applicable)
 @export_flags("MUZZLE", "LEFT_RAIL", "RIGHT_RAIL", "TOP_RAIL", "UNDER", "NONE"
-) var attach_points: int = enums.MountPoint.NONE
+) var attach_points: int = 0
 
 ## Safe — trigger disabled,
 ## Fully automatic,
@@ -53,7 +56,7 @@ const SIGNALS = [
 @export_flags("SAFE", "AUTO", "SEMI", "BURST", "PUMP", "BOLT"
 ) var firemodes: int = enums.Firemode.SEMI
 
-@export var feed_type: enums.FeedType = enums.FeedType.INTERNAL
+@export var feed_type: AmmoFeed.Type = AmmoFeed.Type.INTERNAL
 
 # Statistics Variables
 @export var firerate: float  = 100 # Rounds per minute
@@ -147,14 +150,14 @@ func remove_cartridge():
 	return ammofeed.eject()
 
 func insert_cartridge(new_cartridge: Ammo):
-	if feed_type != enums.FeedType.INTERNAL:
+	if feed_type != AmmoFeed.Type.INTERNAL:
 		ammofeed_incompatible.emit()
 		return
 	cartridge_inserted.emit()
 	ammofeed.insert(new_cartridge)
 
 func change_magazine(new_magazine: AmmoFeed):
-	if feed_type == enums.FeedType.INTERNAL \
+	if feed_type == AmmoFeed.Type.INTERNAL \
 	or new_magazine.type != feed_type:
 		ammofeed_incompatible.emit()
 		return

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Ammo" load_steps=2 format=3 uid="uid://cyq6xi2spuh7d"]
+
+[ext_resource type="Script" uid="uid://bdyogq2oufx0o" path="res://addons/cabra.lat_shooters/src/core/ammo.gd" id="1_xutnx"]
+
+[resource]
+script = ExtResource("1_xutnx")
+caliber = "5.56x45mm M855"
+description = "5.56x45mm M855 (MIL SAPI)"
+type = 6
+bullet_mass = 4.0
+cartridge_mass = 1.0
+speed = 990.0
+penetration = 1.0
+armor_damage = 0.0
+bleeding_chance = 0.0
+ricochet_chance = 0.0
+fragment_chance = 0.0
+accuracy = 1.0

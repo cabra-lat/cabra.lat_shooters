@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Ammo" load_steps=2 format=3 uid="uid://bw3hu3c071okm"]
+
+[ext_resource type="Script" uid="uid://bdyogq2oufx0o" path="res://addons/cabra.lat_shooters/src/core/ammo.gd" id="1_vxyoo"]
+
+[resource]
+script = ExtResource("1_vxyoo")
+caliber = "2gr FSP"
+description = "2gr FSP (MIL FSP)"
+type = 8
+bullet_mass = 0.13
+cartridge_mass = 1.0
+speed = 830.0
+penetration = 1.0
+armor_damage = 0.0
+bleeding_chance = 0.0
+ricochet_chance = 0.0
+fragment_chance = 0.0
+accuracy = 1.0
