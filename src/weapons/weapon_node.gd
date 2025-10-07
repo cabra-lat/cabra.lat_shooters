@@ -3,9 +3,6 @@ extends Node3D
 
 const VIEWMODEL_NAME = "Viewmodel"
 
-@onready var ak47_magazine = preload("../resources/magazine_ak47.tres")
-@onready var ammo_762x39mm = preload("../resources/ammo_7.62x39mm.tres")
-
 var firerate_timer: Timer
 
 var _data: Weapon

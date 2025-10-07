@@ -62,7 +62,8 @@ enum AttachmentPoint {
 }
 
 # Visual and sound variables
-@export var name: String
+@export var name: String = "Unnamed Weapon"
+@export_multiline var description: String = "This Weapon is the default one."
 @export var view_model: PackedScene
 @export var equip_sound: AudioStream
 @export var fire_sound: AudioStream
