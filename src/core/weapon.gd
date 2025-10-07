@@ -283,8 +283,8 @@ func pull_trigger() -> bool:
 	_update_firing_state()
 	
 	# Emit firing signals
-	cartridge_fired.emit(self, round_to_fire)
 	trigger_pressed.emit(self)
+	cartridge_fired.emit(self, round_to_fire)
 	
 	# Auto-chamber next round for automatic weapons
 	if is_automatic() and ammofeed and not ammofeed.is_empty():

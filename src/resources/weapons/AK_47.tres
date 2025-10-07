@@ -19,6 +19,7 @@ contents = Array[Resource]([])
 [resource]
 script = ExtResource("1_3wd1v")
 name = "AK-47"
+description = "This Weapon is the default one."
 ammofeed = SubResource("Resource_ps5x8")
 attach_points = 31
 firemodes = 6

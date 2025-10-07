@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_jn76v")
+name = "357Mag_FMs_VPAM_PM5"
 caliber = ".357 Magnum FMs"
 description = ".357 Magnum FMs (VPAM PM5)"
 type = 0
 bullet_mass = 7.1
 cartridge_mass = 12.07
 muzzle_velocity = 580.0
-penetration = 1.19422
+penetration_value = 1.19422
 ballistic_coefficient = 0.165
 bullet_length = 33.0
 bullet_diameter = 9.07

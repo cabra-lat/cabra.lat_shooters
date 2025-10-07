@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_lq5tc")
+name = "762x39_BZ_API_ISAPI"
 caliber = "7.62x39mm BZ API"
 description = "7.62x39mm BZ API (MIL ISAPI)"
 type = 4
 bullet_mass = 7.4
 cartridge_mass = 12.58
 muzzle_velocity = 730.0
-penetration = 4.73215
+penetration_value = 4.73215
 ballistic_coefficient = 0.275
 bullet_length = 39.0
 bullet_diameter = 7.62

@@ -71,7 +71,7 @@ func take_ballistic_impact(ammo: Ammo, impact_data: Dictionary, distance: float)
 		
 		if result.penetrated:
 			# Armor penetrated - reduced damage
-			var actual_damage = base_damage * armor_result.damage_reduction
+			var actual_damage = base_damage * (1 - armor_result.damage_reduction)
 			result.damage_taken = take_damage(actual_damage)
 			
 			# Damage armor
@@ -84,7 +84,7 @@ func take_ballistic_impact(ammo: Ammo, impact_data: Dictionary, distance: float)
 				result.wound_created = wound
 		else:
 			# Armor stopped - blunt trauma
-			var blunt_damage = base_damage * armor_result.damage_reduction
+			var blunt_damage = base_damage * (1 - armor_result.damage_reduction)
 			result.damage_taken = take_damage(blunt_damage)
 			
 			# Less armor damage for stopped rounds

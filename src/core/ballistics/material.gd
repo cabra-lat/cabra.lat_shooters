@@ -52,7 +52,7 @@ func check_penetration(ammo: Ammo, impact_energy: float, armor_value: float = 1.
 	var result = {
 		"penetrated": true,
 		"energy_absorbed": 0.0,
-		"damage_reduction": 1.0,
+		"damage_reduction": 0.0,
 		"blunt_trauma_multiplier": 0.3
 	}
 	
@@ -68,12 +68,12 @@ func check_penetration(ammo: Ammo, impact_energy: float, armor_value: float = 1.
 		# Penetrated
 		result.penetrated = true
 		result.energy_absorbed = impact_energy * 0.3
-		result.damage_reduction = 1.0 - (result.energy_absorbed / impact_energy)
+		result.damage_reduction = (result.energy_absorbed / impact_energy)
 	else:
 		# Stopped - blunt trauma only
 		result.penetrated = false
 		result.energy_absorbed = impact_energy * 0.8
-		result.damage_reduction = result.blunt_trauma_multiplier * (1.0 - armor_value)
+		result.damage_reduction = result.blunt_trauma_multiplier * (1 - armor_value)
 	
 	return result
 

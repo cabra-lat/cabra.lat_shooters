@@ -1,19 +1,28 @@
 @tool
 class_name TestUtils extends EditorScript
 
-const AMMO_PATH = "res://addons/cabra.lat_shooters/src/resources/ammo/"
-const WEAPONS_PATH = "res://addons/cabra.lat_shooters/src/resources/weapons/"
+const RESOURCES_PATH = "res://addons/cabra.lat_shooters/src/resources/"
+const AMMO_PATH = RESOURCES_PATH + "ammo/"
+const ARMORS_PATH = RESOURCES_PATH + "armor/"
+const WEAPONS_PATH = RESOURCES_PATH + "weapons/"
+const ATTACHMENTS_PATH = RESOURCES_PATH + "attachments/"
 
 static func load_all_ammo() -> Array[Ammo]:
 	var list: Array[Ammo]
-	for ammo in load_all_resources(AMMO_PATH):
-		list.append(ammo as Ammo)
+	for res in load_all_resources(AMMO_PATH):
+		list.append(res as Ammo)
 	return list
 
 static func load_all_weapons() -> Array[Weapon]:
 	var list: Array[Weapon]
-	for ammo in load_all_resources(WEAPONS_PATH):
-		list.append(ammo as Weapon)
+	for res in load_all_resources(WEAPONS_PATH):
+		list.append(res as Weapon)
+	return list
+
+static func load_all_armors() -> Array[Armor]:
+	var list: Array[Armor]
+	for res in load_all_resources(ARMORS_PATH):
+		list.append(res as Armor)
 	return list
 
 static func load_all_resources(PATH: String) -> Array[Resource]:

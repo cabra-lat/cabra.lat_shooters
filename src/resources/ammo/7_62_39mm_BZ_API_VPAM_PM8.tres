@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_yijis")
+name = "762x39_BZ_API_VPAM_PM8"
 caliber = "7.62x39mm BZ API"
 description = "7.62x39mm BZ API (VPAM PM8)"
 type = 4
 bullet_mass = 7.7
 cartridge_mass = 13.09
 muzzle_velocity = 740.0
-penetration = 5.05982
+penetration_value = 5.05982
 ballistic_coefficient = 0.275
 bullet_length = 39.0
 bullet_diameter = 7.62

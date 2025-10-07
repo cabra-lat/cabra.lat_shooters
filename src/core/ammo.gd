@@ -2,15 +2,12 @@
 class_name Ammo extends Resource
 
 # ─── CORE METADATA ───────────────────────────────
-@export var caliber: String = ""  # e.g., "7.62x39mm", "5.56x45mm NATO"
+@export var name: String = "Unnamed Ammo"  # e.g., "7.62x39mm", "5.56x45mm NATO"
+@export var caliber: String = "Uknown Caliber"  # e.g., "7.62x39mm", "5.56x45mm NATO"
 @export_multiline var description: String = "Generic ammunition"
 @export var view_model: PackedScene
 @export var shell_model: PackedScene
 @export var shell_sound: AudioStream
-
-var name: String:
-	get: return caliber
-	set(value): caliber = value
 
 # ─── BALLISTIC PROPERTIES ─────────────────────────
 enum Type {

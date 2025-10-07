@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_vxyoo")
+name = "FSP_2gr"
 caliber = "2gr FSP"
 description = "2gr FSP (MIL FSP)"
 type = 8
 bullet_mass = 0.13
 cartridge_mass = 0.221
 muzzle_velocity = 830.0
-penetration = 0.00671678
+penetration_value = 0.00671678
 ballistic_coefficient = 0.08
 bullet_length = 0.0
 bullet_diameter = 0.0

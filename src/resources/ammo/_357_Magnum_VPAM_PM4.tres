@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_unbwb")
+name = "357Mag_VPAM_PM4"
 caliber = ".357 Magnum"
 description = ".357 Magnum (VPAM PM4)"
 type = 1
 bullet_mass = 10.2
 cartridge_mass = 16.32
 muzzle_velocity = 430.0
-penetration = 0.829831
+penetration_value = 0.829831
 ballistic_coefficient = 0.165
 bullet_length = 33.0
 bullet_diameter = 9.07

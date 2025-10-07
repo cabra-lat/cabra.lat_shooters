@@ -39,7 +39,7 @@ enum ArmorType {
 @export var hit_sound: AudioStream
 
 # Material
-@export var material: BallisticMaterial  # Armor material
+@export var material: BallisticMaterial = BallisticMaterial.new() # Armor material
 
 # Durability
 @export var max_durability: int = 100
@@ -60,14 +60,6 @@ enum Standard { NIJ, VPAM, GOST, GA141, MILITARY }
 
 signal armor_damaged(armor: Armor, damage: float)
 signal armor_destroyed(armor: Armor)
-
-func check_penetration(ammo: Ammo, impact_energy: float) -> Dictionary:
-	if current_durability <= 0:
-		return {"penetrated": true, "damage_reduction": 1.0}
-	
-	# Use BallisticMaterial for penetration calculation
-	var effective_armor_value = get_effective_armor_value()
-	return material.check_penetration(ammo, impact_energy, effective_armor_value)
 
 func take_damage(damage: float) -> void:
 	current_durability = max(0, current_durability - damage)
@@ -106,46 +98,49 @@ func validate_certification(ammo: Ammo) -> bool:
 	
 	return false
 
-# ─── PENETRATION LOGIC ──────────────────
+# [Keep all your existing enum definitions and properties...]
 
-func is_penetrated_by(ammo: Ammo) -> bool:
+# ─── FIXED PENETRATION LOGIC ──────────────────
+
+func check_penetration(ammo: Ammo, impact_energy: float) -> Dictionary:
 	if current_durability <= 0:
-		return true
+		return { "penetrated": true, "damage_reduction": 0.0 }
 	
 	var certified_threats = _get_certified_threats()
-	var ammo_energy = ammo.get_energy()
 	
 	# Check if this specific ammo matches any certified threat
 	for threat in certified_threats:
 		if _matches_threat(ammo, threat):
-			# If it matches a certified threat, armor should stop it
-			return false
+			# If it matches a certified threat, armor should STOP it (no penetration)
+			return { "penetrated": false, "damage_reduction": 1.0 }
 	
-	# For non-certified threats, use energy-based fallback
-	return ammo_energy > _get_fallback_threshold(certified_threats)
+	# If not a certified threat, use material penetration check
+	var effective_armor_value = get_effective_armor_value()
+	return material.check_penetration(ammo, impact_energy, effective_armor_value)
 
+func is_penetrated_by(ammo: Ammo, impact_energy: float = 0.0) -> bool:
+	return check_penetration(ammo, impact_energy).penetrated
+
+# In armor.gd - Improved _matches_threat function
 func _matches_threat(ammo: Ammo, threat: Dictionary) -> bool:
 	# Check if ammo matches the threat specification
 	var energy_match = ammo.get_energy() <= threat.energy
 	var type_match = ammo.type == threat.type
 	
-	# For exact certification, we need both energy and type to match
-	return energy_match and type_match
-
-func _get_fallback_threshold(certified_threats: Array) -> float:
-	if certified_threats.is_empty():
-		return 1000.0
+	# More flexible caliber matching
+	var caliber_match = false
+	if threat.caliber in ammo.caliber:
+		caliber_match = true
+	else:
+		# Try alternative caliber formats
+		var normalized_threat = threat.caliber.replace(" ", "").replace("-", "").to_lower()
+		var normalized_ammo = ammo.caliber.replace(" ", "").replace("-", "").to_lower()
+		caliber_match = normalized_threat in normalized_ammo
 	
-	# Use the highest certified energy as conservative estimate
-	var max_energy = 0.0
-	for threat in certified_threats:
-		if threat.energy > max_energy:
-			max_energy = threat.energy
-	
-	return max_energy
+	# For exact certification, we need all three to match
+	return caliber_match and type_match and energy_match
 
 # ─── CORRECTED CERTIFICATION DATA ─────────────────
-
 func _get_certified_threats() -> Array:
 	match standard:
 		Standard.VPAM:

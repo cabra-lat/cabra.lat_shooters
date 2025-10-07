@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_bdrdo")
+name = "762x51_SWISS_P_VPAM_PM12"
 caliber = "7.62x51mm Swiss P AP"
 description = "7.62x51mm Swiss P AP (VPAM PM12)"
 type = 3
 bullet_mass = 12.7
 cartridge_mass = 21.59
 muzzle_velocity = 810.0
-penetration = 16.4983
+penetration_value = 16.4983
 ballistic_coefficient = 0.405
 bullet_length = 51.0
 bullet_diameter = 7.62

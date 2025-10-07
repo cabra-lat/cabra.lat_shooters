@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_sewel")
+name = "380_ACP_NIJ_I"
 caliber = ".380 ACP"
 description = ".380 ACP (NIJ I)"
 type = 0
 bullet_mass = 6.2
 cartridge_mass = 10.54
 muzzle_velocity = 322.0
-penetration = 0.32142
+penetration_value = 0.32142
 ballistic_coefficient = 0.145
 bullet_length = 17.3
 bullet_diameter = 9.65

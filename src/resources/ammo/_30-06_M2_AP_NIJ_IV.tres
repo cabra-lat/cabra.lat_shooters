@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_8gbi1")
+name = "3006_M2_AP_NIJ_IV"
 caliber = ".30-06 M2 AP"
 description = ".30-06 M2 AP (NIJ IV)"
 type = 3
 bullet_mass = 10.8
 cartridge_mass = 18.36
 muzzle_velocity = 878.0
-penetration = 13.4874
+penetration_value = 13.4874
 ballistic_coefficient = 0.409
 bullet_length = 63.0
 bullet_diameter = 7.62

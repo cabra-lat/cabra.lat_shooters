@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_gveup")
+name = "145x114_B32_VPAM_PM14"
 caliber = "14.5x114mm B32 API"
 description = "14.5x114mm B32 API (VPAM PM14)"
 type = 4
 bullet_mass = 63.4
 cartridge_mass = 107.78
 muzzle_velocity = 911.0
-penetration = 117.862
+penetration_value = 117.862
 ballistic_coefficient = 0.72
 bullet_length = 114.0
 bullet_diameter = 14.5

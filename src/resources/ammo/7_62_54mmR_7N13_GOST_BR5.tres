@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_emuox")
+name = "762x54R_7N13_GOST_BR5"
 caliber = "7.62x54mmR 7N13"
 description = "7.62x54mmR 7N13 (GOST BR5)"
 type = 5
 bullet_mass = 9.4
 cartridge_mass = 15.98
 muzzle_velocity = 830.0
-penetration = 5.47193
+penetration_value = 5.47193
 ballistic_coefficient = 0.41
 bullet_length = 54.0
 bullet_diameter = 7.62

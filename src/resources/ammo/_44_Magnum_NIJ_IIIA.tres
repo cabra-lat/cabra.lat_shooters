@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_5etoi")
+name = "44Mag_NIJ_IIIA"
 caliber = ".44 Magnum"
 description = ".44 Magnum (NIJ IIIA)"
 type = 2
 bullet_mass = 15.6
 cartridge_mass = 26.52
 muzzle_velocity = 436.0
-penetration = 0.622754
+penetration_value = 0.622754
 ballistic_coefficient = 0.21
 bullet_length = 32.6
 bullet_diameter = 10.9

@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_vwics")
+name = "762x39_PS_VPAM_PM6"
 caliber = "7.62x39mm PS"
 description = "7.62x39mm PS (VPAM PM6)"
 type = 5
 bullet_mass = 8.0
 cartridge_mass = 13.6
 muzzle_velocity = 720.0
-penetration = 3.23482
+penetration_value = 3.23482
 ballistic_coefficient = 0.275
 bullet_length = 39.0
 bullet_diameter = 7.62

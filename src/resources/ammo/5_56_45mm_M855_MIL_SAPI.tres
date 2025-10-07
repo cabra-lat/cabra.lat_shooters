@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_xutnx")
+name = "556_M855_SAPI"
 caliber = "5.56x45mm M855"
 description = "5.56x45mm M855 (MIL SAPI)"
 type = 6
 bullet_mass = 4.0
 cartridge_mass = 6.8
 muzzle_velocity = 990.0
-penetration = 3.56756
+penetration_value = 3.56756
 ballistic_coefficient = 0.151
 bullet_length = 45.0
 bullet_diameter = 5.56

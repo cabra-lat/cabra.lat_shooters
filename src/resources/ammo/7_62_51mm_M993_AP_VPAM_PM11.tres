@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_7asly")
+name = "762x51_M993_VPAM_PM11"
 caliber = "7.62x51mm M993 AP"
 description = "7.62x51mm M993 AP (VPAM PM11)"
 type = 3
 bullet_mass = 8.4
 cartridge_mass = 14.28
 muzzle_velocity = 930.0
-penetration = 13.0773
+penetration_value = 13.0773
 ballistic_coefficient = 0.405
 bullet_length = 51.0
 bullet_diameter = 7.62

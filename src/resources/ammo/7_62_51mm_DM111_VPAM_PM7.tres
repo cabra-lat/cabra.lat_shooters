@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_4g864")
+name = "762x51_DM111_VPAM_PM7"
 caliber = "7.62x51mm DM111"
 description = "7.62x51mm DM111 (VPAM PM7)"
 type = 5
 bullet_mass = 9.55
 cartridge_mass = 16.235
 muzzle_velocity = 830.0
-penetration = 5.13162
+penetration_value = 5.13162
 ballistic_coefficient = 0.405
 bullet_length = 51.0
 bullet_diameter = 7.62

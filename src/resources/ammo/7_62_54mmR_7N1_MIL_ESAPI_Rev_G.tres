@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_yn1ua")
+name = "762x54R_7N1_ESAPI"
 caliber = "7.62x54mmR 7N1"
 description = "7.62x54mmR 7N1 (MIL ESAPI Rev G)"
 type = 5
 bullet_mass = 9.8
 cartridge_mass = 16.66
 muzzle_velocity = 820.0
-penetration = 5.56814
+penetration_value = 5.56814
 ballistic_coefficient = 0.41
 bullet_length = 54.0
 bullet_diameter = 7.62

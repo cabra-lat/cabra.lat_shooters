@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_hp258")
+name = "3006_M2_AP_ESAPI"
 caliber = ".30-06 M2 AP"
 description = ".30-06 M2 AP (MIL ESAPI Rev G)"
 type = 3
 bullet_mass = 10.8
 cartridge_mass = 18.36
 muzzle_velocity = 870.0
-penetration = 13.2427
+penetration_value = 13.2427
 ballistic_coefficient = 0.409
 bullet_length = 63.0
 bullet_diameter = 7.62

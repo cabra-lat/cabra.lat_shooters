@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_3b1a3")
+name = "9mm_p_NIJ_II"
 caliber = "9mm +P"
 description = "9mm +P (NIJ II)"
 type = 0
 bullet_mass = 8.0
 cartridge_mass = 13.6
 muzzle_velocity = 398.0
-penetration = 0.633616
+penetration_value = 0.633616
 ballistic_coefficient = 0.145
 bullet_length = 19.0
 bullet_diameter = 9.0

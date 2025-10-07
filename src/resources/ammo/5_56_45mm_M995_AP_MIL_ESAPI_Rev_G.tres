@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_nle21")
+name = "556_M995_ESAPI"
 caliber = "5.56x45mm M995 AP"
 description = "5.56x45mm M995 AP (MIL ESAPI Rev G)"
 type = 7
 bullet_mass = 3.6
 cartridge_mass = 6.12
 muzzle_velocity = 1020.0
-penetration = 8.23997
+penetration_value = 8.23997
 ballistic_coefficient = 0.151
 bullet_length = 45.0
 bullet_diameter = 5.56

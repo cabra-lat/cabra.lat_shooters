@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_8h6w4")
+name = "556_M855_NIJ_RF2"
 caliber = "5.56x45mm M855"
 description = "5.56x45mm M855 (NIJ RF2)"
 type = 6
 bullet_mass = 4.0
 cartridge_mass = 6.8
 muzzle_velocity = 950.0
-penetration = 3.2851
+penetration_value = 3.2851
 ballistic_coefficient = 0.151
 bullet_length = 45.0
 bullet_diameter = 5.56

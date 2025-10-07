@@ -106,7 +106,7 @@ func _create_enhanced_ammo(name: String, caliber: String,
 	ammo.cartridge_mass = mass_g * _get_cartridge_multiplier(caliber)
 	
 	# Set penetration value based on type and modifiers
-	ammo.penetration = _calculate_penetration_value(type, armor_modifier, mass_g, velocity_mps)
+	ammo.penetration_value = _calculate_penetration_value(type, armor_modifier, mass_g, velocity_mps)
 	
 	# Set special properties based on ammo type
 	_set_special_properties(ammo, type)

@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_up7cb")
+name = "762x39_PS_GOST_BR4"
 caliber = "7.62x39mm PS"
 description = "7.62x39mm PS (GOST BR4)"
 type = 5
 bullet_mass = 7.9
 cartridge_mass = 13.43
 muzzle_velocity = 720.0
-penetration = 3.19438
+penetration_value = 3.19438
 ballistic_coefficient = 0.275
 bullet_length = 39.0
 bullet_diameter = 7.62

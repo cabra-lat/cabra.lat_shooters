@@ -4,13 +4,14 @@
 
 [resource]
 script = ExtResource("1_7lxuw")
+name = "545x39_7N10_GOST_BR4"
 caliber = "5.45x39mm 7N10"
 description = "5.45x39mm 7N10 (GOST BR4)"
 type = 5
 bullet_mass = 3.4
 cartridge_mass = 5.78
 muzzle_velocity = 895.0
-penetration = 2.12432
+penetration_value = 2.12432
 ballistic_coefficient = 0.168
 bullet_length = 39.0
 bullet_diameter = 5.45
