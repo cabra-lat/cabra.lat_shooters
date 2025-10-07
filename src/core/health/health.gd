@@ -42,7 +42,7 @@ signal bleeding_started(severity: float, location: BodyPart.Type)
 	BodyPart.Type.HEAD: {"max_health": 40.0, "hitbox_size": 0.08, "tissue_multiplier": 3.0, "bone_material": true},
 	BodyPart.Type.UPPER_CHEST: {"max_health": 70.0, "hitbox_size": 0.15, "tissue_multiplier": 1.5, "bone_material": true},
 	BodyPart.Type.LOWER_CHEST: {"max_health": 60.0, "hitbox_size": 0.12, "tissue_multiplier": 1.2, "bone_material": true},
-	BodyPart.Type.STOMACH: {"max_health": 50.0, "hitbox_size": 0.10, "tissue_multiplier": 1.3, "bone_material": false},
+	BodyPart.Type.ABDOMEN: {"max_health": 50.0, "hitbox_size": 0.10, "tissue_multiplier": 1.3, "bone_material": false},
 	BodyPart.Type.LEFT_UPPER_ARM: {"max_health": 35.0, "hitbox_size": 0.07, "tissue_multiplier": 0.8, "bone_material": true},
 	BodyPart.Type.RIGHT_UPPER_ARM: {"max_health": 35.0, "hitbox_size": 0.07, "tissue_multiplier": 0.8, "bone_material": true},
 	BodyPart.Type.LEFT_LOWER_ARM: {"max_health": 25.0, "hitbox_size": 0.05, "tissue_multiplier": 0.6, "bone_material": true},
@@ -85,9 +85,9 @@ var health_percentage: float:
 func _init():
 	# Create default materials if none provided
 	if flesh_material == null:
-		flesh_material = _create_default_flesh_material()
+		flesh_material = BallisticMaterial.create_default_flesh_material()
 	if bone_material == null:
-		bone_material = _create_default_bone_material()
+		bone_material =  BallisticMaterial.create_default_bone_material()
 	
 	# Initialize body parts
 	for part_type in body_part_config.keys():
@@ -109,35 +109,12 @@ func _init():
 	for part in body_parts.values():
 		part.functionality_changed.connect(_on_body_part_functionality_changed)
 
-func _create_default_flesh_material() -> BallisticMaterial:
-	var material = BallisticMaterial.new()
-	material.name = "Human Flesh"
-	material.type = BallisticMaterial.Type.FLESH_SOFT
-	material.density = 1060.0
-	material.hardness = 0.5
-	material.toughness = 2.0
-	material.penetration_resistance = 0.1
-	material.damage_modifier = 1.0
-	return material
-
-func _create_default_bone_material() -> BallisticMaterial:
-	var material = BallisticMaterial.new()
-	material.name = "Human Bone"
-	material.type = BallisticMaterial.Type.FLESH_HARD
-	material.density = 1900.0
-	material.hardness = 3.0
-	material.toughness = 5.0
-	material.penetration_resistance = 0.5
-	material.damage_modifier = 0.8
-	return material
-
 # Primary method for handling ballistic impacts
-func take_ballistic_damage(ammo: Ammo, impact_data: Dictionary, hit_location: BodyPart.Type, distance: float) -> Dictionary:
+func take_ballistic_damage(impact: BallisticsImpact, hit_location: BodyPart.Type) -> Dictionary:
 	if not is_alive:
 		return {"damage_taken": 0.0, "fatal": false, "wounds": []}
-	
 	var part: BodyPart = body_parts[hit_location]
-	var result = part.take_ballistic_impact(ammo, impact_data, distance)
+	var result = part.take_ballistic_impact(impact)
 	
 	health_changed.emit(part, part.current_health + result.damage_taken, part.current_health)
 	
@@ -145,7 +122,7 @@ func take_ballistic_damage(ammo: Ammo, impact_data: Dictionary, hit_location: Bo
 	pain_level += result.damage_taken * pain_increase_per_damage
 	
 	# Handle bleeding
-	if result.wound_created and result.wound_created.type == "bleeding":
+	if result.wound_created and result.wound_created.type == Wound.Type.BLEEDING:
 		total_bleeding_rate += result.wound_created.damage_per_second
 		bleeding_started.emit(result.wound_created.severity, hit_location)
 	
@@ -156,7 +133,7 @@ func take_ballistic_damage(ammo: Ammo, impact_data: Dictionary, hit_location: Bo
 	# Check for death
 	var fatal = _check_death()
 	if fatal:
-		player_died.emit("Ballistic trauma to " + _body_part_to_string(hit_location))
+		player_died.emit("Ballistic trauma to " + BodyPart.type_to_string(hit_location))
 	
 	result["fatal"] = fatal
 	return result
@@ -174,7 +151,7 @@ func take_explosive_damage(damage: float, blast_center: Vector3, player_position
 	var wounds_created = []
 	
 	# Distribute damage to multiple body parts based on orientation to blast
-	var front_parts = [BodyPart.Type.UPPER_CHEST, BodyPart.Type.LOWER_CHEST, BodyPart.Type.STOMACH, 
+	var front_parts = [BodyPart.Type.UPPER_CHEST, BodyPart.Type.LOWER_CHEST, BodyPart.Type.ABDOMEN, 
 					  BodyPart.Type.LEFT_UPPER_ARM, BodyPart.Type.RIGHT_UPPER_ARM]
 	var back_parts = [BodyPart.Type.HEAD, BodyPart.Type.LEFT_UPPER_LEG, BodyPart.Type.RIGHT_UPPER_LEG]
 	
@@ -194,7 +171,9 @@ func take_explosive_damage(damage: float, blast_center: Vector3, player_position
 		
 		# Create explosion wound
 		if part_damage > 10.0:
-			var wound = Wound.new(Wound.Severity.MODERATE, "burn", part_type, null, part_damage * 0.01, 15.0)
+			var wound = Wound.new(Wound.Severity.MODERATE, 
+								  Wound.Type.BURN,
+								  part_type, null, part_damage * 0.01, 15.0)
 			part.add_wound(wound)
 			wounds_created.append(wound)
 	
@@ -340,23 +319,3 @@ func get_health_percentage(part: BodyPart.Type) -> float:
 
 func get_hit_probability_multiplier(part: BodyPart.Type) -> float:
 	return body_parts[part].hitbox_size
-
-func _body_part_to_string(part: BodyPart.Type) -> String:
-	match part:
-		BodyPart.Type.HEAD: return "Head"
-		BodyPart.Type.UPPER_CHEST: return "Upper Chest"
-		BodyPart.Type.LOWER_CHEST: return "Lower Chest"
-		BodyPart.Type.STOMACH: return "Stomach"
-		BodyPart.Type.LEFT_UPPER_ARM: return "Left Upper Arm"
-		BodyPart.Type.RIGHT_UPPER_ARM: return "Right Upper Arm"
-		BodyPart.Type.LEFT_LOWER_ARM: return "Left Lower Arm"
-		BodyPart.Type.RIGHT_LOWER_ARM: return "Right Lower Arm"
-		BodyPart.Type.LEFT_HAND: return "Left Hand"
-		BodyPart.Type.RIGHT_HAND: return "Right Hand"
-		BodyPart.Type.LEFT_UPPER_LEG: return "Left Upper Leg"
-		BodyPart.Type.RIGHT_UPPER_LEG: return "Right Upper Leg"
-		BodyPart.Type.LEFT_LOWER_LEG: return "Left Lower Leg"
-		BodyPart.Type.RIGHT_LOWER_LEG: return "Right Lower Leg"
-		BodyPart.Type.LEFT_FOOT: return "Left Foot"
-		BodyPart.Type.RIGHT_FOOT: return "Right Foot"
-		_: return "Unknown"

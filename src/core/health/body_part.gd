@@ -5,20 +5,32 @@ class_name BodyPart extends Resource
 enum Type {
 	NONE,
 	HEAD,
-	UPPER_CHEST,
-	LOWER_CHEST,
-	STOMACH,
+	CERVICAL_SPINE,
+	THORACIC_SPINE,
+	LUMBAR_SPINE,
+	UPPER_CHEST,      # Clavicles, upper ribs, brachial plexus origin
+	LOWER_CHEST,      # Lower ribs, diaphragm proximity
+	ABDOMEN,
+	PELVIS,           # Includes iliac bones, sacrum, hip girdle
+	LEFT_SHOULDER,
 	LEFT_UPPER_ARM,
-	RIGHT_UPPER_ARM,
+	LEFT_ELBOW,
 	LEFT_LOWER_ARM,
-	RIGHT_LOWER_ARM,
 	LEFT_HAND,
+	RIGHT_SHOULDER,
+	RIGHT_UPPER_ARM,
+	RIGHT_ELBOW,
+	RIGHT_LOWER_ARM,
 	RIGHT_HAND,
+	LEFT_HIP,
 	LEFT_UPPER_LEG,
-	RIGHT_UPPER_LEG,
+	LEFT_KNEE,
 	LEFT_LOWER_LEG,
-	RIGHT_LOWER_LEG,
 	LEFT_FOOT,
+	RIGHT_HIP,
+	RIGHT_UPPER_LEG,
+	RIGHT_KNEE,
+	RIGHT_LOWER_LEG,
 	RIGHT_FOOT
 }
 
@@ -26,7 +38,6 @@ enum Type {
 @export var max_health: float
 @export var current_health: float
 @export var wounds: Array[Wound] = []
-@export var functionality_multiplier: float = 1.0
 @export var hitbox_size: float = 1.0
 @export var tissue_multiplier: float = 1.0
 @export var is_destroyed: bool = false
@@ -35,11 +46,8 @@ enum Type {
 @export var base_material: BallisticMaterial  # Flesh/bone material
 @export var equipped_armor: Armor = null      # Optional armor
 
-# Wound thresholds
-@export var minor_wound_threshold: float = 0.3
-@export var moderate_wound_threshold: float = 0.5  
-@export var severe_wound_threshold: float = 0.8
-@export var minimum_wound_damage: float = 5.0
+var functionality_multiplier: float = 1.0:
+	get: return _get_functionality_multiplier()
 
 signal functionality_changed(multiplier: float)
 
@@ -49,7 +57,7 @@ func _init(_type: Type, _max_health: float, _hitbox_size: float = 1.0):
 	current_health = _max_health
 	hitbox_size = _hitbox_size
 
-func take_ballistic_impact(ammo: Ammo, impact_data: Dictionary, distance: float) -> Dictionary:
+func take_ballistic_impact(impact: BallisticsImpact) -> Dictionary:
 
 	var result = {
 		"damage_taken": 0.0,
@@ -61,124 +69,76 @@ func take_ballistic_impact(ammo: Ammo, impact_data: Dictionary, distance: float)
 	if is_destroyed: return result
 	
 	# Calculate base tissue damage
-	var base_damage = impact_data.damage * tissue_multiplier
+	var base_damage = impact.damage * tissue_multiplier
 	
 	# Check armor first
 	if equipped_armor and equipped_armor.material:
-		var armor_result = equipped_armor.check_penetration(ammo, impact_data.energy)
-		result.penetrated = armor_result.penetrated
-		result.armor_penetrated = armor_result.penetrated
-		
-		if result.penetrated:
-			# Armor penetrated - reduced damage
-			var actual_damage = base_damage * (1 - armor_result.damage_reduction)
-			result.damage_taken = take_damage(actual_damage)
-			
-			# Damage armor
-			equipped_armor.take_damage(actual_damage)
-			
-			# Create penetrating wound
-			var wound = _create_ballistic_wound(ammo, impact_data, actual_damage, true)
-			if wound:
-				wounds.append(wound)
-				result.wound_created = wound
-		else:
-			# Armor stopped - blunt trauma
-			var blunt_damage = base_damage * (1 - armor_result.damage_reduction)
-			result.damage_taken = take_damage(blunt_damage)
-			
-			# Less armor damage for stopped rounds
-			equipped_armor.take_damage(blunt_damage * 0.5)
-			
-			if blunt_damage > minimum_wound_damage:
-				var wound = _create_ballistic_wound(ammo, impact_data, blunt_damage, false)
-				if wound:
-					wounds.append(wound)
-					result.wound_created = wound
-	else:
-		# No armor - full damage
-		result.penetrated = true
-		result.damage_taken = take_damage(base_damage)
-		
-		# Create wound
-		var wound = _create_ballistic_wound(ammo, impact_data, base_damage, true)
-		if wound:
-			wounds.append(wound)
-			result.wound_created = wound
+		pass
+		#result.penetrated = impact.penetrated
+		#result.armor_penetrated = impact.penetrated
+		#
+		#if result.penetrated:
+			## Armor penetrated - reduced damage
+			#var actual_damage = base_damage * (1 - impact.energy_loss)
+			#result.damage_taken = take_damage(actual_damage)
+			#
+			## Damage armor
+			#equipped_armor.take_damage(actual_damage)
+			#
+			## Create penetrating wound
+			#var wound = _create_ballistic_wound(ammo, impact_data, actual_damage, true)
+			#if wound:
+				#wounds.append(wound)
+				#result.wound_created = wound
+		#else:
+			## Armor stopped - blunt trauma
+			#var blunt_damage = base_damage * (1 - impact.damage_reduction)
+			#result.damage_taken = take_damage(blunt_damage)
+			#
+			## Less armor damage for stopped rounds
+			#equipped_armor.take_damage(blunt_damage * 0.5)
+			#
+			#if blunt_damage > minimum_wound_damage:
+				#var wound = _create_ballistic_wound(ammo, impact_data, blunt_damage, false)
+				#if wound:
+					#wounds.append(wound)
+					#result.wound_created = wound
+	#else:
+		## No armor - full damage
+		#result.penetrated = true
+		#result.damage_taken = take_damage(base_damage)
+		#
+		## Create wound
+		#var wound = _create_ballistic_wound(ammo, impact_data, base_damage, true)
+		#if wound:
+			#wounds.append(wound)
+			#result.wound_created = wound
 	
 	return result
 
-func _create_ballistic_wound(ammo: Ammo, impact_data: Dictionary, damage: float, penetrated: bool) -> Wound:
-	var severity = Wound.Severity.MINOR
-	var wound_type = "puncture"
-	var dps = 0.0
-	var duration = 0.0
-	
-	# Determine severity based on damage and body part
-	var damage_ratio = damage / max_health
-	
-	if damage_ratio > severe_wound_threshold: severity = Wound.Severity.CRITICAL
-	elif damage_ratio > moderate_wound_threshold: severity = Wound.Severity.SEVERE
-	elif damage_ratio > minor_wound_threshold: severity = Wound.Severity.MODERATE
-	
-	# Improved ammo type wound logic
-	match ammo.type:
-		Ammo.Type.JHP, Ammo.Type.HOLLOW_POINT:
-			wound_type = "cavity"
-			if penetrated: 
-				dps = damage * 0.04
-				duration = 25.0
-		Ammo.Type.AP:
-			wound_type = "puncture"
-			if penetrated:
-				dps = damage * 0.015
-				duration = 20.0
-		Ammo.Type.INCENDIARY:
-			wound_type = "burn"
-			dps = damage * 0.03
-			duration = 12.0
-		Ammo.Type.FRAGMENTATION, Ammo.Type.FSP:
-			wound_type = "fragmentation"
-			dps = damage * 0.05
-			duration = 8.0
-		Ammo.Type.FMJ, Ammo.Type.STEEL_CORE, Ammo.Type.GREEN_TIP:
-			if penetrated and severity >= Wound.Severity.MODERATE:
-				wound_type = "bleeding"
-				dps = damage * 0.025 * (severity + 1)
-				duration = 30.0 / (severity + 1)
-	
-	# Ensure AP ammo always creates puncture wounds
-	if ammo.type == Ammo.Type.AP and penetrated:
-		wound_type = "puncture"
-		if severity >= Wound.Severity.SEVERE and dps == 0.0:
-			dps = damage * 0.01
-			duration = 15.0
-	
-	# Bleeding override for most penetrating wounds
-	if penetrated and severity >= Wound.Severity.MODERATE and wound_type != "burn" and ammo.type != Ammo.Type.AP:
-		if wound_type != "bleeding" and wound_type != "fragmentation":
-			wound_type = "bleeding"
-		if dps == 0.0:
-			dps = damage * 0.02 * (severity + 1)
-			duration = 25.0 / (severity + 1)
-	
-	# Fractures for high damage to limbs
-	if severity >= Wound.Severity.SEVERE and _is_limb():
-		wound_type = "fracture"
-		dps = damage * 0.008
-		duration = 75.0
-	
-	# Always create wounds for moderate+ severity or if there are ongoing effects
-	if severity >= Wound.Severity.MODERATE or dps > 0 or duration > 0:
-		return Wound.new(severity, wound_type, type, ammo, dps, duration, impact_data.get("penetration_depth", 0.0))
-	
-	return null
+func is_limb() -> bool:
+	return type in [
+		Type.LEFT_UPPER_ARM, Type.LEFT_LOWER_ARM, Type.LEFT_HAND,
+		Type.RIGHT_UPPER_ARM, Type.RIGHT_LOWER_ARM, Type.RIGHT_HAND,
+		Type.LEFT_UPPER_LEG, Type.LEFT_LOWER_LEG, Type.LEFT_FOOT,
+		Type.RIGHT_UPPER_LEG, Type.RIGHT_LOWER_LEG, Type.RIGHT_FOOT
+	]
 
-func _is_limb() -> bool:
-	return type in [BodyPart.Type.LEFT_UPPER_ARM, BodyPart.Type.RIGHT_UPPER_ARM,
-				   BodyPart.Type.LEFT_LOWER_ARM, BodyPart.Type.RIGHT_LOWER_ARM,
-				   BodyPart.Type.LEFT_UPPER_LEG, BodyPart.Type.RIGHT_UPPER_LEG,
-				   BodyPart.Type.LEFT_LOWER_LEG, BodyPart.Type.RIGHT_LOWER_LEG]
+func is_joint() -> bool:
+	return type in [
+		Type.LEFT_SHOULDER, Type.RIGHT_SHOULDER,
+		Type.LEFT_ELBOW, Type.RIGHT_ELBOW,
+		Type.LEFT_HIP, Type.RIGHT_HIP,
+		Type.LEFT_KNEE, Type.RIGHT_KNEE,
+		Type.LEFT_HAND, Type.RIGHT_HAND,  # Carpometacarpal joints
+		Type.LEFT_FOOT, Type.RIGHT_FOOT   # Subtalar/tibiotalar
+	]
+
+func is_spine() -> bool:
+	return type in [Type.CERVICAL_SPINE, Type.THORACIC_SPINE, Type.LUMBAR_SPINE]
+
+func is_torso() -> bool:
+	return type in [Type.UPPER_CHEST, Type.LOWER_CHEST, Type.ABDOMEN, Type.PELVIS]
 
 func take_damage(amount: float) -> float:
 	if is_destroyed:
@@ -189,48 +149,11 @@ func take_damage(amount: float) -> float:
 	
 	if current_health == 0:
 		is_destroyed = true
-		_apply_destruction_effects()
 	
 	return old_health - current_health
 
 func add_wound(wound: Wound):
 	wounds.append(wound)
-	_apply_wound_effects(wound)
-
-func _apply_destruction_effects():
-	match type:
-		BodyPart.Type.HEAD, BodyPart.Type.UPPER_CHEST:
-			functionality_multiplier = 0.0
-		BodyPart.Type.LEFT_UPPER_ARM, BodyPart.Type.RIGHT_UPPER_ARM:
-			functionality_multiplier = 0.2
-		BodyPart.Type.LEFT_LOWER_ARM, BodyPart.Type.RIGHT_LOWER_ARM:
-			functionality_multiplier = 0.4
-		BodyPart.Type.LEFT_HAND, BodyPart.Type.RIGHT_HAND:
-			functionality_multiplier = 0.6
-		BodyPart.Type.LEFT_UPPER_LEG, BodyPart.Type.RIGHT_UPPER_LEG:
-			functionality_multiplier = 0.1
-		BodyPart.Type.LEFT_LOWER_LEG, BodyPart.Type.RIGHT_LOWER_LEG:
-			functionality_multiplier = 0.3
-		BodyPart.Type.LEFT_FOOT, BodyPart.Type.RIGHT_FOOT:
-			functionality_multiplier = 0.5
-		_:
-			functionality_multiplier = 0.8
-	
-	functionality_changed.emit(functionality_multiplier)
-
-func _apply_wound_effects(wound: Wound):
-	match wound.type:
-		"fracture":
-			if wound.severity >= Wound.Severity.SEVERE:
-				functionality_multiplier *= 0.3
-			else:
-				functionality_multiplier *= 0.7
-		"concussion":
-			functionality_multiplier *= 0.5
-		"burn":
-			functionality_multiplier *= 0.8
-	
-	functionality_changed.emit(functionality_multiplier)
 
 func heal(amount: float):
 	if is_destroyed:
@@ -263,5 +186,45 @@ func equip_armor(armor: Armor) -> void:
 func unequip_armor() -> void:
 	equipped_armor = null
 
+func _get_functionality_multiplier():
+	if is_destroyed:
+		match type:
+			BodyPart.Type.HEAD, BodyPart.Type.UPPER_CHEST:
+				functionality_multiplier = 0.0
+			BodyPart.Type.LEFT_UPPER_ARM, BodyPart.Type.RIGHT_UPPER_ARM:
+				functionality_multiplier = 0.2
+			BodyPart.Type.LEFT_LOWER_ARM, BodyPart.Type.RIGHT_LOWER_ARM:
+				functionality_multiplier = 0.4
+			BodyPart.Type.LEFT_HAND, BodyPart.Type.RIGHT_HAND:
+				functionality_multiplier = 0.6
+			BodyPart.Type.LEFT_UPPER_LEG, BodyPart.Type.RIGHT_UPPER_LEG:
+				functionality_multiplier = 0.1
+			BodyPart.Type.LEFT_LOWER_LEG, BodyPart.Type.RIGHT_LOWER_LEG:
+				functionality_multiplier = 0.3
+			BodyPart.Type.LEFT_FOOT, BodyPart.Type.RIGHT_FOOT:
+				functionality_multiplier = 0.5
+			_:
+				functionality_multiplier = 0.8
+				
+		for wound in wounds:
+			functionality_multiplier *= _get_wound_effects(wound)
+
+static func _get_wound_effects(wound: Wound):
+	match wound.type:
+		Wound.Type.FRACTURE:
+			if wound.severity >= Wound.Severity.SEVERE:
+				return 0.3
+			else:
+				return 0.7
+		Wound.Type.CONCUSSION:
+			return 0.5
+		Wound.Type.BURN:
+			return 0.8
+		_: return 1.0
+
 func _to_string() -> String:
-	return BodyPart.Type.keys()[type] if type < BodyPart.Type.keys().size() else "Unknown"
+	return type_to_string(type)
+
+static func type_to_string(type: BodyPart.Type) -> String:
+	var string: String = BodyPart.Type.keys()[type] if type < BodyPart.Type.keys().size() else "Unknown"
+	return string.capitalize()

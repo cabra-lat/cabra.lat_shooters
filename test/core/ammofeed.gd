@@ -1,4 +1,3 @@
-# test_ammofeed.gd
 @tool
 class_name TestAmmoFeed extends EditorScript
 

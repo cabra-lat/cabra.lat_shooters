@@ -51,14 +51,11 @@ func _test_body_part_initialization():
 # ─── TEST 2: BALLISTIC DAMAGE WITHOUT ARMOR ──────
 func _test_ballistic_damage_no_armor():
 	var health = Health.new()
-	var test_ammo = _create_test_ammo()
-	var impact_data = {
-		"damage": 30.0,
-		"energy": 1500.0,
-		"penetration_depth": 10.0
-	}
+	var test_ammo = Ammo.create_test_ammo()
+	var test_target = BallisticMaterial.create_default_flesh_material()
+	var impact = BallisticsCalculator.calculate_impact(test_ammo, test_target, 10.0, 100.0)
 	
-	var result = health.take_ballistic_damage(test_ammo, impact_data, BodyPart.Type.UPPER_CHEST, 100.0)
+	var result = health.take_ballistic_damage(impact, BodyPart.Type.UPPER_CHEST)
 	
 	if result.damage_taken > 0:
 		TEST_RESULTS.append("✅ PASS: Ballistic damage applied without armor")
@@ -82,24 +79,26 @@ func _test_armor_penetration():
 	armor_material.name = "Test Armor"
 	armor_material.type = BallisticMaterial.Type.ARMOR_MEDIUM
 	armor_material.penetration_resistance = 0.7
-	armor_material.armor_effectiveness = 1.0
+	armor_material.effectiveness = 1.0
 	
 	# Create armor
 	var armor = Armor.new()
 	armor.name = "Test Vest"
 	armor.material = armor_material
-	armor.protection_zones = Armor.BodyParts.THORAX | Armor.BodyParts.STOMACH
+	armor.protection_zones = Armor.BodyParts.THORAX | Armor.BodyParts.ABDOMEN
 	armor.max_durability = 100
 	armor.current_durability = 100
 	
 	# Equip armor
 	health.equip_armor(armor)
 	
-	var test_ammo = _create_test_ammo()
-	var impact_data = {"damage": 35.0, "energy": 1800.0, "penetration_depth": 8.0}
+	var test_ammo = Ammo.create_test_ammo()
+	var impact_data = BallisticsCalculator.calculate_impact(test_ammo, armor_material, 5.0, 50.0)
+	
 	var chest_before = health.body_parts[BodyPart.Type.UPPER_CHEST].current_health
 	
-	var result = health.take_ballistic_damage(test_ammo, impact_data, BodyPart.Type.UPPER_CHEST, 50.0)
+	var result = health.take_ballistic_damage(impact_data, BodyPart.Type.UPPER_CHEST)
+	
 	var chest_after = health.body_parts[BodyPart.Type.UPPER_CHEST].current_health
 	
 	var damage_taken = chest_before - chest_after
@@ -114,20 +113,18 @@ func _test_wound_creation():
 	var health = Health.new()
 	
 	# Test JHP wound (should create cavity wound)
-	var jhp_ammo = _create_jhp_ammo()
-	var impact_data = {
-		"damage": 35.0,
-		"energy": 1800.0,
-		"penetration_depth": 8.0
-	}
+	var jhp_ammo = Ammo.create_jhp_ammo()
+	var test_target = BallisticMaterial.create_default_flesh_material()
+	var impact = BallisticsCalculator.calculate_impact(jhp_ammo, test_target, 10.0, 25.0)
 	
-	var result = health.take_ballistic_damage(jhp_ammo, impact_data, BodyPart.Type.STOMACH, 25.0)
+	var result = health.take_ballistic_damage(impact, BodyPart.Type.ABDOMEN)
 	
 	if result.wound_created != null:
 		TEST_RESULTS.append("✅ PASS: Wound created from ballistic impact")
 		
 		# Check if wound has correct type for JHP
-		if result.wound_created.type == "cavity" or result.wound_created.type == "bleeding":
+		if result.wound_created.type == Wound.Type.CAVITY \
+		or result.wound_created.type == Wound.Type.BLEEDING:
 			TEST_RESULTS.append("✅ PASS: JHP ammo creates appropriate wound type")
 		else:
 			TEST_RESULTS.append("❌ FAIL: JHP wound type incorrect: " + result.wound_created.type)
@@ -135,11 +132,12 @@ func _test_wound_creation():
 		TEST_RESULTS.append("❌ FAIL: No wound created from ballistic impact")
 	
 
-	var ap_ammo = _create_ap_ammo()
-	result = health.take_ballistic_damage(ap_ammo, impact_data, BodyPart.Type.UPPER_CHEST, 25.0)
+	var ap_ammo = Ammo.create_ap_ammo()
+	impact = BallisticsCalculator.calculate_impact(ap_ammo, test_target, 10.0, 25.0)
+	result = health.take_ballistic_damage(impact, BodyPart.Type.UPPER_CHEST)
 	
 	if result.wound_created != null:
-		if result.wound_created.type == "puncture":
+		if result.wound_created.type == Wound.Type.PUNCTURE:
 			TEST_RESULTS.append("✅ PASS: AP ammo now correctly creates puncture wounds")
 		else:
 			TEST_RESULTS.append("❌ FAIL: AP ammo created wrong wound type: " + result.wound_created.type)
@@ -177,12 +175,13 @@ func _test_explosive_damage():
 # ─── TEST 6: HEALING MECHANICS ───────────────────
 func _test_healing_mechanics():
 	var health = Health.new()
-	var test_ammo = _create_test_ammo()
-	var impact_data = {"damage": 25.0, "energy": 1200.0, "penetration_depth": 5.0}
+	var test_ammo = Ammo.create_test_ammo()
+	var test_target = BallisticMaterial.create_default_flesh_material()
+	var impact = BallisticsCalculator.calculate_impact(test_ammo, test_target, 10.0, 100.0)
 	
 	# Damage a body part
 	var chest_before = health.body_parts[BodyPart.Type.UPPER_CHEST].current_health
-	health.take_ballistic_damage(test_ammo, impact_data, BodyPart.Type.UPPER_CHEST, 100.0)
+	health.take_ballistic_damage(impact, BodyPart.Type.UPPER_CHEST)
 	var chest_after_damage = health.body_parts[BodyPart.Type.UPPER_CHEST].current_health
 	
 	# Heal the body part
@@ -208,10 +207,12 @@ func _test_healing_mechanics():
 func _test_death_conditions():
 	# Test head destruction death
 	var health1 = Health.new()
-	var lethal_impact = {"damage": 100.0, "energy": 5000.0, "penetration_depth": 20.0}
-	var test_ammo = _create_test_ammo()
+	var test_ammo = Ammo.create_test_ammo()
+	var test_target = BallisticMaterial.create_default_flesh_material()
+	var normal_impact = BallisticsCalculator.calculate_impact(test_ammo, test_target, 1.0, 100.0)
+	var lethal_impact = BallisticsCalculator.calculate_impact(test_ammo, test_target, 1.0, 0.0)
 	
-	var result = health1.take_ballistic_damage(test_ammo, lethal_impact, BodyPart.Type.HEAD, 10.0)
+	var result = health1.take_ballistic_damage(lethal_impact, BodyPart.Type.HEAD)
 	
 	if result.fatal and not health1.is_alive:
 		TEST_RESULTS.append("✅ PASS: Head destruction causes instant death")
@@ -220,7 +221,8 @@ func _test_death_conditions():
 	
 	# Test upper chest destruction death
 	var health2 = Health.new()
-	result = health2.take_ballistic_damage(test_ammo, lethal_impact, BodyPart.Type.UPPER_CHEST, 10.0)
+	
+	result = health2.take_ballistic_damage(lethal_impact, BodyPart.Type.UPPER_CHEST)
 	
 	if result.fatal and not health2.is_alive:
 		TEST_RESULTS.append("✅ PASS: Upper chest destruction causes instant death")
@@ -231,8 +233,7 @@ func _test_death_conditions():
 	var health3 = Health.new()
 	# Apply multiple wounds to cause bleeding death
 	for i in range(5):
-		var impact = {"damage": 20.0, "energy": 1000.0, "penetration_depth": 5.0}
-		health3.take_ballistic_damage(test_ammo, impact, BodyPart.Type.LEFT_UPPER_LEG, 50.0)
+		health3.take_ballistic_damage(normal_impact, BodyPart.Type.LEFT_UPPER_LEG)
 	
 	# Simulate time for bleeding to take effect
 	for i in range(150):  # 150 updates = 15 seconds total
@@ -246,11 +247,12 @@ func _test_death_conditions():
 # ─── TEST 8: FUNCTIONALITY PENALTIES ─────────────
 func _test_functionality_penalties():
 	var health = Health.new()
-	var test_ammo = _create_test_ammo()
+	var test_ammo = Ammo.create_test_ammo()
 	
 	# Damage right arm (affects aiming)
-	var impact_data = {"damage": 30.0, "energy": 1500.0, "penetration_depth": 8.0}
-	health.take_ballistic_damage(test_ammo, impact_data, BodyPart.Type.RIGHT_UPPER_ARM, 50.0)
+	var test_target = BallisticMaterial.create_default_flesh_material()
+	var impact = BallisticsCalculator.calculate_impact(test_ammo, test_target, 1.0, 50.0)
+	health.take_ballistic_damage(impact, BodyPart.Type.RIGHT_UPPER_ARM)
 	
 	var right_arm_multiplier = health.get_functionality_multiplier(BodyPart.Type.RIGHT_UPPER_ARM)
 	
@@ -260,7 +262,7 @@ func _test_functionality_penalties():
 		TEST_RESULTS.append("❌ FAIL: Arm damage should reduce functionality")
 	
 	# Damage legs (affects movement)
-	health.take_ballistic_damage(test_ammo, impact_data, BodyPart.Type.LEFT_UPPER_LEG, 50.0)
+	health.take_ballistic_damage(impact, BodyPart.Type.LEFT_UPPER_LEG)
 	var left_leg_multiplier = health.get_functionality_multiplier(BodyPart.Type.LEFT_UPPER_LEG)
 	
 	if left_leg_multiplier < 1.0:
@@ -277,7 +279,7 @@ func _test_functionality_penalties():
 # ─── TEST 9: BLEEDING MECHANICS ──────────────────
 func _test_bleeding_mechanics():
 	var health = Health.new()
-	var test_ammo = _create_test_ammo()
+	var test_ammo = Ammo.create_test_ammo()
 	
 	# Apply multiple severe wounds to cause heavy bleeding
 	var body_parts_to_wound = [
@@ -285,15 +287,16 @@ func _test_bleeding_mechanics():
 		BodyPart.Type.RIGHT_UPPER_ARM,
 		BodyPart.Type.LEFT_UPPER_LEG,
 		BodyPart.Type.RIGHT_UPPER_LEG,
-		BodyPart.Type.STOMACH,
+		BodyPart.Type.ABDOMEN,
 		BodyPart.Type.LOWER_CHEST  # FIX: Added more body parts
 	]
 	
 	# Use high damage to ensure severe wounds with bleeding
-	var severe_impact = {"damage": 100.0, "energy": 2000.0, "penetration_depth": 12.0}  # FIX: More damage
+	var test_target = BallisticMaterial.create_default_flesh_material()
+	var severe_impact = BallisticsCalculator.calculate_impact(test_ammo, test_target, 1.0, 30.0)
 	
 	for part in body_parts_to_wound:
-		health.take_ballistic_damage(test_ammo, severe_impact, part, 30.0)
+		health.take_ballistic_damage(severe_impact, part)
 	
 	# Check that bleeding rate is high
 	if health.total_bleeding_rate > 3.0:
@@ -318,40 +321,6 @@ func _test_bleeding_mechanics():
 		TEST_RESULTS.append("✅ PASS: Blood loss now causes death (after " + str(time_elapsed) + " seconds, blood: " + str(health.blood_volume) + ")")
 	else:
 		TEST_RESULTS.append("❌ FAIL: Blood loss still not causing death. Blood: " + str(health.blood_volume) + " (" + str(health.blood_volume / health.max_blood_volume * 100) + "%), Health: " + str(health.total_health))
-
-# ─── HELPER: CREATE TEST AMMO ────────────────────
-func _create_test_ammo() -> Ammo:
-	# Create ammo with low penetration that armor can stop
-	var test_ammo = Ammo.new()
-	test_ammo.caliber = "9mm"
-	test_ammo.type = Ammo.Type.FMJ
-	test_ammo.bullet_mass = 8.0
-	test_ammo.muzzle_velocity = 360.0
-	test_ammo.penetration_value = 5.0  # Reduced to ensure armor stops it
-	test_ammo.base_damage = 25.0
-	test_ammo.armor_modifier = 1.0
-	test_ammo.flesh_modifier = 1.0
-	test_ammo.ricochet_chance = 0.1
-	test_ammo.fragment_chance = 0.0
-	test_ammo.accuracy = 2.0
-	return test_ammo
-
-func _create_jhp_ammo() -> Ammo:
-	var ammo = _create_test_ammo()
-	ammo.type = Ammo.Type.JHP
-	ammo.flesh_modifier = 1.4
-	ammo.armor_modifier = 0.4
-	return ammo
-
-func _create_ap_ammo() -> Ammo:
-	var ammo = _create_test_ammo()
-	ammo.type = Ammo.Type.AP
-	ammo.flesh_modifier = 0.8
-	ammo.armor_modifier = 1.5
-	ammo.penetration_value = 45.0  # FIX: More realistic AP penetration
-	ammo.base_damage = 30.0  # FIX: AP typically has lower base damage
-	return ammo
-
 
 # ─── HELPER: CREATE TEST ARMOR ───────────────────
 func _create_test_armor() -> BallisticMaterial:

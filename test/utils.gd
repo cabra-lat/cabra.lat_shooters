@@ -1,6 +1,6 @@
 @tool
 class_name TestUtils extends EditorScript
-
+# Utils
 const RESOURCES_PATH = "res://addons/cabra.lat_shooters/src/resources/"
 const AMMO_PATH = RESOURCES_PATH + "ammo/"
 const ARMORS_PATH = RESOURCES_PATH + "armor/"

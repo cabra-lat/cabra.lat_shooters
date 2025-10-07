@@ -9,7 +9,7 @@ func _run():
 	var ammo_list = []
 
 	# ─── VPAM ───────────────────────────────────────
-	ammo_list.append(_create_enhanced_ammo("22_LR_VPAM_PM1", "22 LR", 2.6, 360, Ammo.Type.FMJ, "VPAM PM1", 0.125, 40.0, 0.9, 1.0))
+	ammo_list.append(_create_enhanced_ammo("22_LR_VPAM_PM1", ".22 LR", 2.6, 360, Ammo.Type.FMJ, "VPAM PM1", 0.125, 40.0, 0.9, 1.0))
 	ammo_list.append(_create_enhanced_ammo("9mm_VPAM_PM2", "9x19mm", 8.0, 360, Ammo.Type.FMJ, "VPAM PM2", 0.145, 45.0, 1.0, 1.0))
 	ammo_list.append(_create_enhanced_ammo("9mm_VPAM_PM3", "9x19mm", 8.0, 415, Ammo.Type.FMJ, "VPAM PM3", 0.145, 52.0, 1.0, 1.0))
 	ammo_list.append(_create_enhanced_ammo("357Mag_VPAM_PM4", ".357 Magnum", 10.2, 430, Ammo.Type.JSP, "VPAM PM4", 0.165, 65.0, 0.8, 1.2))
@@ -49,7 +49,7 @@ func _run():
 	ammo_list.append(_create_enhanced_ammo("545x39_7N10_GOST_BR4", "5.45x39mm 7N10", 3.4, 895, Ammo.Type.STEEL_CORE, "GOST BR4", 0.168, 38.0, 1.2, 1.0))
 	ammo_list.append(_create_enhanced_ammo("762x39_PS_GOST_BR4", "7.62x39mm PS", 7.9, 720, Ammo.Type.STEEL_CORE, "GOST BR4", 0.275, 55.0, 1.2, 1.0))
 	ammo_list.append(_create_enhanced_ammo("762x54R_7N13_GOST_BR5", "7.62x54mmR 7N13", 9.4, 830, Ammo.Type.STEEL_CORE, "GOST BR5", 0.410, 70.0, 1.3, 1.0))
-	ammo_list.append(_create_enhanced_ammo("762x54R_B32_GOST_BR6", "7.62x54mmR B32 API", 48.2, 830, Ammo.Type.API, "GOST BR6", 0.410, 85.0, 1.6, 0.8))
+	ammo_list.append(_create_enhanced_ammo("1270x108R_B32_GOST_BR6", "12.7×108mm 57-BZ-542 API", 48.2, 830, Ammo.Type.API, "GOST BR6", 0.410, 85.0, 1.6, 0.8))
 
 	# ─── US MILITARY ────────────────────────────────
 	ammo_list.append(_create_enhanced_ammo("556_M855_SAPI", "5.56x45mm M855", 4.0, 990, Ammo.Type.GREEN_TIP, "MIL SAPI", 0.151, 42.0, 1.3, 0.9))

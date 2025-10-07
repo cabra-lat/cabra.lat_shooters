@@ -8,6 +8,51 @@ class_name BallisticsCalculator extends Resource
 @export var wind_velocity: Vector3 = Vector3.ZERO  # m/s
 @export var temperature: float = 15.0   # Celsius
 
+## Method for calculating penetration through target
+static func calculate_impact(ammo: Ammo, target: BallisticMaterial, 
+							 thickness: float = 0.0, distance: float = 0.0, 
+							 impact_angle: float = 0.0, prev_impact: BallisticsImpact = null) -> BallisticsImpact:
+	var impact = BallisticsImpact.new()
+	impact.mass       = ammo.bullet_mass
+	impact.hit_energy = ammo.get_energy_at_range(distance)
+	impact.angle      = impact_angle
+	impact.ricochet   = target.should_ricochet(ammo, impact_angle)
+
+	if 	prev_impact:
+		impact.hit_energy = prev_impact.exit_energy
+
+	# Check for ricochet
+	if impact.ricochet: return impact
+	
+	impact.fragments = ammo.should_fragment(impact.hit_energy, target.hardness)
+	# Calculate penetration using ammo's method
+	impact.penetration_depth = target.calculate_penetration(ammo, impact.hit_energy, impact.angle)
+	impact.thickness = thickness
+	
+	# Energy loss through layer (simplified)
+	impact.exit_energy = impact.hit_energy * (1.0 - target.energy_absorption)
+	
+	# Check for fragmentation using ammo's method
+	if not impact.fragmented:
+		impact.fragments = ammo.should_fragment(impact.exit_energy, target.hardness)
+	return impact
+
+## Method for calculating penetration through multiple layers
+static func calculate_multi_layer_penetration(ammo: Ammo, layers: Array, distance: float, 
+									  impact_angle: float) -> Array[BallisticsImpact]:
+	# Calculate penetration through multiple material layers
+	var results: Array[BallisticsImpact] = []
+	var impact: BallisticsImpact = null
+	for layer in layers:
+		# Calculate penetration in this layer
+		impact = calculate_impact(
+			ammo, 
+			layer.material, 
+			layer.thickness, 
+			distance, impact_angle, impact)
+		results.append(impact)
+	return results
+
 func calculate_trajectory(ammo: Ammo, distance: float, zero_range: float = 100.0) -> Dictionary:
 	# Calculate bullet trajectory with environmental factors
 	var results = {
@@ -31,51 +76,7 @@ func calculate_trajectory(ammo: Ammo, distance: float, zero_range: float = 100.0
 	
 	return results
 
-func calculate_impact(ammo: Ammo, target_material: BallisticMaterial, 
-					 distance: float, impact_angle: float, hit_location: String = "torso") -> Dictionary:
-	# Calculate the results of a projectile impact
-	var results = {
-		"penetrated": false,
-		"ricochet": false,
-		"penetration_depth": 0.0,
-		"damage": 0.0,
-		"fragmentation": false,
-		"energy": 0.0
-	}
-	
-	# Get impact energy at this distance
-	var impact_energy = ammo.get_energy_at_range(distance)
-	results.energy = impact_energy
-	
-	# Check for ricochet
-	if target_material.should_ricochet(ammo, impact_angle):
-		results.ricochet = true
-		results.damage = ammo.base_damage * 0.1  # Reduced damage for ricochet
-		return results
-	
-	# Calculate penetration using ammo's method
-	var penetration_depth = target_material.calculate_penetration(ammo, impact_energy, impact_angle)
-	results.penetration_depth = penetration_depth
-	
-	# Determine if penetration occurred (threshold based on material)
-	var penetration_threshold = target_material.penetration_resistance * 0.1
-	results.penetrated = penetration_depth > penetration_threshold
-	
-	# Calculate damage using ammo's built-in method
-	if results.penetrated:
-		results.damage = ammo.calculate_impact_damage(impact_energy, target_material.name.to_lower(), hit_location)
-	else:
-		# Surface impact - reduced damage
-		var surface_damage = ammo.base_damage * 0.3
-		results.damage = surface_damage * target_material.get_damage_multiplier(hit_location)
-	
-	# Check for fragmentation using ammo's method
-	if ammo.fragment_chance > 0 and impact_energy > 500:  # Minimum energy for fragmentation
-		results.fragmentation = ammo.should_fragment(impact_energy, target_material.hardness)
-	
-	return results
-
-# New method for calculating hit probability
+## Method for calculating hit probability
 func calculate_hit_probability(ammo: Ammo, distance: float, shooter_skill: float = 1.0, 
 							  target_size: float = 1.0, stability: float = 1.0) -> float:
 	# Calculate hit probability based on multiple factors
@@ -103,7 +104,7 @@ func calculate_hit_probability(ammo: Ammo, distance: float, shooter_skill: float
 	# Cap between 0 and 1
 	return clamp(hit_probability, 0.0, 1.0)
 
-# Method for calculating multiple projectile spread (shotguns)
+## Method for calculating multiple projectile spread (shotguns)
 func calculate_shotgun_spread(ammo: Ammo, distance: float, choke: float = 1.0) -> Dictionary:
 	# Calculate shotgun pellet spread
 	var results = {
@@ -136,53 +137,7 @@ func calculate_shotgun_spread(ammo: Ammo, distance: float, choke: float = 1.0) -
 	
 	return results
 
-# Method for calculating penetration through multiple layers
-func calculate_multi_layer_penetration(ammo: Ammo, layers: Array, distance: float, 
-									  impact_angle: float) -> Dictionary:
-	# Calculate penetration through multiple material layers
-	var results = {
-		"layers_penetrated": 0,
-		"total_penetration": 0.0,
-		"remaining_energy": ammo.get_energy_at_range(distance),
-		"exit_velocity": 0.0
-	}
-	
-	var current_energy = results.remaining_energy
-	var total_penetration = 0.0
-	
-	for layer in layers:
-		if current_energy <= 0:
-			break
-		
-		var layer_material = layer.material
-		var layer_thickness = layer.thickness
-		
-		# Calculate penetration in this layer
-		var penetration_depth = layer_material.calculate_penetration(ammo, current_energy, impact_angle)
-		
-		if penetration_depth >= layer_thickness:
-			# Full penetration
-			results.layers_penetrated += 1
-			total_penetration += layer_thickness
-			
-			# Energy loss through layer (simplified)
-			var energy_loss_ratio = layer_thickness / (penetration_depth + 0.001)
-			current_energy *= (1.0 - energy_loss_ratio * 0.3)
-		else:
-			# Partial penetration
-			total_penetration += penetration_depth
-			break
-	
-	results.total_penetration = total_penetration
-	results.remaining_energy = current_energy
-	
-	# Calculate exit velocity from remaining energy
-	if current_energy > 0:
-		results.exit_velocity = sqrt((2 * current_energy) / (ammo.bullet_mass / 1000.0))
-	
-	return results
-
-# Utility method for zeroing calculations
+## Utility method for zeroing calculations
 func calculate_zero_range(ammo: Ammo, target_distance: float, sight_height: float = 0.05) -> float:
 	# Calculate optimal zero range for given target distance
 	# This is a simplified calculation - real zeroing is more complex

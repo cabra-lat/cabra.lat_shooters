@@ -5,17 +5,17 @@
 
 [sub_resource type="Resource" id="Resource_y6kl6"]
 script = ExtResource("1_y6kl6")
-name = ""
-type = 11
-density = 2.6
-hardness = 0.4
-toughness = 0.48
-penetration_resistance = 1.0
-ricochet_chance_modifier = 1.0
+name = "Soft Armor (603 J)"
+type = 14
+density = 1400.0
+hardness = 3.0
+toughness = 12.0
+penetration_resistance = 578.953
+ricochet_chance_modifier = 0.1
 damage_modifier = 1.0
 sound_absorption = 0.0
 armor_thickness = 0.0
-armor_effectiveness = 0.88
+armor_effectiveness = 0.9
 
 [resource]
 script = ExtResource("2_4uuxc")
