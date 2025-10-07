@@ -1,3 +1,4 @@
+@tool
 class_name Wound extends Resource
 
 enum Severity {
@@ -11,6 +12,7 @@ enum Severity {
 @export var severity: Wound.Severity
 @export var damage_per_second: float
 @export var duration: float
+
 var type: String  # "bleeding", "fracture", "burn", "concussion", "puncture"
 var location: BodyPart.Type
 var source_ammo: Ammo

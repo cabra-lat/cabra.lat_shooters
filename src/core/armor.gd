@@ -1,3 +1,4 @@
+# armor.gd
 @tool
 class_name Armor extends Resource
 
@@ -30,29 +31,80 @@ enum ArmorType {
 }
 @export var type: ArmorType = ArmorType.GENERIC
 
-# ─── METADATA ─────────────────────────────────────
-@export var name: String = "Generic Armor"  ## e.g., "Stock"
+# Metadata
+@export var name: String = "Generic Armor"
 @export_multiline var description: String = "This Armor is the default one."
 @export var view_model: PackedScene
 @export var equip_sound: AudioStream
 @export var hit_sound: AudioStream
 
-# ─── CLASSIFICATION ───────────────────────────────
-enum Standard { NIJ, VPAM, GOST, GA141, MILITARY }
-@export var standard: Standard = Standard.NIJ
-@export_range(1, 14) var level: int = 1
+# Material
+@export var material: BallisticMaterial  # Armor material
 
-# ─── DURABILITY & TRAUMA ──────────────────────────
+# Durability
 @export var max_durability: int = 100
 var current_durability: int = 100
 @export_range(0, 50) var max_backface_deformation: float = 25.0
 
-# ─── GAMEPLAY PENALTIES ───────────────────────────
+# Gameplay penalties
 @export_range(-1.0, 0.0) var turn_speed_penalty: float = 0.0
 @export_range(-1.0, 0.0) var move_speed_penalty: float = 0.0
 @export_range(0.0, 1.0) var ricochet_chance: float = 0.0
 @export_range(-1.0, 0.0) var sound_reduction: float = 0.0
 @export_range(-1.0, 0.0) var blind_reduction: float = 0.0
+
+# Certification system (for reference/validation)
+enum Standard { NIJ, VPAM, GOST, GA141, MILITARY }
+@export var standard: Standard = Standard.NIJ
+@export_range(1, 14) var level: int = 1
+
+signal armor_damaged(armor: Armor, damage: float)
+signal armor_destroyed(armor: Armor)
+
+func check_penetration(ammo: Ammo, impact_energy: float) -> Dictionary:
+	if current_durability <= 0:
+		return {"penetrated": true, "damage_reduction": 1.0}
+	
+	# Use BallisticMaterial for penetration calculation
+	var effective_armor_value = get_effective_armor_value()
+	return material.check_penetration(ammo, impact_energy, effective_armor_value)
+
+func take_damage(damage: float) -> void:
+	current_durability = max(0, current_durability - damage)
+	armor_damaged.emit(self, damage)
+	
+	if current_durability <= 0:
+		armor_destroyed.emit(self)
+
+func get_effective_armor_value() -> float:
+	return (current_durability / max_durability) * material.armor_effectiveness
+
+func covers_body_part(body_part_type: BodyPart.Type) -> bool:
+	var armor_body_part = _convert_to_armor_body_part(body_part_type)
+	return protection_zones & armor_body_part
+
+func _convert_to_armor_body_part(body_part_type: BodyPart.Type) -> int:
+	match body_part_type:
+		BodyPart.Type.HEAD: return BodyParts.HEAD
+		BodyPart.Type.UPPER_CHEST, BodyPart.Type.LOWER_CHEST: return BodyParts.THORAX
+		BodyPart.Type.STOMACH: return BodyParts.STOMACH
+		BodyPart.Type.LEFT_UPPER_ARM, BodyPart.Type.LEFT_LOWER_ARM, BodyPart.Type.LEFT_HAND: return BodyParts.LEFT_ARM
+		BodyPart.Type.RIGHT_UPPER_ARM, BodyPart.Type.RIGHT_LOWER_ARM, BodyPart.Type.RIGHT_HAND: return BodyParts.RIGHT_ARM
+		BodyPart.Type.LEFT_UPPER_LEG, BodyPart.Type.LEFT_LOWER_LEG, BodyPart.Type.LEFT_FOOT: return BodyParts.LEFT_LEG
+		BodyPart.Type.RIGHT_UPPER_LEG, BodyPart.Type.RIGHT_LOWER_LEG, BodyPart.Type.RIGHT_FOOT: return BodyParts.RIGHT_LEG
+		_: return 0
+
+# Certification validation (optional - for debugging/validation)
+func validate_certification(ammo: Ammo) -> bool:
+	# This can be used to validate if armor should stop this ammo based on certification
+	# Useful for debugging or game balancing
+	var certified_threats = _get_certified_threats()
+	
+	for threat in certified_threats:
+		if _matches_threat(ammo, threat):
+			return true  # Armor is certified to stop this threat
+	
+	return false
 
 # ─── PENETRATION LOGIC ──────────────────
 

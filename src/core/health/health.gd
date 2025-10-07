@@ -1,28 +1,15 @@
-# player_health.gd
+# health.gd
 @tool
-class_name PlayerHealth
-extends Resource
+class_name Health extends Resource
 
 signal health_changed(body_part: BodyPart, old_health: float, new_health: float)
 signal body_part_destroyed(body_part: BodyPart)
 signal wound_sustained(body_part: BodyPart, wound: Wound)
 signal player_died(cause: String)
-signal armor_penetrated(armor_type: String, location: BodyPart)
-signal bleeding_started(severity: float, location: BodyPart)
+signal armor_penetrated(armor: Armor, location: BodyPart.Type)
+signal bleeding_started(severity: float, location: BodyPart.Type)
 
 # ─── CONFIGURATION VARIABLES ────────────────────────────────────────────────
-# Armor & Penetration Configuration
-@export var armor_resistance_scale: float = 8.0  # Was 15.0, reduced to 8.0 for better armor effectiveness
-@export var armor_energy_absorption_penetrated: float = 0.3  # 30% energy absorbed when penetrated
-@export var armor_energy_absorption_stopped: float = 0.8     # 80% energy absorbed when stopped
-@export var blunt_trauma_damage_multiplier: float = 0.3      # Base blunt trauma damage
-@export var armor_protection_efficiency: float = 0.8         # 80% protection when armor stops round
-
-# Wound & Damage Configuration
-@export var minor_wound_threshold: float = 0.3
-@export var moderate_wound_threshold: float = 0.5  
-@export var severe_wound_threshold: float = 0.8
-@export var minimum_wound_damage: float = 5.0
 
 # Bleeding Configuration
 @export var bleeding_ml_per_damage_per_second: float = 10.0
@@ -46,33 +33,36 @@ signal bleeding_started(severity: float, location: BodyPart)
 @export var explosive_back_damage_ratio: float = 0.4
 @export var explosive_pain_multiplier: float = 0.15
 
-# Body Part Configuration (moved from hardcoded values)
+# Body materials
+@export var flesh_material: BallisticMaterial
+@export var bone_material: BallisticMaterial
+
+# Body Part Configuration
 @export var body_part_config: Dictionary = {
-	BodyPart.Type.HEAD: {"max_health": 40.0, "hitbox_size": 0.08, "tissue_multiplier": 3.0},
-	BodyPart.Type.UPPER_CHEST: {"max_health": 70.0, "hitbox_size": 0.15, "tissue_multiplier": 1.5},
-	BodyPart.Type.LOWER_CHEST: {"max_health": 60.0, "hitbox_size": 0.12, "tissue_multiplier": 1.2},
-	BodyPart.Type.STOMACH: {"max_health": 50.0, "hitbox_size": 0.10, "tissue_multiplier": 1.3},
-	BodyPart.Type.LEFT_UPPER_ARM: {"max_health": 35.0, "hitbox_size": 0.07, "tissue_multiplier": 0.8},
-	BodyPart.Type.RIGHT_UPPER_ARM: {"max_health": 35.0, "hitbox_size": 0.07, "tissue_multiplier": 0.8},
-	BodyPart.Type.LEFT_LOWER_ARM: {"max_health": 25.0, "hitbox_size": 0.05, "tissue_multiplier": 0.6},
-	BodyPart.Type.RIGHT_LOWER_ARM: {"max_health": 25.0, "hitbox_size": 0.05, "tissue_multiplier": 0.6},
-	BodyPart.Type.LEFT_HAND: {"max_health": 15.0, "hitbox_size": 0.03, "tissue_multiplier": 0.4},
-	BodyPart.Type.RIGHT_HAND: {"max_health": 15.0, "hitbox_size": 0.03, "tissue_multiplier": 0.4},
-	BodyPart.Type.LEFT_UPPER_LEG: {"max_health": 45.0, "hitbox_size": 0.09, "tissue_multiplier": 0.9},
-	BodyPart.Type.RIGHT_UPPER_LEG: {"max_health": 45.0, "hitbox_size": 0.09, "tissue_multiplier": 0.9},
-	BodyPart.Type.LEFT_LOWER_LEG: {"max_health": 30.0, "hitbox_size": 0.06, "tissue_multiplier": 0.7},
-	BodyPart.Type.RIGHT_LOWER_LEG: {"max_health": 30.0, "hitbox_size": 0.06, "tissue_multiplier": 0.7},
-	BodyPart.Type.LEFT_FOOT: {"max_health": 20.0, "hitbox_size": 0.04, "tissue_multiplier": 0.5},
-	BodyPart.Type.RIGHT_FOOT: {"max_health": 20.0, "hitbox_size": 0.04, "tissue_multiplier": 0.5}
+	BodyPart.Type.HEAD: {"max_health": 40.0, "hitbox_size": 0.08, "tissue_multiplier": 3.0, "bone_material": true},
+	BodyPart.Type.UPPER_CHEST: {"max_health": 70.0, "hitbox_size": 0.15, "tissue_multiplier": 1.5, "bone_material": true},
+	BodyPart.Type.LOWER_CHEST: {"max_health": 60.0, "hitbox_size": 0.12, "tissue_multiplier": 1.2, "bone_material": true},
+	BodyPart.Type.STOMACH: {"max_health": 50.0, "hitbox_size": 0.10, "tissue_multiplier": 1.3, "bone_material": false},
+	BodyPart.Type.LEFT_UPPER_ARM: {"max_health": 35.0, "hitbox_size": 0.07, "tissue_multiplier": 0.8, "bone_material": true},
+	BodyPart.Type.RIGHT_UPPER_ARM: {"max_health": 35.0, "hitbox_size": 0.07, "tissue_multiplier": 0.8, "bone_material": true},
+	BodyPart.Type.LEFT_LOWER_ARM: {"max_health": 25.0, "hitbox_size": 0.05, "tissue_multiplier": 0.6, "bone_material": true},
+	BodyPart.Type.RIGHT_LOWER_ARM: {"max_health": 25.0, "hitbox_size": 0.05, "tissue_multiplier": 0.6, "bone_material": true},
+	BodyPart.Type.LEFT_HAND: {"max_health": 15.0, "hitbox_size": 0.03, "tissue_multiplier": 0.4, "bone_material": true},
+	BodyPart.Type.RIGHT_HAND: {"max_health": 15.0, "hitbox_size": 0.03, "tissue_multiplier": 0.4, "bone_material": true},
+	BodyPart.Type.LEFT_UPPER_LEG: {"max_health": 45.0, "hitbox_size": 0.09, "tissue_multiplier": 0.9, "bone_material": true},
+	BodyPart.Type.RIGHT_UPPER_LEG: {"max_health": 45.0, "hitbox_size": 0.09, "tissue_multiplier": 0.9, "bone_material": true},
+	BodyPart.Type.LEFT_LOWER_LEG: {"max_health": 30.0, "hitbox_size": 0.06, "tissue_multiplier": 0.7, "bone_material": true},
+	BodyPart.Type.RIGHT_LOWER_LEG: {"max_health": 30.0, "hitbox_size": 0.06, "tissue_multiplier": 0.7, "bone_material": true},
+	BodyPart.Type.LEFT_FOOT: {"max_health": 20.0, "hitbox_size": 0.04, "tissue_multiplier": 0.5, "bone_material": true},
+	BodyPart.Type.RIGHT_FOOT: {"max_health": 20.0, "hitbox_size": 0.04, "tissue_multiplier": 0.5, "bone_material": true}
 }
 
-
-# Main PlayerHealth class
+# Main Health class
 var body_parts: Dictionary = {}
 var is_alive: bool = true
 var total_bleeding_rate: float = 0.0
-var pain_level: float = 0.0  # Affects player performance
-var blood_volume: float = 5000.0  # ml of blood
+var pain_level: float = 0.0
+var blood_volume: float = 5000.0
 var max_blood_volume: float = 5000.0
 
 var total_health: float:
@@ -93,11 +83,25 @@ var health_percentage: float:
 	get: return total_health / max_total_health
 
 func _init():
-	# Initialize body parts with realistic health distribution and hitbox sizes
+	# Create default materials if none provided
+	if flesh_material == null:
+		flesh_material = _create_default_flesh_material()
+	if bone_material == null:
+		bone_material = _create_default_bone_material()
+	
+	# Initialize body parts
 	for part_type in body_part_config.keys():
 		var config = body_part_config[part_type]
-		body_parts[part_type] = BodyPart.new(part_type, config.max_health, config.hitbox_size)
-		body_parts[part_type].set_tissue_multiplier(config.tissue_multiplier)
+		var body_part = BodyPart.new(part_type, config.max_health, config.hitbox_size)
+		body_part.tissue_multiplier = config.tissue_multiplier
+		
+		# Set base material (flesh or bone)
+		if config.get("bone_material", false):
+			body_part.base_material = bone_material
+		else:
+			body_part.base_material = flesh_material
+		
+		body_parts[part_type] = body_part
 	
 	blood_volume = max_blood_volume
 	
@@ -105,12 +109,34 @@ func _init():
 	for part in body_parts.values():
 		part.functionality_changed.connect(_on_body_part_functionality_changed)
 
+func _create_default_flesh_material() -> BallisticMaterial:
+	var material = BallisticMaterial.new()
+	material.name = "Human Flesh"
+	material.type = BallisticMaterial.Type.FLESH_SOFT
+	material.density = 1060.0
+	material.hardness = 0.5
+	material.toughness = 2.0
+	material.penetration_resistance = 0.1
+	material.damage_modifier = 1.0
+	return material
+
+func _create_default_bone_material() -> BallisticMaterial:
+	var material = BallisticMaterial.new()
+	material.name = "Human Bone"
+	material.type = BallisticMaterial.Type.FLESH_HARD
+	material.density = 1900.0
+	material.hardness = 3.0
+	material.toughness = 5.0
+	material.penetration_resistance = 0.5
+	material.damage_modifier = 0.8
+	return material
+
 # Primary method for handling ballistic impacts
-func take_ballistic_damage(ammo: Ammo, impact_data: Dictionary, hit_location: BodyPart, distance: float) -> Dictionary:
+func take_ballistic_damage(ammo: Ammo, impact_data: Dictionary, hit_location: BodyPart.Type, distance: float) -> Dictionary:
 	if not is_alive:
 		return {"damage_taken": 0.0, "fatal": false, "wounds": []}
 	
-	var part = body_parts[hit_location]
+	var part: BodyPart = body_parts[hit_location]
 	var result = part.take_ballistic_impact(ammo, impact_data, distance)
 	
 	health_changed.emit(part, part.current_health + result.damage_taken, part.current_health)
@@ -124,13 +150,13 @@ func take_ballistic_damage(ammo: Ammo, impact_data: Dictionary, hit_location: Bo
 		bleeding_started.emit(result.wound_created.severity, hit_location)
 	
 	# Handle armor penetration event
-	if result.penetrated and part.armor_value > 0:
-		armor_penetrated.emit(part.armor_material.name if part.armor_material else "Unknown", hit_location)
+	if result.armor_penetrated and part.equipped_armor:
+		armor_penetrated.emit(part.equipped_armor, hit_location)
 	
 	# Check for death
 	var fatal = _check_death()
 	if fatal:
-		player_died.emit("Ballistic trauma to " + hit_location.to_string())
+		player_died.emit("Ballistic trauma to " + _body_part_to_string(hit_location))
 	
 	result["fatal"] = fatal
 	return result
@@ -148,10 +174,8 @@ func take_explosive_damage(damage: float, blast_center: Vector3, player_position
 	var wounds_created = []
 	
 	# Distribute damage to multiple body parts based on orientation to blast
-	var blast_direction = (player_position - blast_center).normalized()
-	
-	# Simple orientation model (could be enhanced with proper hit detection)
-	var front_parts = [BodyPart.Type.UPPER_CHEST, BodyPart.Type.LOWER_CHEST, BodyPart.Type.STOMACH, BodyPart.Type.LEFT_UPPER_ARM, BodyPart.Type.RIGHT_UPPER_ARM]
+	var front_parts = [BodyPart.Type.UPPER_CHEST, BodyPart.Type.LOWER_CHEST, BodyPart.Type.STOMACH, 
+					  BodyPart.Type.LEFT_UPPER_ARM, BodyPart.Type.RIGHT_UPPER_ARM]
 	var back_parts = [BodyPart.Type.HEAD, BodyPart.Type.LEFT_UPPER_LEG, BodyPart.Type.RIGHT_UPPER_LEG]
 	
 	var damage_distribution = {}
@@ -215,7 +239,7 @@ func update(delta: float):
 	
 	_apply_bleeding_damage(delta)
 	
-	# Update all body parts (for non-bleeding wounds)
+	# Update all body parts
 	for part in body_parts.values():
 		part.update(delta)
 	
@@ -227,19 +251,40 @@ func update(delta: float):
 		is_alive = false
 		player_died.emit("Critical blood loss")
 
+func _check_blood_loss_death() -> bool:
+	# Instant death from extreme blood loss
+	if blood_volume <= (max_blood_volume * 0.1):
+		return true
+	
+	# Death from critical blood volume with ongoing heavy bleeding
+	if blood_volume < (max_blood_volume * critical_blood_loss_threshold_ratio) and total_bleeding_rate > 3.0:
+		return true
+	
+	# Death from combination of blood loss and moderate health loss
+	if blood_volume < (max_blood_volume * blood_loss_low_health_threshold_ratio) and total_health < (max_total_health * 0.5):
+		return true
+	
+	# Death from severe blood loss regardless of health
+	if blood_volume < (max_blood_volume * 0.25):
+		return true
+	
+	return false
+
 func _apply_bleeding_damage(delta: float):
 	if total_bleeding_rate <= 0:
 		return
 	
 	# Calculate actual blood loss
-	var blood_loss_ml = total_bleeding_rate * bleeding_ml_per_damage_per_second * delta  # Convert to ml/sec
+	var blood_loss_ml = total_bleeding_rate * bleeding_ml_per_damage_per_second * delta
 	blood_volume = max(0, blood_volume - blood_loss_ml)
 	
 	# Apply health damage based on blood loss percentage
 	var blood_loss_ratio = 1.0 - (blood_volume / max_blood_volume)
-	if blood_loss_ratio > bleeding_health_damage_start_threshold:  # Only start taking damage after 10% blood loss
-		var damage_multiplier = bleeding_damage_multiplier_base + (blood_loss_ratio * (bleeding_damage_multiplier_max - bleeding_damage_multiplier_base))  # Scale up to 4x damage at 100% blood loss
-		var health_damage = blood_loss_ratio * damage_multiplier * delta  # Scale damage with blood loss
+	
+	if blood_loss_ratio > 0:
+		# Damage increases exponentially with blood loss
+		var damage_multiplier = bleeding_damage_multiplier_base + (pow(blood_loss_ratio, 2) * (bleeding_damage_multiplier_max - bleeding_damage_multiplier_base))
+		var health_damage = blood_loss_ratio * damage_multiplier * delta * 2.0
 		
 		# Distribute damage to all body parts (systemic shock)
 		var parts_count = 0
@@ -253,25 +298,8 @@ func _apply_bleeding_damage(delta: float):
 				if not part.is_destroyed:
 					part.take_damage(damage_per_part)
 
-func _check_blood_loss_death() -> bool:
-	# Multiple blood loss death conditions
-	
-	# Instant death from extreme blood loss
-	if blood_volume <= 0:
-		return true
-	
-	# Death from critical blood volume (more realistic threshold)
-	if blood_volume < (max_blood_volume * critical_blood_loss_threshold_ratio):  # 20% blood volume remaining
-		return true
-	
-	# Death from combination of blood loss and low health
-	if blood_volume < (max_blood_volume * blood_loss_low_health_threshold_ratio) and total_health < (max_total_health * blood_loss_low_health_ratio):
-		return true
-	
-	return false
-
-func apply_healing(amount: float, specific_part: BodyPart.Type = 0):
-	if specific_part:
+func apply_healing(amount: float, specific_part: BodyPart.Type = BodyPart.Type.NONE):
+	if specific_part != BodyPart.Type.NONE:
 		body_parts[specific_part].heal(amount)
 	else:
 		# Distribute healing based on damage severity
@@ -286,17 +314,23 @@ func apply_healing(amount: float, specific_part: BodyPart.Type = 0):
 				part.heal(heal_per_part)
 	
 	# Healing also restores blood volume and reduces bleeding
-	var blood_restored = amount * healing_blood_restoration_multiplier  # Healing restores blood
+	var blood_restored = amount * healing_blood_restoration_multiplier
 	blood_volume = min(max_blood_volume, blood_volume + blood_restored)
 	
 	# Reduce bleeding from healed wounds
 	total_bleeding_rate = max(0.0, total_bleeding_rate - amount * healing_bleeding_reduction_multiplier)
 
-func equip_armor(armor_material: BallisticMaterial, armor_value: float, protected_parts: Array[BodyPart.Type]):
-	for part_type in protected_parts:
-		var part = body_parts[part_type]
-		part.armor_material = armor_material
-		part.armor_value = armor_value
+func equip_armor(armor: Armor) -> void:
+	for part_type in body_parts:
+		var body_part = body_parts[part_type]
+		if armor.covers_body_part(part_type):
+			body_part.equip_armor(armor)
+
+func unequip_armor(armor: Armor) -> void:
+	for part_type in body_parts:
+		var body_part = body_parts[part_type]
+		if body_part.equipped_armor == armor:
+			body_part.unequip_armor()
 
 func get_functionality_multiplier(part: BodyPart.Type) -> float:
 	return body_parts[part].functionality_multiplier * (1.0 - pain_level * 0.3)
@@ -306,3 +340,23 @@ func get_health_percentage(part: BodyPart.Type) -> float:
 
 func get_hit_probability_multiplier(part: BodyPart.Type) -> float:
 	return body_parts[part].hitbox_size
+
+func _body_part_to_string(part: BodyPart.Type) -> String:
+	match part:
+		BodyPart.Type.HEAD: return "Head"
+		BodyPart.Type.UPPER_CHEST: return "Upper Chest"
+		BodyPart.Type.LOWER_CHEST: return "Lower Chest"
+		BodyPart.Type.STOMACH: return "Stomach"
+		BodyPart.Type.LEFT_UPPER_ARM: return "Left Upper Arm"
+		BodyPart.Type.RIGHT_UPPER_ARM: return "Right Upper Arm"
+		BodyPart.Type.LEFT_LOWER_ARM: return "Left Lower Arm"
+		BodyPart.Type.RIGHT_LOWER_ARM: return "Right Lower Arm"
+		BodyPart.Type.LEFT_HAND: return "Left Hand"
+		BodyPart.Type.RIGHT_HAND: return "Right Hand"
+		BodyPart.Type.LEFT_UPPER_LEG: return "Left Upper Leg"
+		BodyPart.Type.RIGHT_UPPER_LEG: return "Right Upper Leg"
+		BodyPart.Type.LEFT_LOWER_LEG: return "Left Lower Leg"
+		BodyPart.Type.RIGHT_LOWER_LEG: return "Right Lower Leg"
+		BodyPart.Type.LEFT_FOOT: return "Left Foot"
+		BodyPart.Type.RIGHT_FOOT: return "Right Foot"
+		_: return "Unknown"
