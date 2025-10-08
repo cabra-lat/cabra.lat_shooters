@@ -1,58 +1,66 @@
 shader_type spatial;
-render_mode cull_front, vertex_lighting;
+render_mode cull_front;
  
-const float eps = 1e-9;
+const float eps = 1e-5;
+const int DISCARD_SURFACE = -1;
+const int PRIMER_SURFACE = 0;
+const int RIM_SURFACE = 1;
+const int CASE_SURFACE = 2;
+const int BULLET_BASE_SURFACE = 3;
+const int BULLET_BODY_SURFACE = 4;
+const int BULLET_TIP_SURFACE = 5;
 
 // --- GLOBAL SCALE (1.0 = real size in mm, 10 = 10x larger) ---
-uniform float scale : hint_range(0.1, 5000.0, 0.1) = 1.0;
+uniform float scale : hint_range(0.1, 5000.0, 0.1) = 5000.0;
 uniform float shift_y: hint_range(0.0, 1.0, 0.01) = 0.5;
 uniform float uv_x: hint_range(0.0, 100.0, 0.01) = 20.0;
 uniform float uv_y: hint_range(0.0, 100.0, 0.01) = 20.0;
 
 // --- Dimensions in MILLIMETERS (user-friendly) ---
-uniform float bullet_diameter_mm : hint_range(0.0, 20.0, 0.1) = 5.70;
-uniform float land_diameter_mm : hint_range(0.0, 20.0, 0.1) = 5.56;
-uniform float neck_diameter_mm : hint_range(0.0, 20.0, 0.1) = 6.43;
-uniform float neck_percent : hint_range(0.0, 1.0, 0.01) = 0.9;
-uniform float shoulder_diameter_mm : hint_range(0.0, 20.0, 0.1) = 9.00;
-uniform float shoulder_percent : hint_range(0.0, 1.0, 0.01) = 0.8;
-uniform float base_diameter_mm : hint_range(0.0, 20.0, 0.1) = 9.58;
-uniform float base_percent : hint_range(0.0, 1.0, 0.01) = 0.1;
-uniform float rim_diameter_mm : hint_range(0.0, 20.0, 0.1) = 9.60;
-uniform float rim_percent : hint_range(0.0, 1.0, 0.01) = 0.1;
-
-uniform float case_length_mm : hint_range(0.0, 100.0, 0.1) = 44.70;
-uniform float overall_length_mm : hint_range(0.0, 100.0, 0.1) = 57.40;
-
-// --- Bullet base & extraction ---
+uniform float land_diameter_mm     : hint_range(0.0, 20.0, 0.1) = 5.56;
 uniform float bullet_extraction_mm : hint_range(0.0, 50.0, 0.1) = 0.0;
-uniform float bullet_base_percent : hint_range(0.0, 1.0, 0.01) = 0.1;
-uniform float bullet_tip_percent: hint_range(0.0, 1.0, 0.01) = 0.7;
+uniform float bullet_diameter_mm   : hint_range(0.0, 20.0, 0.1) = 5.70;
+uniform float case_length_mm       : hint_range(0.0, 100.0, 0.1) = 44.70;
+uniform float overall_length_mm    : hint_range(0.0, 100.0, 0.1) = 57.40;
+
+uniform float neck_diameter_mm     : hint_range(0.0, 20.0, 0.1) = 6.43;
+uniform float shoulder_diameter_mm : hint_range(0.0, 20.0, 0.1) = 9.00;
+uniform float base_diameter_mm     : hint_range(0.0, 20.0, 0.1) = 9.58;
+uniform float rim_diameter_mm      : hint_range(0.0, 20.0, 0.1) = 9.60;
+uniform float primer_diameter_mm   : hint_range(0.0, 5.0, 0.01) = 3.00;
+uniform float neck_percent         : hint_range(0.0, 1.0, 0.01) = 0.90;
+uniform float shoulder_percent     : hint_range(0.0, 1.0, 0.01) = 0.85;
+uniform float base_percent         : hint_range(0.0, 1.0, 0.01) = 0.05;
+uniform float rim_percent          : hint_range(0.0, 1.0, 0.001) = 0.02;
+uniform float primer_percent       : hint_range(0.0, 1.0, 0.001) = 0.01;
+uniform float bullet_base_percent  : hint_range(0.0, 1.0, 0.01) = 0.1;
+uniform float bullet_tip_percent   : hint_range(0.0, 1.0, 0.01) = 0.7;
 // --- Bullet tip controls ---
 uniform float ogive_radius_factor : hint_range(0.5, 5.0, 0.01) = 1.0;
 uniform int tip_profile : hint_range(0, 3) = 1;
-
-// --- Primer ---
-uniform float primer_diameter_mm : hint_range(0.0, 5.0, 0.01) = 3.0;
-uniform float primer_depth_mm : hint_range(0.0, 2.0, 0.01) = 1.0;
-uniform bool show_primer = true;
 
 // --- Materials ---
 uniform vec4 case_color : source_color = vec4(0.8, 0.6, 0.2, 1.0);
 uniform vec4 bullet_color : source_color = vec4(0.7, 0.4, 0.2, 1.0);
 uniform vec4 bullet_tip_color : source_color = vec4(0.9, 0.8, 0.7, 1.0);
 uniform vec4 bullet_base_color : source_color = vec4(0.1, 0.1, 0.1, 1.0);
+uniform vec4 primer_color : source_color = vec4(0.3, 0.3, 0.35, 1.0);
+uniform vec4 rim_color : source_color = vec4(0.88, 0.66, 0.22, 1.0);
+
 uniform float case_metallic : hint_range(0,1) = 0.8;
 uniform float case_roughness : hint_range(0,1) = 0.3;
 uniform float bullet_metallic : hint_range(0,1) = 0.6;
 uniform float bullet_roughness : hint_range(0,1) = 0.2;
 uniform float primer_metallic : hint_range(0,1) = 0.3;
 uniform float primer_roughness : hint_range(0,1) = 0.7;
+uniform float rim_metallic : hint_range(0,1) = 0.3;
+uniform float rim_roughness : hint_range(0,1) = 0.7;
 
 // --- Textures ---
 uniform sampler2D case_texture : source_color;
 uniform sampler2D bullet_texture : source_color;
 uniform sampler2D primer_texture : source_color;
+uniform sampler2D rim_texture : source_color;
 uniform float wear_amount : hint_range(0,1) = 0.1;
 
 // ======================
@@ -85,13 +93,16 @@ float get_radius(float t) {
     float rim_diam = to_m(rim_diameter_mm);
     float case_len = to_m(case_length_mm);
     float primer_diam = to_m(primer_diameter_mm);
-    float primer_dep = to_m(primer_depth_mm);
 
     float ogive_start = case_len + bullet_ext;
     float ogive_length = total_len - ogive_start;
 
+	if (pos < eps)
+		return linear_segment(pos, 0.0, eps, 0.0, primer_diam * 0.5);
+	else if (pos < primer_percent * case_len) {
+        return primer_diam * 0.5;
+	}
     // --- Rim (constant) ---
-	if (pos < eps) return 0.0;
     else if (pos < rim_percent * case_len) {
         return rim_diam * 0.5;
     }
@@ -141,7 +152,7 @@ float get_radius(float t) {
         }
         else if (tip_profile == 0) {
             // Truncated cone ogive (not full cone!)
-            float tip_length = ogive_length * ogive_radius_factor; // Only last 30% tapers
+            float tip_length = ogive_length * ogive_radius_factor;
             if (s > ogive_length - tip_length) {
                 float taper_s = s - (ogive_length - tip_length);
                 return linear_segment(
@@ -156,7 +167,7 @@ float get_radius(float t) {
             }
         }
         else if (tip_profile == 1) {
-            // Tangent ogive (your existing logic is fine)
+            // Tangent ogive
             float r0 = bullet_diam * 0.5;
             float L = ogive_length;
             float R = (L * L + r0 * r0) / (2.0 * r0) * ogive_radius_factor;
@@ -189,14 +200,9 @@ float get_radius(float t) {
 // ======================
 vec3 calculate_normal(float t, float angle, float total_len) {
     // Use central differences for position
-    float delta = 0.001;
-    // Current position
-    float r_current = get_radius(t);
-    float y_current = (t - shift_y) * total_len;
-    
     // Neighboring positions
-    float t_forward = min(t + delta, 1.0);
-    float t_backward = max(t - delta, 0.0);
+    float t_forward = min(t + eps, 1.0);
+    float t_backward = max(t - eps, 0.0);
     
     float r_forward = get_radius(t_forward);
     float r_backward = get_radius(t_backward);
@@ -215,7 +221,7 @@ vec3 calculate_normal(float t, float angle, float total_len) {
     // The normal can be computed as: N = (cosθ, -dr/dy, sinθ) normalized
     // But since we have dr/dt and dy/dt, we can use: dr/dy = (dr/dt) / (dy/dt)
     
-    if (abs(dy_dt) < delta) {
+    if (abs(dy_dt) < eps) {
         // Vertical surface - normal is purely horizontal
         return normalize(vec3(cos(angle), 0.0, sin(angle)));
     }
@@ -232,7 +238,7 @@ vec3 calculate_normal(float t, float angle, float total_len) {
     // We can verify by checking the dot product with the radial direction
     vec3 radial = vec3(cos(angle), 0.0, sin(angle));
     if (dot(normal, radial) < 0.0) {
-        normal = abs(normal);
+        normal = - normal;
     }
     
     return normal;
@@ -247,23 +253,21 @@ int get_surface_type(float t) {
 
 	float pos = t * total_len;
 	float case_len = to_m(case_length_mm);
-	float primer_d = to_m(primer_diameter_mm);
-	float neck_d   = to_m(neck_diameter_mm);
 	
 	float radius = get_radius(t);
-	if (radius < 0.0) return -1;
-	if (pos < primer_d) return 0;
-	if (pos < case_len * rim_percent) return 1;
-	if (pos < case_len - eps) return 2;
-	if (pos < case_len) return 0;
-    if (pos < case_len + bullet_ext - eps) return -1;
+	if (radius < eps)                    return DISCARD_SURFACE;
+	if (pos < case_len * primer_percent) return PRIMER_SURFACE;
+	if (pos < case_len * rim_percent)    return RIM_SURFACE;
+	if (pos < case_len)                  return CASE_SURFACE;
+    if (pos < case_len + bullet_ext)     return DISCARD_SURFACE;
+	
 	float ogive_start = case_len + bullet_ext;
 	float base_start = ogive_start + (total_len - ogive_start) * bullet_base_percent;
 
-	if (pos < base_start) return 3;
+	if (pos < base_start) return BULLET_BASE_SURFACE;
 
 	float tip_start = ogive_start + (total_len - ogive_start) * bullet_tip_percent;
-	return (pos > tip_start) ? 5 : 4;
+	return (pos > tip_start) ? BULLET_TIP_SURFACE : BULLET_BODY_SURFACE;
 }
 
 // ======================
@@ -296,46 +300,49 @@ void fragment() {
 	float t = UV.x;
 	vec2 detail_uv = vec2(UV.x * uv_x, UV.y * uv_y);
 	int surface = get_surface_type(t);
-	if (surface == -1) {
+	if (surface == DISCARD_SURFACE) {
 		discard;
-	}
-	if (surface == 0) {
+	} else if (surface == PRIMER_SURFACE) {
 		vec3 tex = texture(primer_texture, detail_uv).rgb;
-		ALBEDO = vec3(0.3, 0.3, 0.35) * tex;
+		ALBEDO = primer_color.rgb * tex;
+		ALPHA = primer_color.a;
 		METALLIC = primer_metallic;
 		ROUGHNESS = primer_roughness + wear_amount * 0.4;
 	}
-	else if (surface == 1) {
-		vec3 tex = texture(case_texture, detail_uv).rgb;
-		ALBEDO = case_color.rgb * tex * 1.1;
-		METALLIC = case_metallic;
-		ROUGHNESS = case_roughness + wear_amount * 0.2;
+	else if (surface == RIM_SURFACE) {
+		vec3 tex = texture(rim_texture, detail_uv).rgb;
+		ALBEDO = rim_color.rgb * tex;
+		ALPHA = rim_color.a;
+		METALLIC = rim_metallic;
+		ROUGHNESS = rim_roughness + wear_amount * 0.2;
 	}
-	else if (surface == 2) {
+	else if (surface == CASE_SURFACE) {
 		vec3 tex = texture(case_texture, detail_uv).rgb;
 		ALBEDO = case_color.rgb * tex;
-		ALPHA = bullet_base_color.a;
+		ALPHA = case_color.a;
 		METALLIC = case_metallic;
 		ROUGHNESS = case_roughness + wear_amount * 0.3;
 	}
-	else if (surface == 3) {
+	else if (surface == BULLET_BASE_SURFACE) {
 		vec3 tex = texture(bullet_texture, detail_uv).rgb;
 		ALBEDO = bullet_base_color.rgb;
 		ALPHA = bullet_base_color.a;
 		METALLIC = 0.1;
 		ROUGHNESS = 0.8;
 	}
-	else if (surface == 4) {
+	else if (surface == BULLET_BODY_SURFACE) {
 		vec3 tex = texture(bullet_texture, detail_uv).rgb;
 		ALBEDO = bullet_color.rgb * tex;
+		ALPHA = bullet_color.a;
 		METALLIC = bullet_metallic;
 		ROUGHNESS = bullet_roughness + wear_amount * 0.2;
 	}
-	else {
+	else if (surface == BULLET_TIP_SURFACE) {
 		vec3 tex = texture(bullet_texture, detail_uv).rgb;
 		ALBEDO = bullet_tip_color.rgb * tex;
-		METALLIC = bullet_metallic * 0.5;
-		ROUGHNESS = bullet_roughness * 0.8;
+		ALPHA = bullet_tip_color.a;
+		METALLIC = bullet_metallic;
+		ROUGHNESS = bullet_roughness;
 	}
 
 	ALBEDO *= (0.8 + 0.2 * UV.x);
