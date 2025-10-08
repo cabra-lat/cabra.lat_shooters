@@ -1,0 +1,73 @@
+[gd_scene load_steps=7 format=3 uid="uid://bdglvqap8op2e"]
+
+[ext_resource type="Shader" uid="uid://o3jgodj7314a" path="res://addons/cabra.lat_shooters/src/shaders/cartridge.gdshader" id="1_bn5vj"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_bn5vj"]
+sky_curve = 0.106066
+ground_curve = 0.076434
+
+[sub_resource type="Sky" id="Sky_m7h7k"]
+sky_material = SubResource("ProceduralSkyMaterial_bn5vj")
+
+[sub_resource type="Environment" id="Environment_sl7sx"]
+background_mode = 2
+sky = SubResource("Sky_m7h7k")
+tonemap_mode = 2
+ssao_enabled = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bn5vj"]
+render_priority = 0
+shader = ExtResource("1_bn5vj")
+shader_parameter/scale = 5000.0
+shader_parameter/shift_y = 0.5
+shader_parameter/uv_x = 20.0
+shader_parameter/uv_y = 20.0
+shader_parameter/bullet_diameter_mm = 5.7
+shader_parameter/land_diameter_mm = 5.56
+shader_parameter/neck_diameter_mm = 6.43
+shader_parameter/neck_percent = 0.9
+shader_parameter/shoulder_diameter_mm = 9.0
+shader_parameter/shoulder_percent = 0.8
+shader_parameter/base_diameter_mm = 9.58
+shader_parameter/base_percent = 0.1
+shader_parameter/rim_diameter_mm = 9.6
+shader_parameter/rim_percent = 0.1
+shader_parameter/case_length_mm = 44.7
+shader_parameter/overall_length_mm = 57.4
+shader_parameter/bullet_extraction_mm = 10.5
+shader_parameter/bullet_base_percent = 0.1
+shader_parameter/bullet_tip_percent = 0.7
+shader_parameter/ogive_radius_factor = 1.0
+shader_parameter/tip_profile = 1
+shader_parameter/primer_diameter_mm = 0.5
+shader_parameter/primer_depth_mm = 1.0
+shader_parameter/show_primer = true
+shader_parameter/case_color = Color(0.8, 0.6, 0.2, 1)
+shader_parameter/bullet_color = Color(0.7, 0.4, 0.2, 1)
+shader_parameter/bullet_tip_color = Color(0.9, 0.8, 0.7, 1)
+shader_parameter/bullet_base_color = Color(0.1, 0.1, 0.1, 1)
+shader_parameter/case_metallic = 0.8
+shader_parameter/case_roughness = 0.3
+shader_parameter/bullet_metallic = 0.6
+shader_parameter/bullet_roughness = 0.2
+shader_parameter/primer_metallic = 0.3
+shader_parameter/primer_roughness = 0.7
+shader_parameter/wear_amount = 0.1
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_8hje2"]
+lightmap_size_hint = Vector2i(17, 19)
+material = SubResource("ShaderMaterial_bn5vj")
+radial_segments = 515
+rings = 64
+cap_top = false
+cap_bottom = false
+
+[node name="Node3D" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_sl7sx")
+
+[node name="Cartridges3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.280596, -0.32238, -0.330544)
+extra_cull_margin = 2774.71
+mesh = SubResource("CylinderMesh_8hje2")

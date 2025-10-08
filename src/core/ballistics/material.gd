@@ -69,12 +69,12 @@ static func Rapacki_1995(ammo: Ammo, material: BallisticMaterial, impact_energy:
 	#var penetration_depth = (impact_energy) * (projectile.penetration_value / effective_hardness)
 	#return max(0.0, penetration_depth)
 
-func calculate_penetration(ammo: Ammo, impact_energy: float, obliquity_deg: float = 0.0) -> float:
+func calculate_penetration(ammo: Ammo, material: BallisticMaterial, impact_energy: float, obliquity_deg: float = 0.0) -> float:
 	var impact_velocity = Utils.bullet_velocity(ammo.bullet_mass, impact_energy)
 	# Reference condition: 12 mm at 950 m/s into 300 BHN RHA (normal incidence)
 	var v_ref = ammo.get_velocity_at_range(100) # m/s (estimated at 100 m)
-	var h_ref = 300.0        # BHN
-	var p_ref = 12.0         # mm
+	const h_ref = 300.0 # BHN
+	const p_ref = 12.0  # mm
 	
 	# Sensitivity coefficients from Hohler & Stilp (averaged)
 	var dP_dv = 0.092        # mm per (m/s)
