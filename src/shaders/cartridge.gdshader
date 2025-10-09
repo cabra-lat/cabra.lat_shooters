@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode cull_front;
- 
-const float eps = 1e-5;
+
+const float eps = 1e-6;
 const int DISCARD_SURFACE = -1;
 const int PRIMER_SURFACE = 0;
 const int RIM_SURFACE = 1;
@@ -10,15 +10,21 @@ const int BULLET_BASE_SURFACE = 3;
 const int BULLET_BODY_SURFACE = 4;
 const int BULLET_TIP_SURFACE = 5;
 
-// --- GLOBAL SCALE (1.0 = real size in mm, 10 = 10x larger) ---
-uniform float scale : hint_range(0.1, 5000.0, 0.1) = 5000.0;
-uniform float shift_y: hint_range(0.0, 1.0, 0.01) = 0.5;
-uniform float uv_x: hint_range(0.0, 100.0, 0.01) = 20.0;
-uniform float uv_y: hint_range(0.0, 100.0, 0.01) = 20.0;
+// --- GLOBAL SCALE (1.0 = real size in mm, 5000 = 5000x larger) ---
+// Use it to make it easier to see in the editor
+uniform float scale : hint_range(0.1, 5000.0, 0.1) = 1.0;
+// Use 0.0 to make the center of mass fully in the case when ejecting it
+// Use 1.0 to make the center of mass fully in the bullet when ejecting it
+uniform float center_of_mass: hint_range(0.0, 1.0, 0.01) = 0.05;
+// Controls the projectile ejection
+uniform float bullet_extraction_mm : hint_range(0.0, 100.0, 0.1) = 0.0;
+
+// --- Bullet tip controls ---
+uniform float ogive_radius_factor : hint_range(0.5, 5.0, 0.01) = 1.0;
+uniform int tip_profile : hint_range(0, 3) = 1;
 
 // --- Dimensions in MILLIMETERS (user-friendly) ---
-uniform float land_diameter_mm     : hint_range(0.0, 20.0, 0.1) = 5.56;
-uniform float bullet_extraction_mm : hint_range(0.0, 50.0, 0.1) = 0.0;
+uniform float land_diameter_mm     : hint_range(0.0, 20.0, 0.1) = 5.56; // Unused
 uniform float bullet_diameter_mm   : hint_range(0.0, 20.0, 0.1) = 5.70;
 uniform float case_length_mm       : hint_range(0.0, 100.0, 0.1) = 44.70;
 uniform float overall_length_mm    : hint_range(0.0, 100.0, 0.1) = 57.40;
@@ -27,6 +33,7 @@ uniform float neck_diameter_mm     : hint_range(0.0, 20.0, 0.1) = 6.43;
 uniform float shoulder_diameter_mm : hint_range(0.0, 20.0, 0.1) = 9.00;
 uniform float base_diameter_mm     : hint_range(0.0, 20.0, 0.1) = 9.58;
 uniform float rim_diameter_mm      : hint_range(0.0, 20.0, 0.1) = 9.60;
+uniform float rim_thickness_mm     : hint_range(0.0, 20.0, 0.1) = 9.60;
 uniform float primer_diameter_mm   : hint_range(0.0, 5.0, 0.01) = 3.00;
 uniform float neck_percent         : hint_range(0.0, 1.0, 0.01) = 0.90;
 uniform float shoulder_percent     : hint_range(0.0, 1.0, 0.01) = 0.85;
@@ -35,9 +42,6 @@ uniform float rim_percent          : hint_range(0.0, 1.0, 0.001) = 0.02;
 uniform float primer_percent       : hint_range(0.0, 1.0, 0.001) = 0.01;
 uniform float bullet_base_percent  : hint_range(0.0, 1.0, 0.01) = 0.1;
 uniform float bullet_tip_percent   : hint_range(0.0, 1.0, 0.01) = 0.7;
-// --- Bullet tip controls ---
-uniform float ogive_radius_factor : hint_range(0.5, 5.0, 0.01) = 1.0;
-uniform int tip_profile : hint_range(0, 3) = 1;
 
 // --- Materials ---
 uniform vec4 case_color : source_color = vec4(0.8, 0.6, 0.2, 1.0);
@@ -61,6 +65,8 @@ uniform sampler2D case_texture : source_color;
 uniform sampler2D bullet_texture : source_color;
 uniform sampler2D primer_texture : source_color;
 uniform sampler2D rim_texture : source_color;
+uniform float uv_x: hint_range(0.0, 100.0, 0.01) = 20.0;
+uniform float uv_y: hint_range(0.0, 100.0, 0.01) = 20.0;
 uniform float wear_amount : hint_range(0,1) = 0.1;
 
 // ======================
@@ -84,13 +90,14 @@ float linear_segment(float pos, float pos0, float pos1, float rad0, float rad1) 
 float get_radius(float t) {
     float bullet_ext = to_m(bullet_extraction_mm);
     float total_len = to_m(overall_length_mm) + bullet_ext;
-    float pos = t * total_len;
+    float pos = t * (total_len);
 
     float bullet_diam = to_m(bullet_diameter_mm);
     float neck_diam = to_m(neck_diameter_mm);
     float shoulder_diam = to_m(shoulder_diameter_mm);
     float base_diam = to_m(base_diameter_mm);
     float rim_diam = to_m(rim_diameter_mm);
+    float rim_thick = to_m(rim_thickness_mm);
     float case_len = to_m(case_length_mm);
     float primer_diam = to_m(primer_diameter_mm);
 
@@ -98,16 +105,16 @@ float get_radius(float t) {
     float ogive_length = total_len - ogive_start;
 
 	if (pos < eps)
-		return linear_segment(pos, 0.0, eps, 0.0, primer_diam * 0.5);
-	else if (pos < primer_percent * case_len) {
+		return eps;
+	if (pos < primer_percent * case_len) {
         return primer_diam * 0.5;
 	}
     // --- Rim (constant) ---
-    else if (pos < rim_percent * case_len) {
+    if (pos < (rim_percent + primer_percent) * case_len) {
         return rim_diam * 0.5;
     }
     // --- Base taper: rim → base ---
-    else if (pos < base_percent * case_len) {
+    if (pos < (rim_percent + primer_percent + base_percent) * case_len) {
         return linear_segment(
             pos,
             rim_percent * case_len,
@@ -117,11 +124,11 @@ float get_radius(float t) {
         );
     }
     // --- Case body: base → shoulder (constant shoulder) ---
-    else if (pos < shoulder_percent * case_len) {
+    if (pos < ( shoulder_percent ) * case_len) {
         return shoulder_diam * 0.5;
     }
     // --- Shoulder taper: shoulder → neck ---
-    else if (pos < neck_percent * case_len) {
+    if (pos < ( neck_percent ) * case_len) {
         return linear_segment(
             pos,
             shoulder_percent * case_len,
@@ -131,15 +138,15 @@ float get_radius(float t) {
         );
     }
     // --- Neck (constant) ---
-    else if (pos < case_len) {
+    if (pos < case_len) {
         return neck_diam * 0.5;
     }
     // --- Gap during extraction ---
-    else if (pos < ogive_start + eps) {
-        return 0.0;
+    if (pos < ogive_start) {
+		return eps;
     }
     // --- BULLET SECTION ---
-    else {
+    if (pos < total_len - eps){
         float s = pos - ogive_start;
 
         // Bullet base (cylindrical shank)
@@ -157,10 +164,10 @@ float get_radius(float t) {
                 float taper_s = s - (ogive_length - tip_length);
                 return linear_segment(
                     taper_s,
-                    0.0,
+                    eps,
                     tip_length,
                     bullet_diam * 0.5,
-                    0.0
+                    eps
                 );
             } else {
                 return bullet_diam * 0.5; // Cylindrical shank
@@ -173,7 +180,7 @@ float get_radius(float t) {
             float R = (L * L + r0 * r0) / (2.0 * r0) * ogive_radius_factor;
             float x = s;
             float y = R - sqrt(max(0.0, R * R - x * x));
-            return max(0.0, r0 - y);
+            return max(eps, r0 - y);
         }
         else if (tip_profile == 2) {
             // Secant ogive
@@ -183,16 +190,22 @@ float get_radius(float t) {
             float R = (L * L + base_radius * base_radius) / (2.0 * base_radius) * ogive_radius_factor;
             float x = s;
             float y = R - sqrt(max(0.0, R * R - x * x));
-            return max(0.0, mix(r0, base_radius, 0.3) - y);
+            return max(eps, mix(r0, base_radius, 0.3) - y);
         }
-        else {
-            // Elliptical
-            float r0 = bullet_diam * 0.5;
-            float t_ellipse = s / ogive_length;
-            return r0 * sqrt(max(0.0, 1.0 - t_ellipse * t_ellipse));
-        }
+	    if (tip_profile == 3){
+	        // Elliptical
+	        float r0 = bullet_diam * 0.5;
+	        float t_ellipse = s / ogive_length;
+	        return r0 * sqrt(max(eps, 1.0 - t_ellipse * t_ellipse));
+    	}
+	}
+	if (pos < total_len - eps) {
+        // Elliptical
+        float r0 = bullet_diam * 0.5;
+        float t_ellipse = pos / ogive_length;
+        return r0 * sqrt(max(eps, 1.0 - t_ellipse * t_ellipse));
     }
-    return 0.0;
+    return eps;
 }
 
 // ======================
@@ -203,44 +216,44 @@ vec3 calculate_normal(float t, float angle, float total_len) {
     // Neighboring positions
     float t_forward = min(t + eps, 1.0);
     float t_backward = max(t - eps, 0.0);
-    
+
     float r_forward = get_radius(t_forward);
     float r_backward = get_radius(t_backward);
-    
-    float y_forward = (t_forward - shift_y) * total_len;
-    float y_backward = (t_backward - shift_y) * total_len;
-    
+
+    float y_forward = (t_forward - center_of_mass) * total_len;
+    float y_backward = (t_backward - center_of_mass) * total_len;
+
     // Central differences for derivatives
     float dr_dt = (r_forward - r_backward) / (t_forward - t_backward);
     float dy_dt = (y_forward - y_backward) / (t_forward - t_backward);
-    
+
     // For a surface of revolution, the gradient is:
     // ∇f = (2x, 2y - 2R*dy/dx, 2z) but let's use a more direct approach
-    
+
     // The surface point is: P = (r*cosθ, y, r*sinθ)
     // The normal can be computed as: N = (cosθ, -dr/dy, sinθ) normalized
     // But since we have dr/dt and dy/dt, we can use: dr/dy = (dr/dt) / (dy/dt)
-    
+
     if (abs(dy_dt) < eps) {
         // Vertical surface - normal is purely horizontal
         return normalize(vec3(cos(angle), 0.0, sin(angle)));
     }
-    
+
     float dr_dy = dr_dt / dy_dt;
-    
+
     // The outward normal for a surface of revolution
     vec3 normal = vec3(cos(angle), -dr_dy, sin(angle));
-    
+
     // Always normalize and ensure it points outward
     normal = normalize(normal);
-    
+
     // For convex shapes (like bullets), the normal should point away from the central axis
     // We can verify by checking the dot product with the radial direction
     vec3 radial = vec3(cos(angle), 0.0, sin(angle));
     if (dot(normal, radial) < 0.0) {
         normal = - normal;
     }
-    
+
     return normal;
 }
 
@@ -249,18 +262,21 @@ vec3 calculate_normal(float t, float angle, float total_len) {
 // ======================
 int get_surface_type(float t) {
 	float bullet_ext = to_m(bullet_extraction_mm);
-	float total_len = to_m(overall_length_mm) + bullet_ext;
-
-	float pos = t * total_len;
+    float total_len = to_m(overall_length_mm) + bullet_ext;
+    float pos = t * (total_len);
 	float case_len = to_m(case_length_mm);
-	
+
 	float radius = get_radius(t);
-	if (radius < eps)                    return DISCARD_SURFACE;
-	if (pos < case_len * primer_percent) return PRIMER_SURFACE;
-	if (pos < case_len * rim_percent)    return RIM_SURFACE;
-	if (pos < case_len)                  return CASE_SURFACE;
-    if (pos < case_len + bullet_ext)     return DISCARD_SURFACE;
-	
+	if (radius < eps) return DISCARD_SURFACE;
+	if (pos < case_len * primer_percent - eps)
+		return PRIMER_SURFACE;
+	if (pos < case_len * (rim_percent + primer_percent))
+		return RIM_SURFACE;
+	if (pos < case_len)
+		return CASE_SURFACE;
+    if (pos < case_len + bullet_ext - 10.0 * eps)
+		return BULLET_BASE_SURFACE;
+
 	float ogive_start = case_len + bullet_ext;
 	float base_start = ogive_start + (total_len - ogive_start) * bullet_base_percent;
 
@@ -279,9 +295,9 @@ void vertex() {
 
 	float radius = get_radius(t);
 	float bullet_ext = to_m(bullet_extraction_mm);
-	float total_len = to_m(overall_length_mm) + bullet_ext;
+    float total_len = to_m(overall_length_mm) + bullet_ext;
 
-	float y = (t - shift_y) * total_len;
+	float y = (t - center_of_mass) * (total_len);
 
 	VERTEX = vec3(
 		cos(angle) * radius,
@@ -346,7 +362,7 @@ void fragment() {
 	}
 
 	ALBEDO *= (0.8 + 0.2 * UV.x);
-	
+
 	// Debug normals - uncomment to check
 	//ALBEDO = NORMAL * 0.5 + 0.5;
 }
