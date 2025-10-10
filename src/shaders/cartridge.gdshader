@@ -30,7 +30,7 @@ uniform int gap_segments = 2;
 group_uniforms Scale_And_Transform;
 uniform float scale : hint_range(0.1, 5000.0, 0.1) = 1.0;
 uniform float center_of_mass: hint_range(0.0, 1.0, 0.01) = 0.05;
-uniform float bullet_extraction_mm : hint_range(0.0, 100.0, 0.1) = 0.0;
+uniform float bullet_extraction_mm : hint_range(0.0, 1000.0, 0.1) = 0.0;
 
 // --- CARTRIDGE DIMENSIONS ---
 group_uniforms Cartridge_Dimensions;
@@ -65,10 +65,17 @@ uniform float bullet_tip_percent  : hint_range(0.0, 1.0, 0.01) = 0.7;
 
 // --- TRACER PROPERTIES ---
 group_uniforms Tracer;
-uniform vec4 tracer_color : source_color = vec4(1.0, 0.5, 0.1, 1.0);
-uniform float tracer_radius_percent : hint_range(0.0, 1.0, 0.1) = 1.0;
-uniform float tracer_emission_energy : hint_range(0.0, 10.0, 0.1) = 3.0;
-uniform float tracer_pulse_speed : hint_range(0.0, 5.0, 0.1) = 1.0;
+uniform bool  tracer_enable = true;
+uniform vec4  tracer_color : source_color = vec4(1.0, 0.5, 0.1, 1.0);
+uniform float tracer_emission_energy : hint_range(0.0, 10.0, 0.1) = 1.0;
+uniform float tracer_radius_percent : hint_range(0.0, 1.0, 0.1) = 0.5;
+uniform float tracer_pulse_speed : hint_range(0.0, 10.0, 0.1) = 1.0;
+uniform float tracer_start_mm : hint_range(0.0, 1000.0, 1.0) = 100.0;
+uniform float tracer_length_mm : hint_range(0.0, 2000.0, 1.0) = 500.0;
+uniform float tracer_power : hint_range(0.1, 3.0, 0.1) = 1.5;
+
+group_uniforms Special_Effects;
+uniform bool bullet_tip_heat_enable = true;
 
 // --- CASE MATERIALS ---
 group_uniforms Case_Materials;
@@ -120,7 +127,7 @@ float to_meters(float millimeters) {
 }
 
 // Linear interpolation between two radii over a segment
-float interpolate_radius(float position, float position_start, float position_end, float radius_start, float radius_end) {
+float lerp(float position, float position_start, float position_end, float radius_start, float radius_end) {
     if (position <= position_start) return radius_start;
     if (position >= position_end) return radius_end;
     float t = (position - position_start) / max(EPS, position_end - position_start);
@@ -253,7 +260,7 @@ float calculate_radius(float parameter_t) {
     // Base taper
     float base_end = rim_end + case_length * base_percent;
     if (position < base_end) {
-        return interpolate_radius(
+        return lerp(
             position,
             rim_end,
             base_end,
@@ -271,7 +278,7 @@ float calculate_radius(float parameter_t) {
     // Neck taper
     float neck_end = case_length * neck_percent;
     if (position < neck_end) {
-        return interpolate_radius(
+        return lerp(
             position,
             shoulder_end,
             neck_end,
@@ -284,6 +291,8 @@ float calculate_radius(float parameter_t) {
     if (position < case_length) {
         return neck_diameter * 0.5;
     }
+
+    if (position > overall_length - EPS) return EPS;
     
     // --- BULLET SECTION ---
     
@@ -304,7 +313,7 @@ float calculate_radius(float parameter_t) {
         // Truncated cone
         float tip_start_position = bullet_tip_percent;
         if (ogive_position > tip_start_position) {
-            return interpolate_radius(
+            return lerp(
                 ogive_position,
                 tip_start_position,
                 1.0,
@@ -388,11 +397,49 @@ vec3 calculate_surface_normal(float parameter_t, float angle, float overall_leng
     return normal;
 }
 
+// Calculate tracer visibility and intensity - FIXED VERSION
+float calculate_tracer_intensity
+(float parameter_t) {
+    if (!tracer_enable) {
+        return 0.0;
+    }
+    
+    float extraction_distance = to_meters(bullet_extraction_mm);
+    
+    // Case position in world space (case doesn't move)
+    float case_length = to_meters(case_length_mm);
+    
+    // Tracer starts at TS mm from the CASE (not world origin)
+    float tracer_start_from_case = to_meters(tracer_start_mm) + case_length;
+    float tracer_length = to_meters(tracer_length_mm);
+    
+    // Current vertex world position
+    float world_position = get_display_position(parameter_t);
+    
+    // Tracer ignition point moves with bullet extraction
+    float tracer_ignition_point = tracer_start_from_case;
+    
+    // Tracer extends backwards from ignition point
+    float tracer_start_world = tracer_ignition_point;
+    float tracer_end_world = tracer_ignition_point + tracer_length;
+    
+    // Only show tracer between start and end positions
+    if (world_position >= tracer_start_world && world_position <= tracer_end_world) {
+        // Calculate normalized position along tracer (0 at ignition, 1 at end)
+        float tracer_normalized = (world_position - tracer_start_world) / tracer_length;
+        
+        // Apply power curve for falloff (fades out along the length)
+        return pow(1.0 - tracer_normalized, tracer_power);
+    }
+    
+    return 0.0;
+}
+
 // ======================
 // SURFACE TYPE DETECTION
 // ======================
 int get_surface_type(float parameter_t) {
-    // Tracer region
+    // Tracer region - check if this position should show tracer
     if (is_in_gap_region(parameter_t)) {
         return SURFACE_TRACER;
     }
@@ -500,6 +547,14 @@ void fragment() {
         ROUGHNESS = bullet_roughness + wear_amount * 0.2;
     }
     else if (surface_type == SURFACE_BULLET_TIP) {
+        if (bullet_tip_heat_enable) {
+            float heat_with_distance = lerp(bullet_extraction_mm, 0.0, 2.0 * case_length_mm, 0.0, 1.0);
+            float pulse = sin(TIME * tracer_pulse_speed + parameter_t * 10.0) * 0.5 + 0.5;
+            EMISSION = tracer_color.rgb 
+                     * tracer_emission_energy 
+                     * (0.7 + 0.3 * pulse)
+                     * heat_with_distance;
+        }
         vec3 texture_sample = texture(bullet_texture, detail_uv).rgb;
         ALBEDO = bullet_tip_color.rgb * texture_sample;
         ALPHA = bullet_tip_color.a;
@@ -507,18 +562,20 @@ void fragment() {
         ROUGHNESS = bullet_roughness;
     }
     else if (surface_type == SURFACE_TRACER) {
-        // Tracer effects
         float tracer_position = get_tracer_position(parameter_t);
         float pulse = sin(TIME * tracer_pulse_speed + tracer_position * 10.0) * 0.5 + 0.5;
         
+        // Calculate tracer intensity based on world position
+        float tracer_intensity = calculate_tracer_intensity(parameter_t);
+        
         ALBEDO = tracer_color.rgb;
-        ALPHA = tracer_color.a;
-        EMISSION = tracer_color.rgb * tracer_emission_energy * (0.7 + 0.3 * pulse);
+        ALPHA = tracer_color.a * tracer_intensity;
+        EMISSION = tracer_color.rgb * tracer_emission_energy * (0.7 + 0.3 * pulse) * tracer_intensity;
         METALLIC = 0.0;
         ROUGHNESS = 0.1;
         
-        // Add some variation along the tracer
-        ALBEDO *= (0.9 + 0.1 * sin(tracer_position * 20.0 + TIME * 2.0));
+        // Add some noise/variation to the tracer
+        ALBEDO *= (0.9 + 0.1 * sin(tracer_position * 20.0 + TIME * 2.0)) * tracer_intensity;
     }
 
     // Add subtle gradient along the length

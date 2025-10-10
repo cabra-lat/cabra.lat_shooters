@@ -295,21 +295,21 @@ const AMMO_DATABASE = {
 }
 
 # Export variables for easy editing in inspector
-@export_range(0, 100) var current_ammo_index: int = 0:
+var current_ammo_index: int = 0:
 	set(value):
 		current_ammo_index = value % AMMO_DATABASE.size()
 		if Engine.is_editor_hint() and has_node("MainBullet"):
 			current_ammo_name = AMMO_DATABASE.keys()[current_ammo_index]
 			apply_ammo_type(current_ammo_name)
 
-@export_range(0.0, 100.0) var bullet_extraction: float = 100.0:
+var bullet_extraction: float = 1000.0:
 	set(value):
 		bullet_extraction = value
 		if Engine.is_editor_hint() and has_node("MainBullet"):
 			var material = $MainBullet.material_override
 			if material:
 				material.set_shader_parameter("bullet_extraction_mm", value)
-
+@export_range(0.0, 1.0, 0.01) var bullet_time: float = 0.5
 # Current ammo type
 var current_ammo_name = ""
 var ejected_casings = []
@@ -416,32 +416,32 @@ func update_ui():
 		ui_label.text = "Current: %s\n\nControls:\n[1-5] Switch Ammo\n[SPACE] Extract Bullet\n[ENTER] Eject Casing\n[R] Reset\n[WASD] Move Camera\n[Q/E] Rotate Camera" % current_ammo_name
 
 func _input(event):
-	if event is InputEventKey and event.pressed:
-		match event.keycode:
-			KEY_1: switch_ammo(0)
-			KEY_2: switch_ammo(1)
-			KEY_3: switch_ammo(2)
-			KEY_4: switch_ammo(3)
-			KEY_5: switch_ammo(4)
-			KEY_6: switch_ammo(6)
-			KEY_7: switch_ammo(7)
-			KEY_8: switch_ammo(8)
-			KEY_9: switch_ammo(9)
-			KEY_COMMA: switch_ammo(current_ammo_index-1)
-			KEY_PERIOD: switch_ammo(current_ammo_index+1)
-			KEY_SPACE: extract_bullet()
-			KEY_ENTER: eject_casing()
-			KEY_R: reset_scene()
-			KEY_W: move_camera(0, -1)
-			KEY_A: move_camera(-1, 0)
-			KEY_S: move_camera(0, 1)
-			KEY_D: move_camera(1, 0)
-			KEY_Q: rotate_camera(-15)
-			KEY_E: rotate_camera(15)
-			KEY_DOWN: rotate_object_x(5)
-			KEY_UP: rotate_object_x(-5)
-			KEY_LEFT: rotate_object_y(5)
-			KEY_RIGHT: rotate_object_y(-5)
+	if event is InputEventKey and event.is_pressed():
+		
+		if event.keycode == KEY_1: switch_ammo(0)
+		if event.keycode == KEY_2: switch_ammo(1)
+		if event.keycode == KEY_3: switch_ammo(2)
+		if event.keycode == KEY_4: switch_ammo(3)
+		if event.keycode == KEY_5: switch_ammo(4)
+		if event.keycode == KEY_6: switch_ammo(6)
+		if event.keycode == KEY_7: switch_ammo(7)
+		if event.keycode == KEY_8: switch_ammo(8)
+		if event.keycode == KEY_9: switch_ammo(9)
+		if event.keycode == KEY_COMMA: switch_ammo(current_ammo_index-1)
+		if event.keycode == KEY_PERIOD: switch_ammo(current_ammo_index+1)
+		if event.keycode == KEY_SPACE: extract_bullet()
+		if event.keycode == KEY_ENTER: eject_casing()
+		if event.keycode == KEY_R: reset_scene()
+		if event.keycode == KEY_W: move_camera(0, -1)
+		if event.keycode == KEY_A: move_camera(-1, 0)
+		if event.keycode == KEY_S: move_camera(0, 1)
+		if event.keycode == KEY_D: move_camera(1, 0)
+		if event.keycode == KEY_Q: rotate_camera(-15)
+		if event.keycode == KEY_E: rotate_camera(15)
+		if event.keycode == KEY_DOWN: rotate_object_x(5)
+		if event.keycode == KEY_UP: rotate_object_x(-5)
+		if event.keycode == KEY_LEFT: rotate_object_y(5)
+		if event.keycode == KEY_RIGHT: rotate_object_y(-5)
 
 func switch_ammo(index: int):
 	current_ammo_index = index % AMMO_DATABASE.size()
@@ -455,7 +455,7 @@ func extract_bullet():
 	if material:
 		# Animate bullet extraction
 		var tween = create_tween()
-		tween.tween_method(_set_bullet_extraction, 0.0, 100.0, 0.5)
+		tween.tween_method(_set_bullet_extraction, 0.0, bullet_extraction, bullet_time)
 
 func _set_bullet_extraction(value: float):
 	var material = main_bullet.material_override
@@ -473,6 +473,7 @@ func eject_casing():
 	ejected_bullet.material_override.set_shader_parameter("bullet_color", Color(0.0, 0.0, 0.0, 0.0))
 	ejected_bullet.material_override.set_shader_parameter("bullet_tip_color", Color(0.0, 0.0, 0.0, 0.0))
 	ejected_bullet.material_override.set_shader_parameter("bullet_base_color", Color(0.0, 0.0, 0.0, 0.0))
+	ejected_bullet.material_override.set_shader_parameter("tracer_color", Color(0.0, 0.0, 0.0, 0.0))
 	add_child(ejected_bullet)
 	extract_bullet()
 	# Animate ejection
@@ -557,7 +558,7 @@ func _get_property_list():
 		"name": "bullet_extraction",
 		"type": TYPE_FLOAT,
 		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "0,%d,0.1" % bullet_extraction
+		"hint_string": "0.0,1000.0,0.1" #% bullet_extraction
 	})
 	
 	return properties
