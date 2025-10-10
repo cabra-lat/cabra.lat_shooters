@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_front;
+render_mode cull_front, depth_draw_always;
 
 // ======================
 // CONSTANTS
@@ -31,6 +31,13 @@ group_uniforms Scale_And_Transform;
 uniform float scale : hint_range(0.1, 5000.0, 0.1) = 1.0;
 uniform float center_of_mass: hint_range(0.0, 1.0, 0.01) = 0.05;
 uniform float bullet_extraction_mm : hint_range(0.0, 1000.0, 0.1) = 0.0;
+
+// NEW: Bullet physics controls
+uniform float muzzle_velocity_ms : hint_range(100.0, 2000.0, 1.0) = 800.0; // meters per second
+uniform float bullet_drop_ms2 : hint_range(0.0, 20.0, 0.1) = 9.81; // gravity in m/s²
+uniform float wind_velocity_ms : hint_range(-100.0, 100.0, 0.1) = 0.0; // wind in m/s
+uniform float zero_range_m : hint_range(0.0, 1000.0, 1.0) = 100.0; // zeroing distance in meters
+uniform float ballistic_coefficient : hint_range(0.1, 1.0, 0.01) = 0.5; // BC for drag
 
 // --- CARTRIDGE DIMENSIONS ---
 group_uniforms Cartridge_Dimensions;
@@ -478,7 +485,7 @@ int get_surface_type(float parameter_t) {
 // ======================
 void vertex() {
     float parameter_t = UV.x;
-    float angle = UV.y * 2.0 * TAU; // Full circle
+    float angle = UV.y * 2.0 * TAU;
 
     float radius = calculate_radius(parameter_t);
     float overall_length = to_meters(overall_length_mm);
@@ -490,12 +497,71 @@ void vertex() {
     float center_offset = center_of_mass * total_display_length;
     float y_position = display_position - center_offset;
 
-    VERTEX = vec3(
+    // Base vertex position
+    vec3 base_vertex = vec3(
         cos(angle) * radius,
         y_position,
         sin(angle) * radius
     );
 
+    // --- SCALE-AWARE PHYSICS-BASED TRAJECTORY CALCULATIONS ---
+    
+    // Only apply trajectory to bullet and tracer regions
+    float case_length = to_meters(case_length_mm);
+    bool is_projectile = (get_original_position(parameter_t) > case_length) || is_in_gap_region(parameter_t);
+    
+    if (is_projectile && bullet_extraction > EPS) {
+        // Calculate distance from case in SCALED meters
+        float distance_from_case = display_position - case_length;
+        
+        if (distance_from_case > 0.0) {
+            // Convert scaled distance back to real-world distance for physics
+            float real_world_distance = distance_from_case / scale;
+            
+            // Calculate time of flight based on real-world distance and velocity
+            float time_in_flight = real_world_distance / muzzle_velocity_ms;
+            
+            // Calculate bullet drop due to gravity (d = 0.5 * g * t²)
+            float real_world_drop = 0.5 * bullet_drop_ms2 * time_in_flight * time_in_flight;
+            
+            // Calculate wind drift (d = wind_velocity * time)
+            float real_world_wind_drift = wind_velocity_ms * time_in_flight;
+            
+            // Apply zeroing compensation (adjusts point of impact)
+            float zeroing_time = zero_range_m / muzzle_velocity_ms;
+            float zeroing_drop = 0.5 * bullet_drop_ms2 * zeroing_time * zeroing_time;
+            float real_world_drop_compensation = real_world_drop - zeroing_drop * (real_world_distance / zero_range_m);
+            
+            // Convert real-world physics back to scaled coordinates
+            float scaled_drop = real_world_drop_compensation * scale;
+            float scaled_wind_drift = real_world_wind_drift * scale;
+            
+            // Apply trajectory adjustments in scaled coordinates
+            base_vertex.z -= scaled_drop;
+            base_vertex.x += scaled_wind_drift;
+            
+            // Optional: Add slight rotation to bullet based on trajectory
+            if (!is_in_gap_region(parameter_t)) {
+                float max_tip_tilt = 0.1; // radians
+                float tilt_x = scaled_wind_drift * max_tip_tilt * 0.1;
+                float tilt_z = scaled_drop * max_tip_tilt * 0.1;
+                
+                // Apply more tilt to the tip of the bullet
+                float bullet_tip_factor = 0.0;
+                float bullet_position = get_original_position(parameter_t) - case_length;
+                float bullet_length = overall_length - case_length;
+                if (bullet_position > 0.0) {
+                    bullet_tip_factor = bullet_position / bullet_length;
+                    bullet_tip_factor = pow(bullet_tip_factor, 2.0); // More tilt at tip
+                }
+                
+                base_vertex.x += tilt_x * bullet_tip_factor;
+                base_vertex.z += tilt_z * bullet_tip_factor;
+            }
+        }
+    }
+
+    VERTEX = base_vertex;
     NORMAL = calculate_surface_normal(parameter_t, angle, overall_length);
 }
 

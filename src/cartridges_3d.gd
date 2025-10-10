@@ -302,7 +302,7 @@ var current_ammo_index: int = 0:
 			current_ammo_name = AMMO_DATABASE.keys()[current_ammo_index]
 			apply_ammo_type(current_ammo_name)
 
-var bullet_extraction: float = 1000.0:
+var bullet_extraction: float = 100.0 * 1000.0:
 	set(value):
 		bullet_extraction = value
 		if Engine.is_editor_hint() and has_node("MainBullet"):
@@ -361,6 +361,7 @@ func _setup_scene():
 		label.position = Vector2(20, 20)
 		label.size = Vector2(400, 150)
 		label.add_theme_font_size_override("font_size", 20)
+		label.add_theme_font_color_override("font_color", Color.BLACK)
 		ui.add_child(label)
 		if Engine.is_editor_hint():
 			label.owner = get_tree().edited_scene_root
@@ -558,7 +559,7 @@ func _get_property_list():
 		"name": "bullet_extraction",
 		"type": TYPE_FLOAT,
 		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "0.0,1000.0,0.1" #% bullet_extraction
+		"hint_string": "0.0,100000.0,0.1" #% bullet_extraction
 	})
 	
 	return properties
