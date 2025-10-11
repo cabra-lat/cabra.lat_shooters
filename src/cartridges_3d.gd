@@ -408,7 +408,6 @@ func apply_ammo_type(ammo_name: String):
 		material.set_shader_parameter("case_color", ammo_data.get("case_color", Color(0.8, 0.6, 0.2)))
 		material.set_shader_parameter("bullet_color", ammo_data.get("bullet_color", Color(0.7, 0.4, 0.2)))
 		material.set_shader_parameter("scale", 1.0)
-		material.set_shader_parameter("center_of_mass", 0.001) # Almost fully on the casing
 	current_ammo_name = ammo_name
 	update_ui()
 
