@@ -1,3 +1,4 @@
+//DO NOT RECOMPILE THIS SHIT GODOT
 shader_type spatial;
 render_mode cull_front, depth_draw_always;
 
@@ -18,7 +19,6 @@ const int SURFACE_TRACER = 6;
 
 // ======================
 // GROUPED UNIFORMS
-// (kept and extended per your request)
 // ======================
 
 // --- MESH CONFIGURATION ---
@@ -60,7 +60,7 @@ uniform float extractor_groove_diameter_mm : hint_range(0.0, 20.0, 0.1) = 8.0;
 // --- CASE PROPORTIONS ---
 group_uniforms Case_Proportions;
 uniform float neck_percent : hint_range(0.0, 1.0, 0.01) = 0.90; // where neck starts (close to case_length)
-uniform float head_percent : hint_range(0.0, 1.0, 0.01) = 0.85; // where shoulder begins
+uniform float shoulder_percent : hint_range(0.0, 1.0, 0.01) = 0.85; // where shoulder begins
 uniform float rim_roundness : hint_range(0.0, 1.0, 0.01) = 0.5; // 0 down semicircle, 0.5 rounded, 1 up semicircle
 
 // --- CASE MATERIALS (moved rim tint here) ---
@@ -96,7 +96,8 @@ uniform float bullet_tip_color_percent : hint_range(0.0, 1.0, 0.01) = 0.7;
 
 uniform float bullet_metallic : hint_range(0,1) = 0.6;
 uniform float bullet_roughness : hint_range(0,1) = 0.2;
-uniform bool bullet_tip_heat_enable = true;
+uniform bool bullet_heat_with_distance_enable = true;
+uniform float bullet_heat_proportion = 2.0;
 
 // --- TRACER PROPERTIES ---
 group_uniforms Tracer;
@@ -278,11 +279,11 @@ vec2 profile_display_for_ring(int idx) {
 
 	    // Head/Body region: from groove to shoulder, with base diameter
 	    float head_start = groove_end;
-	    float head_end = clamp(head_percent, head_start + 0.001, 0.95);
+	    float head_end = clamp(shoulder_percent, head_start + 0.001, 0.95);
 	    if (local <= head_end) {
 	        float t = safe_div(local - head_start, head_end - head_start);
 	        float y0 = rim_thick + to_meters(1.0);
-	        float y1 = case_length * head_percent;
+	        float y1 = case_length * shoulder_percent;
 	        float y = my_lerp(y0, y1, t);
 
 	        // Taper from head diameter to shoulder diameter
@@ -295,7 +296,7 @@ vec2 profile_display_for_ring(int idx) {
 	    float shoulder_end_frac = clamp(neck_percent, shoulder_start_frac + 0.001, 0.999);
 	    if (local <= shoulder_end_frac) {
 	        float t = safe_div(local - shoulder_start_frac, shoulder_end_frac - shoulder_start_frac);
-	        float y0 = case_length * head_percent;
+	        float y0 = case_length * shoulder_percent;
 	        float y1 = case_length * neck_percent;
 	        float y = my_lerp(y0, y1, t);
 
@@ -490,27 +491,27 @@ int get_surface_type(float parameter_t) {
         return SURFACE_CASE; // Mouth is part of the case interior
     }
 
-    float position = get_original_position(parameter_t);
-    float case_length = to_meters(case_length_mm);
-    float overall_length = to_meters(overall_length_mm);
+	if (nearest <= primer_end) {
+        return SURFACE_PRIMER;
+    }
 
-    if (position <= case_length) {
-        float primer_end_pos = case_length * EPS;
-        if (position < primer_end_pos) return SURFACE_PRIMER;
+	if (nearest <= rim_end_local) {
+        return SURFACE_RIM;
+    }
 
-        float rim_end_pos = primer_end_pos + case_length * rim_tint_percent;
-        if (position < rim_end_pos) return SURFACE_RIM;
-
+    if (nearest >= case_start && nearest <= case_end) {
         return SURFACE_CASE;
     }
 
-    float bullet_pos = position - case_length;
-    float bullet_length = overall_length - case_length;
-    float base_section = bullet_length * bullet_base_color_percent;
-    if (bullet_pos < base_section) return SURFACE_BULLET_BASE;
-    float tip_section = bullet_length * bullet_tip_color_percent;
-    if (bullet_pos > tip_section) return SURFACE_BULLET_TIP;
-    return SURFACE_BULLET_BODY;
+    if (nearest >= bullet_start && nearest <= last_index) {
+        int bullet_count = max(1, last_index - bullet_start + 1);
+        float t = safe_div(float(nearest - bullet_start), float(max(1, bullet_count - 1)));
+		if (t < bullet_base_color_percent) return SURFACE_BULLET_BASE;
+		if (t > bullet_tip_color_percent) return SURFACE_BULLET_TIP;
+    	return SURFACE_BULLET_BODY;
+    }
+
+    return SURFACE_CASE; // Defaults to case surface
 }
 
 // ======================
@@ -531,7 +532,7 @@ float calculate_tracer_intensity(float parameter_t) {
 // NORMAL CALCULATION
 // ======================
 vec3 calculate_surface_normal(float parameter_t, float angle, float overall_length) {
-    if (is_in_gap_region(parameter_t) || (int(round(parameter_t * float(mesh_segments_length+1))) <= 1)) {
+    if (is_in_gap_region(parameter_t)) {
         // radial normal for gap interior and primer cap
         return normalize(vec3(cos(angle), 0.0, sin(angle)));
     }
@@ -575,44 +576,44 @@ void vertex() {
 
     vec3 base_vertex = vec3(cos(angle) * radius, y_pos, sin(angle) * radius);
 
-    // --- Ballistic trajectory on projectile vertices (bullet and tracer) ---
-    float case_length = to_meters(case_length_mm);
-    bool is_projectile = (get_original_position(parameter_t) > case_length) || is_in_gap_region(parameter_t);
-
-    if (is_projectile && extraction > EPS) {
-        float distance_from_case = display_y - case_length;
-        if (distance_from_case > 0.0) {
-            float real_world_distance = distance_from_case / scale;
-            float time_in_flight = real_world_distance / muzzle_velocity_ms;
-
-            float real_world_drop = 0.5 * bullet_drop_ms2 * time_in_flight * time_in_flight;
-            float real_world_wind_drift = wind_velocity_ms * time_in_flight;
-
-            float zeroing_time = zero_range_m / muzzle_velocity_ms;
-            float zeroing_drop = 0.5 * bullet_drop_ms2 * zeroing_time * zeroing_time;
-            float real_world_drop_compensation = real_world_drop - zeroing_drop * (real_world_distance / zero_range_m);
-
-            float scaled_drop = real_world_drop_compensation * scale;
-            float scaled_wind_drift = real_world_wind_drift * scale;
-
-            base_vertex.z -= scaled_drop;
-            base_vertex.x += scaled_wind_drift;
-
-            // subtle tip tilt for bullet (not for tracer)
-            if (!is_in_gap_region(parameter_t)) {
-                float max_tip_tilt = 0.1;
-                float tilt_x = scaled_wind_drift * max_tip_tilt * 0.1;
-                float tilt_z = scaled_drop * max_tip_tilt * 0.1;
-
-                float bullet_pos = get_original_position(parameter_t) - case_length;
-                float bullet_len_local = max(EPS, overall_length - case_length);
-                float tip_factor = (bullet_pos > 0.0) ? pow(clamp(bullet_pos / bullet_len_local, 0.0, 1.0), 2.0) : 0.0;
-
-                base_vertex.x += tilt_x * tip_factor;
-                base_vertex.z += tilt_z * tip_factor;
-            }
-        }
-    }
+    //// --- Ballistic trajectory on projectile vertices (bullet and tracer) ---
+    //float case_length = to_meters(case_length_mm);
+    //bool is_projectile = (get_original_position(parameter_t) > case_length) || is_in_gap_region(parameter_t);
+//
+    //if (is_projectile && extraction > EPS) {
+        //float distance_from_case = display_y - case_length;
+        //if (distance_from_case > 0.0) {
+            //float real_world_distance = distance_from_case / scale;
+            //float time_in_flight = real_world_distance / muzzle_velocity_ms;
+//
+            //float real_world_drop = 0.5 * bullet_drop_ms2 * time_in_flight * time_in_flight;
+            //float real_world_wind_drift = wind_velocity_ms * time_in_flight;
+//
+            //float zeroing_time = zero_range_m / muzzle_velocity_ms;
+            //float zeroing_drop = 0.5 * bullet_drop_ms2 * zeroing_time * zeroing_time;
+            //float real_world_drop_compensation = real_world_drop - zeroing_drop * (real_world_distance / zero_range_m);
+//
+            //float scaled_drop = real_world_drop_compensation * scale;
+            //float scaled_wind_drift = real_world_wind_drift * scale;
+//
+            //base_vertex.z -= scaled_drop;
+            //base_vertex.x += scaled_wind_drift;
+//
+            //// subtle tip tilt for bullet (not for tracer)
+            //if (!is_in_gap_region(parameter_t)) {
+                //float max_tip_tilt = 0.1;
+                //float tilt_x = scaled_wind_drift * max_tip_tilt * 0.1;
+                //float tilt_z = scaled_drop * max_tip_tilt * 0.1;
+//
+                //float bullet_pos = get_original_position(parameter_t) - case_length;
+                //float bullet_len_local = max(EPS, overall_length - case_length);
+                //float tip_factor = (bullet_pos > 0.0) ? pow(clamp(bullet_pos / bullet_len_local, 0.0, 1.0), 2.0) : 0.0;
+//
+                //base_vertex.x += tilt_x * tip_factor;
+                //base_vertex.z += tilt_z * tip_factor;
+            //}
+        //}
+    //}
 
     VERTEX = base_vertex;
     NORMAL = calculate_surface_normal(parameter_t, angle, overall_length);
@@ -670,11 +671,6 @@ void fragment() {
         ROUGHNESS = bullet_roughness + wear_amount * 0.2;
     }
     else if (surface_type == SURFACE_BULLET_TIP) {
-        if (bullet_tip_heat_enable) {
-            float heat_with_distance = clamp(to_meters(bullet_extraction_mm)/to_meters(case_length_mm), 0.0, 1.0);
-            float pulse = sin(TIME * tracer_pulse_speed + parameter_t * 10.0) * 0.5 + 0.5;
-            EMISSION = tracer_color.rgb * tracer_emission_energy * (0.7 + 0.3 * pulse) * heat_with_distance;
-        }
         vec3 texture_sample = texture(bullet_texture, detail_uv).rgb;
         ALBEDO = bullet_tip_color.rgb * texture_sample;
         ALPHA = bullet_tip_color.a;
@@ -693,6 +689,12 @@ void fragment() {
         ROUGHNESS = 0.1;
 
         ALBEDO *= (0.9 + 0.1 * sin(tracer_pos * 20.0 + TIME * 2.0)) * tracer_intensity;
+    }
+	bool is_bullet_surface = (surface_type & (SURFACE_BULLET_BASE | SURFACE_BULLET_TIP | SURFACE_BULLET_BODY)) > 0;
+	if (bullet_heat_with_distance_enable && is_bullet_surface) {
+        float heat_with_distance = clamp(bullet_extraction_mm/(bullet_heat_proportion * case_length_mm), 0.0, 1.0);
+        float pulse = sin(TIME * tracer_pulse_speed + parameter_t * 10.0) * 0.5 + 0.5;
+        EMISSION = tracer_color.rgb * tracer_emission_energy * (0.7 + 0.3 * pulse) * heat_with_distance;
     }
 
     // subtle length gradient for visual depth

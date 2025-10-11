@@ -22,9 +22,11 @@ ssao_enabled = true
 colors = PackedColorArray(0.182156, 0.182156, 0.182156, 1, 1, 1, 1, 1)
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_1m3ej"]
-frequency = 0.8137
+frequency = 0.5387
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_fbono"]
+width = 157
+height = 3122
 color_ramp = SubResource("Gradient_aeqdp")
 noise = SubResource("FastNoiseLite_1m3ej")
 
@@ -35,8 +37,8 @@ shader_parameter/mesh_segments_length = 64
 shader_parameter/mesh_segments_circumference = 64
 shader_parameter/gap_segments = 2
 shader_parameter/scale = 5000.0
-shader_parameter/center_of_mass = 0.001
-shader_parameter/bullet_extraction_mm = 0.0
+shader_parameter/center_of_mass = 0.04
+shader_parameter/bullet_extraction_mm = 1000.0
 shader_parameter/muzzle_velocity_ms = 800.0
 shader_parameter/bullet_drop_ms2 = 9.81
 shader_parameter/wind_velocity_ms = 0.0
@@ -54,13 +56,13 @@ shader_parameter/rim_thickness_mm = 1.27
 shader_parameter/primer_diameter_mm = 3.0
 shader_parameter/extractor_groove_diameter_mm = 8.0
 shader_parameter/neck_percent = 0.9
-shader_parameter/head_percent = 0.85
+shader_parameter/shoulder_percent = 0.85
 shader_parameter/rim_roundness = 0.5
 shader_parameter/case_color = Color(0.8, 0.6, 0.2, 1)
-shader_parameter/primer_color = Color(0.3, 0.3, 0.35, 1)
+shader_parameter/primer_color = Color(0.378775, 0.37883, 0.437114, 1)
 shader_parameter/rim_color = Color(0.88, 0.66, 0.22, 1)
 shader_parameter/rim_tint_color = Color(0.9, 0.3, 0.2, 1)
-shader_parameter/rim_tint_percent = 0.026
+shader_parameter/rim_tint_percent = 0.0
 shader_parameter/case_metallic = 0.8
 shader_parameter/case_roughness = 0.3
 shader_parameter/primer_metallic = 0.3
@@ -79,21 +81,22 @@ shader_parameter/bullet_base_color_percent = 0.1
 shader_parameter/bullet_tip_color_percent = 0.7
 shader_parameter/bullet_metallic = 0.6
 shader_parameter/bullet_roughness = 0.2
-shader_parameter/bullet_tip_heat_enable = true
+shader_parameter/bullet_heat_with_distance_enable = true
+shader_parameter/bullet_heat_proportion = 2.0
 shader_parameter/tracer_enable = true
 shader_parameter/tracer_color = Color(1, 0.5, 0.1, 1)
 shader_parameter/tracer_emission_energy = 1.0
 shader_parameter/tracer_radius_percent = 0.5
 shader_parameter/tracer_pulse_speed = 1.0
-shader_parameter/tracer_start_mm = 0.0
+shader_parameter/tracer_start_mm = 100.0
 shader_parameter/tracer_length_mm = 500.0
 shader_parameter/tracer_power = 1.5
 shader_parameter/case_texture = SubResource("NoiseTexture2D_fbono")
 shader_parameter/bullet_texture = SubResource("NoiseTexture2D_fbono")
 shader_parameter/primer_texture = SubResource("NoiseTexture2D_fbono")
 shader_parameter/rim_texture = SubResource("NoiseTexture2D_fbono")
-shader_parameter/uv_scale_x = 0.1
-shader_parameter/uv_scale_y = 1.0
+shader_parameter/uv_scale_x = 0.2
+shader_parameter/uv_scale_y = 2.1
 shader_parameter/wear_amount = 0.412
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_1m3ej"]
