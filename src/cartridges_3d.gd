@@ -456,9 +456,10 @@ func extract_bullet():
 	if material:
 		# Animate bullet extraction
 		var tween = create_tween()
-		tween.tween_method(_set_bullet_extraction, 0.0, bullet_extraction, bullet_time)
+		tween.tween_method(_set_bullet_extraction, 0.0, bullet_extraction, bullet_time)\
+			 .finished.connect(_set_bullet_extraction)
 
-func _set_bullet_extraction(value: float):
+func _set_bullet_extraction(value: float = 0.0):
 	var material = main_bullet.material_override
 	if material:
 		material.set_shader_parameter("bullet_extraction_mm", value)
