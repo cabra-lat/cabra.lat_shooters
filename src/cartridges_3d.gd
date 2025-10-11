@@ -5,6 +5,7 @@ class_name AmmunitionDemo
 
 const BULLET_SHADER = "res://addons/cabra.lat_shooters/src/shaders/cartridge.gdshader"
 
+
 # Ammunition database - real-world specifications
 const AMMO_DATABASE = {
 	"5.56x45mm NATO": {
@@ -12,8 +13,9 @@ const AMMO_DATABASE = {
 		"bullet_diameter_mm": 5.70,
 		"neck_diameter_mm": 6.43,
 		"shoulder_diameter_mm": 9.00,
-		"base_diameter_mm": 9.58,
+		"head_diameter_mm": 9.58,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 9.60,
+		"rim_thickness_mm": 1.27,  # Added missing parameter
 		"case_length_mm": 44.70,
 		"overall_length_mm": 57.40,
 		"primer_diameter_mm": 3.0,
@@ -21,6 +23,8 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.7,
 		"ogive_radius_factor": 1.2,
 		"tip_profile": 1,
+		"neck_percent": 0.90,  # Added missing parameter
+		"shoulder_percent": 0.85,  # Added missing parameter
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
 	},
@@ -29,8 +33,9 @@ const AMMO_DATABASE = {
 		"bullet_diameter_mm": 7.82,
 		"neck_diameter_mm": 8.53,
 		"shoulder_diameter_mm": 11.53,
-		"base_diameter_mm": 11.84,
+		"head_diameter_mm": 11.84,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 11.94,
+		"rim_thickness_mm": 1.40,  # Added
 		"case_length_mm": 51.18,
 		"overall_length_mm": 69.85,
 		"primer_diameter_mm": 3.8,
@@ -38,6 +43,8 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.65,
 		"ogive_radius_factor": 1.3,
 		"tip_profile": 1,
+		"neck_percent": 0.88,
+		"shoulder_percent": 0.80,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
 	},
@@ -46,8 +53,9 @@ const AMMO_DATABASE = {
 		"bullet_diameter_mm": 9.02,
 		"neck_diameter_mm": 9.65,
 		"shoulder_diameter_mm": 9.93,
-		"base_diameter_mm": 9.93,
+		"head_diameter_mm": 9.93,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 9.96,
+		"rim_thickness_mm": 1.27,
 		"case_length_mm": 19.15,
 		"overall_length_mm": 29.69,
 		"primer_diameter_mm": 2.8,
@@ -55,6 +63,8 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.6,
 		"ogive_radius_factor": 1.1,
 		"tip_profile": 3,
+		"neck_percent": 0.95,
+		"shoulder_percent": 0.90,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.65, 0.35, 0.15),
 	},
@@ -63,8 +73,9 @@ const AMMO_DATABASE = {
 		"bullet_diameter_mm": 11.48,
 		"neck_diameter_mm": 12.09,
 		"shoulder_diameter_mm": 12.09,
-		"base_diameter_mm": 12.09,
+		"head_diameter_mm": 12.09,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 12.19,
+		"rim_thickness_mm": 1.40,
 		"case_length_mm": 22.81,
 		"overall_length_mm": 32.39,
 		"primer_diameter_mm": 3.0,
@@ -72,6 +83,8 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.55,
 		"ogive_radius_factor": 1.0,
 		"tip_profile": 3,
+		"neck_percent": 0.95,
+		"shoulder_percent": 0.90,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.6, 0.3, 0.1),
 	},
@@ -80,8 +93,9 @@ const AMMO_DATABASE = {
 		"bullet_diameter_mm": 13.01,
 		"neck_diameter_mm": 14.22,
 		"shoulder_diameter_mm": 18.79,
-		"base_diameter_mm": 20.42,
+		"head_diameter_mm": 20.42,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 20.42,
+		"rim_thickness_mm": 1.80,
 		"case_length_mm": 99.31,
 		"overall_length_mm": 138.43,
 		"primer_diameter_mm": 5.0,
@@ -89,17 +103,19 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.75,
 		"ogive_radius_factor": 1.5,
 		"tip_profile": 1,
+		"neck_percent": 0.85,
+		"shoulder_percent": 0.75,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.75, 0.45, 0.25),
 	},
-	# New 7.62mm variants
 	"7.62x39mm Soviet": {
 		"land_diameter_mm": 7.62,
 		"bullet_diameter_mm": 7.92,
 		"neck_diameter_mm": 8.60,
 		"shoulder_diameter_mm": 10.07,
-		"base_diameter_mm": 11.35,
+		"head_diameter_mm": 11.35,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 11.35,
+		"rim_thickness_mm": 1.50,
 		"case_length_mm": 38.70,
 		"overall_length_mm": 56.00,
 		"primer_diameter_mm": 3.2,
@@ -107,17 +123,19 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.6,
 		"ogive_radius_factor": 1.1,
 		"tip_profile": 1,
+		"neck_percent": 0.90,
+		"shoulder_percent": 0.82,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
 	},
-	
 	"7.62x54mmR": {
 		"land_diameter_mm": 7.62,
 		"bullet_diameter_mm": 7.92,
 		"neck_diameter_mm": 8.53,
 		"shoulder_diameter_mm": 11.61,
-		"base_diameter_mm": 12.37,
-		"rim_diameter_mm": 14.48,  # Rimmed cartridge
+		"head_diameter_mm": 12.37,  # Changed from base_diameter_mm
+		"rim_diameter_mm": 14.48,
+		"rim_thickness_mm": 1.60,
 		"case_length_mm": 53.72,
 		"overall_length_mm": 77.16,
 		"primer_diameter_mm": 3.8,
@@ -125,17 +143,19 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.7,
 		"ogive_radius_factor": 1.3,
 		"tip_profile": 1,
+		"neck_percent": 0.87,
+		"shoulder_percent": 0.78,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
 	},
-	
 	"7.62x25mm Tokarev": {
 		"land_diameter_mm": 7.62,
 		"bullet_diameter_mm": 7.85,
 		"neck_diameter_mm": 8.50,
 		"shoulder_diameter_mm": 9.96,
-		"base_diameter_mm": 9.96,
+		"head_diameter_mm": 9.96,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 9.96,
+		"rim_thickness_mm": 1.20,
 		"case_length_mm": 25.10,
 		"overall_length_mm": 34.30,
 		"primer_diameter_mm": 2.8,
@@ -143,54 +163,59 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.5,
 		"ogive_radius_factor": 0.9,
 		"tip_profile": 3,
+		"neck_percent": 0.95,
+		"shoulder_percent": 0.92,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
 	},
-	
-	# Shotgun shells (represented as large straight-wall cartridges)
 	"12 Gauge Buckshot": {
-		"land_diameter_mm": 18.53,  # 12 gauge bore diameter
+		"land_diameter_mm": 18.53,
 		"bullet_diameter_mm": 18.53,
 		"neck_diameter_mm": 18.53,
 		"shoulder_diameter_mm": 18.53,
-		"base_diameter_mm": 18.53,
-		"rim_diameter_mm": 22.45,   # Rimmed shotgun shell
-		"case_length_mm": 70.00,    # 2.75" shell
-		"overall_length_mm": 71.00, # No bullet protrusion
-		"primer_diameter_mm": 6.1,  # Larger shotgun primer
-		"bullet_base_percent": 0.9, # Most of it is "bullet" (shot column)
-		"bullet_tip_percent": 0.95, # Very short tip section
+		"head_diameter_mm": 18.53,  # Changed from base_diameter_mm
+		"rim_diameter_mm": 22.45,
+		"rim_thickness_mm": 1.80,
+		"case_length_mm": 70.00,
+		"overall_length_mm": 71.00,
+		"primer_diameter_mm": 6.1,
+		"bullet_base_percent": 0.9,
+		"bullet_tip_percent": 0.95,
 		"ogive_radius_factor": 0.8,
-		"tip_profile": 3,           # Flat tip for shotshell
-		"case_color": Color(0.95, 0.95, 0.95), # Plastic hull color
-		"bullet_color": Color(0.3, 0.3, 0.3),  # Dark shot column
+		"tip_profile": 3,
+		"neck_percent": 0.98,
+		"shoulder_percent": 0.98,
+		"case_color": Color(0.95, 0.95, 0.95),
+		"bullet_color": Color(0.3, 0.3, 0.3),
 	},
-	
 	"12 Gauge Slug": {
 		"land_diameter_mm": 18.53,
 		"bullet_diameter_mm": 18.53,
 		"neck_diameter_mm": 18.53,
 		"shoulder_diameter_mm": 18.53,
-		"base_diameter_mm": 18.53,
+		"head_diameter_mm": 18.53,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 22.45,
+		"rim_thickness_mm": 1.80,
 		"case_length_mm": 70.00,
-		"overall_length_mm": 75.00, # Slug protrudes slightly
+		"overall_length_mm": 75.00,
 		"primer_diameter_mm": 6.1,
 		"bullet_base_percent": 0.7,
 		"bullet_tip_percent": 0.8,
 		"ogive_radius_factor": 1.2,
-		"tip_profile": 3,           # Elliptical for slug
-		"case_color":  Color.DARK_RED,
-		"bullet_color": Color(0.5, 0.4, 0.3),  # Lead slug color
+		"tip_profile": 3,
+		"neck_percent": 0.98,
+		"shoulder_percent": 0.98,
+		"case_color": Color(0.5, 0, 0),
+		"bullet_color": Color(0.5, 0.4, 0.3),
 	},
-	
 	"20 Gauge": {
-		"land_diameter_mm": 15.63,  # 20 gauge bore diameter
+		"land_diameter_mm": 15.63,
 		"bullet_diameter_mm": 15.63,
 		"neck_diameter_mm": 15.63,
 		"shoulder_diameter_mm": 15.63,
-		"base_diameter_mm": 15.63,
+		"head_diameter_mm": 15.63,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 19.69,
+		"rim_thickness_mm": 1.60,
 		"case_length_mm": 70.00,
 		"overall_length_mm": 70.00,
 		"primer_diameter_mm": 6.1,
@@ -198,18 +223,19 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.95,
 		"ogive_radius_factor": 0.8,
 		"tip_profile": 0,
-		"case_color": Color.RED,
+		"neck_percent": 0.98,
+		"shoulder_percent": 0.98,
+		"case_color": Color(1.0, 0, 0),
 		"bullet_color": Color(0.3, 0.3, 0.3),
 	},
-	
-	# Additional pistol calibers
 	".357 Magnum": {
 		"land_diameter_mm": 9.07,
 		"bullet_diameter_mm": 9.06,
 		"neck_diameter_mm": 9.68,
 		"shoulder_diameter_mm": 9.68,
-		"base_diameter_mm": 9.68,
-		"rim_diameter_mm": 11.18,   # Rimmed cartridge
+		"head_diameter_mm": 9.68,  # Changed from base_diameter_mm
+		"rim_diameter_mm": 11.18,
+		"rim_thickness_mm": 1.50,
 		"case_length_mm": 33.00,
 		"overall_length_mm": 39.00,
 		"primer_diameter_mm": 3.0,
@@ -217,17 +243,19 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.5,
 		"ogive_radius_factor": 1.0,
 		"tip_profile": 3,
+		"neck_percent": 0.95,
+		"shoulder_percent": 0.95,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.65, 0.35, 0.15),
 	},
-	
 	".44 Magnum": {
 		"land_diameter_mm": 10.90,
 		"bullet_diameter_mm": 10.89,
 		"neck_diameter_mm": 11.61,
 		"shoulder_diameter_mm": 11.61,
-		"base_diameter_mm": 11.61,
-		"rim_diameter_mm": 13.06,   # Rimmed cartridge
+		"head_diameter_mm": 11.61,  # Changed from base_diameter_mm
+		"rim_diameter_mm": 13.06,
+		"rim_thickness_mm": 1.60,
 		"case_length_mm": 32.78,
 		"overall_length_mm": 40.90,
 		"primer_diameter_mm": 3.0,
@@ -235,17 +263,19 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.5,
 		"ogive_radius_factor": 1.0,
 		"tip_profile": 3,
+		"neck_percent": 0.95,
+		"shoulder_percent": 0.95,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.6, 0.3, 0.1),
 	},
-	
 	"5.7x28mm": {
 		"land_diameter_mm": 5.70,
 		"bullet_diameter_mm": 5.70,
 		"neck_diameter_mm": 6.35,
 		"shoulder_diameter_mm": 7.80,
-		"base_diameter_mm": 7.80,
+		"head_diameter_mm": 7.80,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 7.80,
+		"rim_thickness_mm": 1.10,
 		"case_length_mm": 28.80,
 		"overall_length_mm": 40.50,
 		"primer_diameter_mm": 2.7,
@@ -253,17 +283,19 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.7,
 		"ogive_radius_factor": 1.2,
 		"tip_profile": 1,
+		"neck_percent": 0.92,
+		"shoulder_percent": 0.85,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.75, 0.45, 0.25),
 	},
-	
 	".300 Blackout": {
 		"land_diameter_mm": 7.62,
 		"bullet_diameter_mm": 7.82,
 		"neck_diameter_mm": 8.43,
 		"shoulder_diameter_mm": 9.60,
-		"base_diameter_mm": 9.60,
+		"head_diameter_mm": 9.60,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 9.60,
+		"rim_thickness_mm": 1.40,
 		"case_length_mm": 35.10,
 		"overall_length_mm": 57.40,
 		"primer_diameter_mm": 3.0,
@@ -271,17 +303,19 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.7,
 		"ogive_radius_factor": 1.3,
 		"tip_profile": 1,
+		"neck_percent": 0.90,
+		"shoulder_percent": 0.83,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
 	},
-	
 	"6.5mm Creedmoor": {
 		"land_diameter_mm": 6.50,
 		"bullet_diameter_mm": 6.71,
 		"neck_diameter_mm": 7.34,
 		"shoulder_diameter_mm": 11.53,
-		"base_diameter_mm": 11.94,
+		"head_diameter_mm": 11.94,  # Changed from base_diameter_mm
 		"rim_diameter_mm": 11.94,
+		"rim_thickness_mm": 1.50,
 		"case_length_mm": 48.77,
 		"overall_length_mm": 72.39,
 		"primer_diameter_mm": 3.8,
@@ -289,6 +323,8 @@ const AMMO_DATABASE = {
 		"bullet_tip_percent": 0.75,
 		"ogive_radius_factor": 1.4,
 		"tip_profile": 1,
+		"neck_percent": 0.86,
+		"shoulder_percent": 0.78,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
 	}

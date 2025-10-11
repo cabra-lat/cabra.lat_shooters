@@ -25,8 +25,6 @@ colors = PackedColorArray(0.182156, 0.182156, 0.182156, 1, 1, 1, 1, 1)
 frequency = 0.5387
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_fbono"]
-width = 157
-height = 3122
 color_ramp = SubResource("Gradient_aeqdp")
 noise = SubResource("FastNoiseLite_1m3ej")
 
@@ -35,7 +33,7 @@ render_priority = 0
 shader = ExtResource("2_aeqdp")
 shader_parameter/mesh_segments_length = 64
 shader_parameter/mesh_segments_circumference = 64
-shader_parameter/gap_segments = 2
+shader_parameter/gap_segments = 21
 shader_parameter/scale = 1000.0
 shader_parameter/center_of_mass = 0.0
 shader_parameter/bullet_extraction_mm = 0.0
@@ -59,7 +57,7 @@ shader_parameter/neck_percent = 0.9
 shader_parameter/shoulder_percent = 0.85
 shader_parameter/rim_roundness = 0.5
 shader_parameter/case_color = Color(0.8, 0.6, 0.2, 1)
-shader_parameter/primer_color = Color(0.378775, 0.37883, 0.437114, 1)
+shader_parameter/primer_color = Color(0.37, 0.37, 0.43, 1)
 shader_parameter/rim_color = Color(0.88, 0.66, 0.22, 1)
 shader_parameter/rim_tint_color = Color(0.9, 0.3, 0.2, 1)
 shader_parameter/rim_tint_percent = 0.0
@@ -86,7 +84,7 @@ shader_parameter/bullet_heat_proportion = 2.0
 shader_parameter/tracer_enable = true
 shader_parameter/tracer_color = Color(1, 0.5, 0.1, 1)
 shader_parameter/tracer_emission_energy = 1.0
-shader_parameter/tracer_radius_percent = 0.3
+shader_parameter/tracer_radius_percent = 0.5
 shader_parameter/tracer_pulse_speed = 1.0
 shader_parameter/tracer_start_mm = 0.0
 shader_parameter/tracer_length_mm = 500.0
@@ -95,9 +93,9 @@ shader_parameter/case_texture = SubResource("NoiseTexture2D_fbono")
 shader_parameter/bullet_texture = SubResource("NoiseTexture2D_fbono")
 shader_parameter/primer_texture = SubResource("NoiseTexture2D_fbono")
 shader_parameter/rim_texture = SubResource("NoiseTexture2D_fbono")
-shader_parameter/uv_scale_x = 0.2
-shader_parameter/uv_scale_y = 2.1
-shader_parameter/wear_amount = 0.412
+shader_parameter/uv_scale_x = 0.05
+shader_parameter/uv_scale_y = 0.05
+shader_parameter/wear_amount = 0.1
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_1m3ej"]
 top_radius = 0.01

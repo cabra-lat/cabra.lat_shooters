@@ -1,19 +1,18 @@
 shader_type spatial;
 render_mode cull_front, depth_draw_always;
 //#define DEBUG
-
 // ======================
 const float EPS = 1e-6;
 
 // Surface type constants
-const int SURFACE_DISCARD = -1;
-const int SURFACE_PRIMER = 0;
-const int SURFACE_RIM = 1;
-const int SURFACE_CASE = 2;
-const int SURFACE_BULLET_BASE = 3;
-const int SURFACE_BULLET_BODY = 4;
-const int SURFACE_BULLET_TIP = 5;
-const int SURFACE_TRACER = 6;
+const int SURFACE_DISCARD      = -1;
+const int SURFACE_PRIMER       = 0;
+const int SURFACE_RIM          = 1;
+const int SURFACE_CASE         = 2;
+const int SURFACE_BULLET_BASE  = 3;
+const int SURFACE_BULLET_BODY  = 4;
+const int SURFACE_BULLET_TIP   = 5;
+const int SURFACE_TRACER       = 6;
 
 // ======================
 // UNIFORMS (kept from your shader)
@@ -55,7 +54,7 @@ uniform float rim_roundness : hint_range(0.0, 1.0, 0.01) = 0.5;
 
 group_uniforms Case_Materials;
 uniform vec4 case_color : source_color = vec4(0.8, 0.6, 0.2, 1.0);
-uniform vec4 primer_color : source_color = vec4(0.3, 0.3, 0.35, 1.0);
+uniform vec4 primer_color : source_color = vec4(0.37, 0.37, 0.43, 1.0);
 uniform vec4 rim_color : source_color = vec4(0.88, 0.66, 0.22, 1.0);
 uniform vec4 rim_tint_color : source_color = vec4(0.9, 0.3, 0.2, 1.0);
 uniform float rim_tint_percent : hint_range(0.0,1.0,0.001) = 0.0;
@@ -114,10 +113,21 @@ uniform float wear_amount : hint_range(0,1) = 0.1;
 float to_meters(float mm) { return mm * 0.001 * scale; }
 float safe_div(float a, float b) { return a / max(b, EPS); }
 float my_lerp(float a, float b, float t) { return mix(a,b,clamp(t,0.0,1.0)); }
-vec2 detail_uv_from_uv(vec2 uv) { return vec2(uv.y * float(mesh_segments_circumference) * uv_scale_x, uv.x * uv_scale_y); }
+
+// IMPORTANT: circumferential UV uses UV.y, axial UV uses *ring index* to avoid interpolation across rings.
+// detail_uv_from_ring() produces uv for textures using ring-based axial coordinate (prevents bleed).
+vec2 detail_uv_from_ring(int ring_index, float circum_uv) {
+    int subdivisions = max(2, mesh_segments_length);
+     // rings
+    // circumferential coordinate: wrap around UV.y * circumference tiles
+    float u_circ = circum_uv * float(mesh_segments_circumference) * uv_scale_x;
+    // axial coordinate: use ring index directly (so neighboring ring won't be mixed by interpolated UV)
+    float v_axial = float(ring_index) / float(max(1, subdivisions - 1)) * uv_scale_y;
+    return vec2(u_circ, v_axial);
+}
 
 // ======================
-// BOUNDARIES & RING ALLOCATION (same approach you used)
+// BOUNDARIES & RING ALLOCATION (robust clamping)
 void compute_boundaries(out int primer_end, out int case_start, out int case_end, out int rim_end_local,
                         out int head_end_local, out int shoulder_end_local, out int neck_end_local,
                         out int mouth_start, out int mouth_end, out int gap_start, out int gap_end, out int bullet_start, out int last_index) {
@@ -125,12 +135,25 @@ void compute_boundaries(out int primer_end, out int case_start, out int case_end
 
     last_index = subdivisions - 1;
 
-    int primer_count = 1;
+    int primer_count = 2;
     int mouth_count = 2;
-    int gap_count = (to_meters(bullet_extraction_mm) > EPS) ? max(2, gap_segments) : 0;
+    int gap_count = (to_meters(bullet_extraction_mm) > EPS) ? max(1, gap_segments) : 0; // allow 1 when extraction small but >0
 
+    // ensure reserved never exceeds subdivisions-4 (we keep min for bullet and case)
     int reserved = primer_count + mouth_count + gap_count;
     int remaining = subdivisions - reserved;
+    if (remaining < 8) {
+        // reduce gap and mouth if necessary to free rings
+        int need = 8 - remaining;
+        int reduce_gap = min(gap_count, need);
+        gap_count -= reduce_gap;
+        remaining = subdivisions - (primer_count + mouth_count + gap_count);
+        if (remaining < 8) {
+            // shrink mouth_count temporarily
+            mouth_count = max(1, mouth_count - (8 - remaining));
+            remaining = subdivisions - (primer_count + mouth_count + gap_count);
+        }
+    }
     remaining = max(8, remaining);
 
     float case_len = to_meters(case_length_mm);
@@ -152,13 +175,19 @@ void compute_boundaries(out int primer_end, out int case_start, out int case_end
     gap_end = gap_start + gap_count - 1;
     bullet_start = gap_end + 1;
 
+    // clamp safety: ensure indices in range [0,last_index]
     if (bullet_start > last_index) {
+        // compress gap to fit
         gap_end = max(gap_start, last_index - 4);
         bullet_start = gap_end + 1;
     }
-    if (mouth_start > last_index) mouth_start = last_index;
-    if (case_end >= mouth_start) case_end = max(case_start, mouth_start - 1);
+    mouth_start = min(mouth_start, last_index);
+    mouth_end   = min(mouth_end, last_index);
+    case_end    = min(case_end, max(case_start, mouth_start - 1));
+    gap_end     = min(gap_end, last_index);
+    bullet_start= min(bullet_start, last_index);
 
+    // subdivide case block
     int case_rings = max(1, case_end - case_start + 1);
     int rim_rings = max(1, int(round(0.1 * float(case_rings))));
     int groove_rings = max(1, int(round(0.1 * float(case_rings))));
@@ -167,18 +196,19 @@ void compute_boundaries(out int primer_end, out int case_start, out int case_end
     int neck_rings = max(1, case_rings - (rim_rings + groove_rings + head_rings + shoulder_rings));
 
     int idx = case_start;
-    rim_end_local = idx + rim_rings - 1; idx = rim_end_local + 1;
-    int groove_end_local = idx + groove_rings - 1; idx = groove_end_local + 1;
-    head_end_local = idx + head_rings - 1; idx = head_end_local + 1;
-    shoulder_end_local = idx + shoulder_rings - 1; idx = shoulder_end_local + 1;
-    neck_end_local = idx + neck_rings - 1;
+    rim_end_local = min(case_end, idx + rim_rings - 1); idx = rim_end_local + 1;
+    int groove_end_local = min(case_end, idx + groove_rings - 1); idx = groove_end_local + 1;
+    head_end_local = min(case_end, idx + head_rings - 1); idx = head_end_local + 1;
+    shoulder_end_local = min(case_end, idx + shoulder_rings - 1); idx = shoulder_end_local + 1;
+    neck_end_local = min(case_end, idx + neck_rings - 1);
 }
 
 // ======================
-// per-ring display profile
+// per-ring display profile (unchanged logic, robust)
 vec2 profile_display_for_ring(int idx) {
     int primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
     compute_boundaries(primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
+
     float case_length = to_meters(case_length_mm);
     float overall_length = to_meters(overall_length_mm);
     float bullet_length = max(EPS, overall_length - case_length);
@@ -193,15 +223,12 @@ vec2 profile_display_for_ring(int idx) {
     float rim_thick = to_meters(rim_thickness_mm);
     float wall_thick = (case_wall_thickness_mm <= 0.0) ? max(0.0001, neck_r * 0.25) : to_meters(case_wall_thickness_mm);
 
-    // Primer
     if (idx <= primer_end) return vec2(0.0, 0.0);
 
-    // Case block
     if (idx >= case_start && idx <= case_end) {
         float case_block_len = float(case_end - case_start + 1);
         float local = float(idx - case_start) / max(1.0, case_block_len - 1.0);
 
-        // rim
         int rim_count = max(1, rim_end_local - case_start + 1);
         float rim_cut = float(rim_count) / max(1.0, case_block_len);
         if (local <= rim_cut) {
@@ -214,7 +241,6 @@ vec2 profile_display_for_ring(int idx) {
             return vec2(y, max(EPS, r));
         }
 
-        // extractor groove
         float groove_start = rim_cut;
         float groove_end = groove_start + 0.1;
         if (local <= groove_end) {
@@ -227,7 +253,6 @@ vec2 profile_display_for_ring(int idx) {
             return vec2(y, max(EPS, r));
         }
 
-        // head/body
         float head_start = groove_end;
         float head_end = clamp(shoulder_percent, head_start + 0.001, 0.95);
         if (local <= head_end) {
@@ -239,7 +264,6 @@ vec2 profile_display_for_ring(int idx) {
             return vec2(y, max(EPS, r));
         }
 
-        // shoulder
         float shoulder_start_frac = head_end;
         float shoulder_end_frac = clamp(neck_percent, shoulder_start_frac + 0.001, 0.999);
         if (local <= shoulder_end_frac) {
@@ -251,7 +275,6 @@ vec2 profile_display_for_ring(int idx) {
             return vec2(y, max(EPS, r));
         }
 
-        // neck
         {
             float t = safe_div(local - shoulder_end_frac, 1.0 - shoulder_end_frac);
             float y0 = case_length * neck_percent;
@@ -262,7 +285,6 @@ vec2 profile_display_for_ring(int idx) {
         }
     }
 
-    // Mouth region (internal)
     if (idx >= mouth_start && idx <= mouth_end) {
         float neck_outer = to_meters(neck_diameter_mm) * 0.5;
         float wall_thick_local = (case_wall_thickness_mm <= 0.0) ? neck_outer * 0.25 : to_meters(case_wall_thickness_mm);
@@ -272,16 +294,14 @@ vec2 profile_display_for_ring(int idx) {
         return vec2(y, mouth_inner_radius);
     }
 
-    // Gap region
     if (idx >= gap_start && idx <= gap_end) {
-        int gap_count = max(2, gap_segments);
+        int gap_count = max(1, gap_end - gap_start + 1);
         float t = safe_div(float(idx - gap_start), float(max(1, gap_count - 1)));
         float y = to_meters(case_length_mm) + t * to_meters(bullet_extraction_mm);
         float r = to_meters(bullet_diameter_mm) * 0.5 * tracer_radius_percent;
         return vec2(y, max(EPS, r));
     }
 
-    // Bullet region
     if (idx >= bullet_start && idx <= last_index) {
         float case_length = to_meters(case_length_mm);
         float overall_length = to_meters(overall_length_mm);
@@ -302,32 +322,32 @@ vec2 profile_display_for_ring(int idx) {
 
         if (tip_profile == 0) {
             float tip_start = bullet_tip_percent;
-            if (ogive_pos > tip_start) rad = my_lerp(rad, EPS, safe_div((ogive_pos - tip_start), (1.0 - tip_start)));
+            if (ogive_pos > tip_start) rad = my_lerp(rad, 0.0, safe_div((ogive_pos - tip_start), (1.0 - tip_start)));
         } else if (tip_profile == 1) {
             float base_radius = rad;
             float R = (ogive_len * ogive_len + base_radius * base_radius) / (2.0 * base_radius) * ogive_radius_factor;
             float x = ogive_len * (1.0 - ogive_pos);
             float radicand = R * R - (ogive_len - x) * (ogive_len - x);
-            rad = (radicand <= 0.0) ? EPS : max(EPS, sqrt(radicand) - (R - base_radius));
+            rad = (radicand <= 0.0) ? 0.0 : max(0.0, sqrt(radicand) - (R - base_radius));
         } else if (tip_profile == 2) {
             float base_radius = rad * 0.9;
             float R = (ogive_len * ogive_len + base_radius * base_radius) / (2.0 * base_radius) * ogive_radius_factor;
             float x = ogive_len * (1.0 - ogive_pos);
             float radicand = R * R - (ogive_len - x) * (ogive_len - x);
-            rad = (radicand <= 0.0) ? EPS : max(EPS, sqrt(radicand) - (R - base_radius));
+            rad = (radicand <= 0.0) ? 0.0 : max(0.0, sqrt(radicand) - (R - base_radius));
         } else {
             float base_radius = rad;
-            rad = base_radius * sqrt(max(EPS, 1.0 - ogive_pos * ogive_pos));
+            rad = base_radius * sqrt(max(0.0, 1.0 - ogive_pos * ogive_pos));
         }
 
-        return vec2(y, max(EPS, rad));
+        return vec2(y, rad);
     }
 
-    return vec2(0.0, EPS);
+    return vec2(0.0, 0.0);
 }
 
 // ======================
-// collapsed original (used for surface type detection)
+// collapsed original (for surface detection)
 vec2 profile_original_for_ring(int idx) {
     int primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
     compute_boundaries(primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
@@ -346,10 +366,7 @@ vec2 profile_original_for_ring(int idx) {
 }
 
 // ======================
-// IMPORTANT FIX: sampling by parameter_t
-// When we cross a region boundary where one ring is gap and the other not,
-// we should NOT mix the two profiles (it causes geometry/texture bleeding).
-// Instead pick the nearest ring profile in that case.
+// Sampling with guard across gap boundary (keeps geometry ok)
 vec2 sample_display_profile(float parameter_t) {
     int subdivisions = max(2, mesh_segments_length);
 
@@ -361,18 +378,17 @@ vec2 sample_display_profile(float parameter_t) {
     vec2 pa = profile_display_for_ring(a);
     vec2 pb = profile_display_for_ring(b);
 
-    // compute whether each ring is gap
     int primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
     compute_boundaries(primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
-    //bool a_is_gap = (a >= gap_start && a <= gap_end);
-    //bool b_is_gap = (b >= gap_start && b <= gap_end);
-//
-    //// If crossing gap boundary, choose nearest ring's profile (no interpolation)
-    //if (a_is_gap != b_is_gap) {
-        //return (local < 0.5) ? pa : pb;
-    //}
 
-    // Otherwise safe to interpolate
+    bool a_is_gap = (a >= gap_start && a <= gap_end);
+    bool b_is_gap = (b >= gap_start && b <= gap_end);
+
+    if (a_is_gap != b_is_gap) {
+        // don't mix gap with non-gap: choose nearest ring's profile
+        return (local < 0.5) ? pa : pb;
+    }
+
     return mix(pa, pb, local);
 }
 
@@ -389,6 +405,7 @@ vec2 sample_original_profile(float parameter_t) {
 
     int primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
     compute_boundaries(primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
+
     bool a_is_gap = (a >= gap_start && a <= gap_end);
     bool b_is_gap = (b >= gap_start && b <= gap_end);
 
@@ -402,49 +419,35 @@ vec2 sample_original_profile(float parameter_t) {
 float get_display_position(float parameter_t) { return sample_display_profile(parameter_t).x; }
 float get_original_position(float parameter_t) { return sample_original_profile(parameter_t).x; }
 
-// improved is_in_gap_region: use nearest ring index (not floor without +0.5)
-bool is_in_gap_region(float parameter_t) {
-    if (to_meters(bullet_extraction_mm) < EPS) return false;
+// nearest ring index helper
+int get_nearest_ring(float parameter_t) {
     int subdivisions = max(2, mesh_segments_length);
 
     float f = clamp(parameter_t, 0.0, 1.0) * float(subdivisions - 1);
-    int segment_index = int(floor(f + 0.5)); // nearest
-    int primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
-    compute_boundaries(primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
-    return (segment_index >= gap_start && segment_index <= gap_end);
+    return int(floor(f + 0.5));
 }
 
-// improved tracer position / intensity using world positions (smooth and scale-independent)
-float get_tracer_position(float parameter_t) {
-    // returns normalized [0..1] along gap (0 at case mouth, 1 at bullet bottom)
-    int subdivisions = max(2, mesh_segments_length);
-
-    float f = clamp(parameter_t, 0.0, 1.0) * float(subdivisions - 1);
-    int segment_index = int(floor(f + 0.5));
+// improved is_in_gap_region uses nearest ring
+bool is_in_gap_region(float parameter_t) {
+    if (to_meters(bullet_extraction_mm) < EPS) return false;
+    int idx = get_nearest_ring(parameter_t);
     int primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
     compute_boundaries(primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
+    return (idx >= gap_start && idx <= gap_end);
+}
 
-    if (!(segment_index >= gap_start && segment_index <= gap_end)) {
-        // fallback: compute by mapping world position into gap range
-        float case_length = to_meters(case_length_mm);
-        float extraction = to_meters(bullet_extraction_mm);
-        if (extraction < EPS) return 0.0;
-        float world_pos = get_display_position(parameter_t);
-        float gap_start_world = case_length;
-        float gap_end_world = case_length + extraction;
-        return clamp((world_pos - gap_start_world) / max(EPS, gap_end_world - gap_start_world), 0.0, 1.0);
-    }
-
-    // compute using world positions for accuracy
+// tracer positions and intensity — world-space based and smoothed
+float get_tracer_position(float parameter_t) {
+    // normalized 0..1 along gap using world positions
+    float world_pos = get_display_position(parameter_t);
     float case_length = to_meters(case_length_mm);
     float extraction = to_meters(bullet_extraction_mm);
-    float world_pos = get_display_position(parameter_t);
+    if (extraction < EPS) return 0.0;
     float gap_start_world = case_length;
     float gap_end_world = case_length + extraction;
     return clamp((world_pos - gap_start_world) / max(EPS, gap_end_world - gap_start_world), 0.0, 1.0);
 }
 
-// calculate tracer intensity using world-space interval + smoothfalloff
 float calculate_tracer_intensity(float parameter_t) {
     if (!tracer_enable) return 0.0;
     float extraction = to_meters(bullet_extraction_mm);
@@ -454,39 +457,32 @@ float calculate_tracer_intensity(float parameter_t) {
     float world_pos = get_display_position(parameter_t);
     float case_length = to_meters(case_length_mm);
     float bullet_base_pos = case_length + extraction;
-    float tracer_start_from_bullet = to_meters(tracer_start_mm);
+    float tracer_ignition_offset = to_meters(tracer_start_mm);
     float tracer_length = to_meters(tracer_length_mm);
 
-    // ignition point (world coord)
-    float tracer_ignition_point = bullet_base_pos - tracer_start_from_bullet;
+    float tracer_ignition_point = bullet_base_pos - tracer_ignition_offset;
     float tracer_end_world = tracer_ignition_point - tracer_length;
-    // quick reject
+
     if (world_pos > tracer_ignition_point || world_pos < tracer_end_world) return 0.0;
 
-    // normalized position along tracer (0..1), 0 at end, 1 at ignition
     float tracer_normalized = clamp((tracer_ignition_point - world_pos) / max(EPS, tracer_length), 0.0, 1.0);
-
-    // pulse (smooth)
     float tracer_pos = get_tracer_position(parameter_t);
     float pulse = 0.5 + 0.5 * sin(TIME * tracer_pulse_speed + tracer_pos * TAU);
-    // falloff using power but ensure smoothness
-    float fall = pow(1.0 - tracer_normalized, tracer_power);
 
+    // smooth falloff
+    float fall = pow(1.0 - tracer_normalized, tracer_power);
     return clamp((0.7 + 0.3 * pulse) * fall, 0.0, 1.0);
 }
 
 // ======================
-// SURFACE TYPE DETECTION (nearest ring)
+// SURFACE TYPE DETECTION - nearest ring (unchanged semantics)
 int get_surface_type(float parameter_t) {
     float extraction = to_meters(bullet_extraction_mm);
-    if (extraction > EPS && is_in_gap_region(parameter_t)) {
-        return SURFACE_TRACER;
-    }
+    if (extraction > EPS && is_in_gap_region(parameter_t)) return SURFACE_TRACER;
 
     int subdivisions = max(2, mesh_segments_length);
 
-    float f = clamp(parameter_t, 0.0, 1.0) * float(subdivisions - 1);
-    int nearest = int(floor(f + 0.5));
+    int nearest = get_nearest_ring(parameter_t);
 
     int primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
     compute_boundaries(primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
@@ -494,7 +490,7 @@ int get_surface_type(float parameter_t) {
     if (nearest <= primer_end) return SURFACE_PRIMER;
     if (nearest <= rim_end_local) return SURFACE_RIM;
     if (nearest >= case_start && nearest <= case_end) return SURFACE_CASE;
-    if (nearest >= mouth_start && nearest <= mouth_end) return SURFACE_TRACER; // FIXME Ugly hack
+    if (nearest >= mouth_start && nearest <= mouth_end) return SURFACE_CASE;
     if (nearest >= gap_start && nearest <= gap_end) return SURFACE_TRACER;
     if (nearest >= bullet_start && nearest <= last_index) {
         int bullet_count = max(1, last_index - bullet_start + 1);
@@ -507,17 +503,14 @@ int get_surface_type(float parameter_t) {
 }
 
 // ======================
-// Heat helper (kept logic but slightly smoothed)
+// Heat helper (unchanged semantics, smoothed)
 vec3 get_heat_with_distance(int surface_type, float parameter_t) {
-    float overall_heat = clamp(bullet_extraction_mm/(bullet_heat_proportion * case_length_mm), 0.0, 1.0);
+    float overall_heat = clamp(bullet_extraction_mm / (bullet_heat_proportion * case_length_mm), 0.0, 1.0);
 
     float bullet_pos = 0.0;
     if (surface_type == SURFACE_BULLET_BASE) bullet_pos = 0.0;
     else if (surface_type == SURFACE_BULLET_BODY) {
-        int subdivisions = max(2, mesh_segments_length);
-
-        float f = clamp(parameter_t, 0.0, 1.0) * float(subdivisions - 1);
-        int nearest = int(floor(f + 0.5));
+        int nearest = get_nearest_ring(parameter_t);
         int primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
         compute_boundaries(primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
         int bullet_count = max(1, last_index - bullet_start + 1);
@@ -540,7 +533,7 @@ vec3 get_heat_with_distance(int surface_type, float parameter_t) {
 }
 
 // ======================
-// NORMALS
+// NORMAL computation
 vec3 calculate_surface_normal(float parameter_t, float angle, float overall_length) {
     if (is_in_gap_region(parameter_t)) return normalize(vec3(cos(angle), 0.0, sin(angle)));
 
@@ -578,20 +571,21 @@ void vertex() {
 
     vec3 base_vertex = vec3(cos(angle) * radius, y_pos, sin(angle) * radius);
 
-    // NOTE: ballistic code was commented out in your last version; re-enable if desired.
     VERTEX = base_vertex;
     NORMAL = calculate_surface_normal(parameter_t, angle, overall_length);
 }
 
+#ifndef DEBUG
 // ======================
 // FRAGMENT
-// ======================
-#ifndef DEBUG
+// We now sample textures using the nearest ring's axial coordinate (prevents bleed)
 void fragment() {
     float parameter_t = UV.x;
-    vec2 detail_uv = detail_uv_from_uv(UV);
-    int surface_type = get_surface_type(parameter_t);
+    int ring = get_nearest_ring(parameter_t);                 // *** KEY: ring-based sampling ***
+    int surface_type = get_surface_type(parameter_t);         // nearest-ring surface decision
+    vec2 detail_uv = detail_uv_from_ring(ring, UV.y);         // use ring for axial UV
 
+    // defaults
     ALBEDO = vec3(0.5);
     ALPHA = 1.0;
     METALLIC = 0.0;
@@ -627,6 +621,7 @@ void fragment() {
         ROUGHNESS = 0.8;
     }
     else if (surface_type == SURFACE_BULLET_BODY) {
+        // ring-based axial UV prevents texture stretching between faces
         vec3 texture_sample = texture(bullet_texture, detail_uv).rgb;
         ALBEDO = bullet_color.rgb * texture_sample;
         ALPHA = bullet_color.a;
@@ -641,12 +636,9 @@ void fragment() {
         ROUGHNESS = bullet_roughness;
     }
     else if (surface_type == SURFACE_TRACER) {
-        // tracer no longer bleeds neighbors because surface_type is determined by nearest ring,
-        // and sampling avoids interpolating across the gap boundary.
-        float tracer_pos = get_tracer_position(parameter_t); // 0..1 along gap
+        // tracer is isolated (no neighbor texture sampling)
+        float tracer_pos = get_tracer_position(parameter_t);
         float tracer_intensity = calculate_tracer_intensity(parameter_t);
-
-        // smoother pulse: uses TAU * tracer_pos so frequency scales nicely across gap length
         float pulse = 0.5 + 0.5 * sin(TIME * tracer_pulse_speed + tracer_pos * TAU);
 
         ALBEDO = tracer_color.rgb * (0.9 + 0.1 * sin(tracer_pos * 20.0 + TIME * 2.0));
@@ -656,7 +648,7 @@ void fragment() {
         ROUGHNESS = 0.1;
     }
 
-    // Bullet heat emission (separate from tracer) - smooth and constrained
+    // Bullet heat emission (smooth)
     bool is_bullet_surface = (surface_type == SURFACE_BULLET_BASE) || (surface_type == SURFACE_BULLET_BODY) || (surface_type == SURFACE_BULLET_TIP);
     if (bullet_heat_with_distance_enable && is_bullet_surface) {
         EMISSION += get_heat_with_distance(surface_type, parameter_t);
@@ -668,95 +660,3 @@ void fragment() {
 #else
 #include "cartridge-debug.gdshaderinc"
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
