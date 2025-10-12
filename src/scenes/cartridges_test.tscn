@@ -19,12 +19,16 @@ tonemap_mode = 2
 ssao_enabled = true
 
 [sub_resource type="Gradient" id="Gradient_aeqdp"]
-colors = PackedColorArray(0.182156, 0.182156, 0.182156, 1, 1, 1, 1, 1)
+offsets = PackedFloat32Array(0, 0.552941, 0.847059)
+colors = PackedColorArray(0, 0, 0, 1, 0.884058, 0.884058, 0.884058, 1, 1, 1, 1, 1)
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_1m3ej"]
-frequency = 0.5387
+seed = 1
+frequency = 0.0424
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_fbono"]
+as_normal_map = true
+bump_strength = 32.0
 color_ramp = SubResource("Gradient_aeqdp")
 noise = SubResource("FastNoiseLite_1m3ej")
 
@@ -33,10 +37,10 @@ render_priority = 0
 shader = ExtResource("2_aeqdp")
 shader_parameter/mesh_segments_length = 64
 shader_parameter/mesh_segments_circumference = 64
-shader_parameter/gap_segments = 21
+shader_parameter/gap_segments = 2
 shader_parameter/scale = 1000.0
 shader_parameter/center_of_mass = 0.0
-shader_parameter/bullet_extraction_mm = 0.0
+shader_parameter/bullet_extraction_mm = 116883.0
 shader_parameter/muzzle_velocity_ms = 800.0
 shader_parameter/bullet_drop_ms2 = 9.81
 shader_parameter/wind_velocity_ms = 0.0
@@ -90,11 +94,17 @@ shader_parameter/tracer_start_mm = 0.0
 shader_parameter/tracer_length_mm = 500.0
 shader_parameter/tracer_power = 1.5
 shader_parameter/case_texture = SubResource("NoiseTexture2D_fbono")
+shader_parameter/case_texture_scale_x = 1.0
+shader_parameter/case_texture_scale_y = 1.0
 shader_parameter/bullet_texture = SubResource("NoiseTexture2D_fbono")
+shader_parameter/bullet_texture_scale_x = 1.0
+shader_parameter/bullet_texture_scale_y = 1.0
 shader_parameter/primer_texture = SubResource("NoiseTexture2D_fbono")
+shader_parameter/primer_texture_scale_x = 1.0
+shader_parameter/primer_texture_scale_y = 1.0
 shader_parameter/rim_texture = SubResource("NoiseTexture2D_fbono")
-shader_parameter/uv_scale_x = 0.05
-shader_parameter/uv_scale_y = 0.05
+shader_parameter/rim_texture_scale_x = 6.2
+shader_parameter/rim_texture_scale_y = 2.3
 shader_parameter/wear_amount = 0.1
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_1m3ej"]
@@ -118,6 +128,7 @@ bullet_extraction = 6185.6
 metadata/_custom_type_script = "uid://s6tir0ll13h3"
 
 [node name="MainBullet" type="MeshInstance3D" parent="AmmunitionDemo"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.92679, 0)
 material_override = SubResource("ShaderMaterial_aeqdp")
 extra_cull_margin = 16384.0
 mesh = SubResource("CylinderMesh_1m3ej")

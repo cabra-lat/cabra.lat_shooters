@@ -97,13 +97,17 @@ uniform float tracer_power : hint_range(0.1, 3.0, 0.1) = 1.5;
 
 group_uniforms Textures;
 uniform sampler2D case_texture : source_color;
+uniform float case_texture_scale_x: hint_range(0.0, 10.0, 0.01) = 1.0;
+uniform float case_texture_scale_y: hint_range(0.0, 10.0, 0.01) = 1.0;
 uniform sampler2D bullet_texture : source_color;
+uniform float bullet_texture_scale_x: hint_range(0.0, 10.0, 0.01) = 1.0;
+uniform float bullet_texture_scale_y: hint_range(0.0, 10.0, 0.01) = 1.0;
 uniform sampler2D primer_texture : source_color;
+uniform float primer_texture_scale_x: hint_range(0.0, 10.0, 0.01) = 1.0;
+uniform float primer_texture_scale_y: hint_range(0.0, 10.0, 0.01) = 1.0;
 uniform sampler2D rim_texture : source_color;
-
-group_uniforms UV_Controls;
-uniform float uv_scale_x: hint_range(0.0, 100.0, 0.01) = 1.0;
-uniform float uv_scale_y: hint_range(0.0, 100.0, 0.01) = 1.0;
+uniform float rim_texture_scale_x: hint_range(0.0, 10.0, 0.01) = 1.0;
+uniform float rim_texture_scale_y: hint_range(0.0, 10.0, 0.01) = 1.0;
 
 group_uniforms Wear_Aging;
 uniform float wear_amount : hint_range(0,1) = 0.1;
@@ -116,7 +120,7 @@ float my_lerp(float a, float b, float t) { return mix(a,b,clamp(t,0.0,1.0)); }
 
 // IMPORTANT: circumferential UV uses UV.y, axial UV uses *ring index* to avoid interpolation across rings.
 // detail_uv_from_ring() produces uv for textures using ring-based axial coordinate (prevents bleed).
-vec2 detail_uv_from_ring(int ring_index, float circum_uv) {
+vec2 detail_uv_from_ring(int ring_index, float circum_uv, float  uv_scale_x, float uv_scale_y) {
     int subdivisions = max(2, mesh_segments_length);
      // rings
     // circumferential coordinate: wrap around UV.y * circumference tiles
@@ -124,6 +128,18 @@ vec2 detail_uv_from_ring(int ring_index, float circum_uv) {
     // axial coordinate: use ring index directly (so neighboring ring won't be mixed by interpolated UV)
     float v_axial = float(ring_index) / float(max(1, subdivisions - 1)) * uv_scale_y;
     return vec2(u_circ, v_axial);
+}
+
+// NEW: Circular UV mapping for bottom surfaces (primer and rim) - using model space
+varying vec3 model_space_position;
+
+// Circular UV mapping using the original cylindrical UV coordinates but converting to circular mapping
+vec2 circular_uv_from_angle_and_radius(float angle, float radius, float max_radius, float scale_x, float scale_y) {
+    // Convert angle and radius to circular UV coordinates
+    float u = (angle / (2.0 * PI)) + 0.5;
+    float v = radius / max_radius;
+
+    return vec2(u * scale_x, v * scale_y);
 }
 
 // ======================
@@ -573,18 +589,29 @@ void vertex() {
 
     VERTEX = base_vertex;
     NORMAL = calculate_surface_normal(parameter_t, angle, overall_length);
+
+    // Store the model space position for circular UV mapping
+    model_space_position = base_vertex;
 }
 
 #ifndef DEBUG
 // ======================
 // FRAGMENT
-// We now sample textures using the nearest ring's axial coordinate (prevents bleed)
+// We now use circular UV mapping for primer and rim surfaces
 void fragment() {
     float parameter_t = UV.x;
-    int ring = get_nearest_ring(parameter_t);                 // *** KEY: ring-based sampling ***
-    int surface_type = get_surface_type(parameter_t);         // nearest-ring surface decision
-    vec2 detail_uv = detail_uv_from_ring(ring, UV.y);         // use ring for axial UV
+    int ring = get_nearest_ring(parameter_t);
+    int surface_type = get_surface_type(parameter_t);
 
+    vec2 detail_uv;
+
+    // Use the model space position stored in the vertex shader
+    vec3 pos = model_space_position;
+    float max_radius = to_meters(max(rim_diameter_mm, primer_diameter_mm)) * 0.5;
+
+    // Calculate angle and radius from model space coordinates
+    float radius = length(pos.xz);
+    float angle = atan(pos.x, pos.z);
     // defaults
     ALBEDO = vec3(0.5);
     ALPHA = 1.0;
@@ -593,21 +620,29 @@ void fragment() {
     EMISSION = vec3(0.0);
 
     if (surface_type == SURFACE_PRIMER) {
+        // Use cylindrical UV mapping for all other surfaces
+
+        vec2 detail_uv = circular_uv_from_angle_and_radius(angle, radius, max_radius, primer_texture_scale_x, primer_texture_scale_y);
         vec3 texture_sample = texture(primer_texture, detail_uv).rgb;
-        ALBEDO = primer_color.rgb * texture_sample;
+        ALBEDO = primer_color.rgb; // * texture_sample;
         ALPHA = primer_color.a;
         METALLIC = primer_metallic;
         ROUGHNESS = primer_roughness + wear_amount * 0.4;
+		NORMAL = texture_sample;
     }
     else if (surface_type == SURFACE_RIM) {
+		vec2 detail_uv = circular_uv_from_angle_and_radius(angle, radius, max_radius, rim_texture_scale_x, rim_texture_scale_y);
+
         vec3 texture_sample = texture(rim_texture, detail_uv).rgb;
-        vec3 base_albedo = rim_color.rgb * texture_sample;
+        vec3 base_albedo = rim_color.rgb; // * texture_sample;
+		NORMAL = texture_sample;
         ALBEDO = mix(base_albedo, rim_tint_color.rgb, rim_tint_percent);
         ALPHA = mix(rim_color.a, rim_tint_color.a, rim_tint_percent);
         METALLIC = mix(rim_metallic, rim_metallic + 0.2 * rim_tint_percent, rim_tint_percent);
         ROUGHNESS = mix(rim_roughness, max(0.01, rim_roughness + 0.4 * rim_tint_percent), rim_tint_percent) + wear_amount * 0.2;
     }
     else if (surface_type == SURFACE_CASE) {
+        vec2 detail_uv = detail_uv_from_ring(ring, UV.y, case_texture_scale_x, case_texture_scale_y);
         vec3 texture_sample = texture(case_texture, detail_uv).rgb;
         ALBEDO = case_color.rgb * texture_sample;
         ALPHA = case_color.a;
@@ -621,7 +656,7 @@ void fragment() {
         ROUGHNESS = 0.8;
     }
     else if (surface_type == SURFACE_BULLET_BODY) {
-        // ring-based axial UV prevents texture stretching between faces
+        vec2 detail_uv = detail_uv_from_ring(ring, UV.y, bullet_texture_scale_x, bullet_texture_scale_y);
         vec3 texture_sample = texture(bullet_texture, detail_uv).rgb;
         ALBEDO = bullet_color.rgb * texture_sample;
         ALPHA = bullet_color.a;
@@ -629,6 +664,7 @@ void fragment() {
         ROUGHNESS = bullet_roughness + wear_amount * 0.2;
     }
     else if (surface_type == SURFACE_BULLET_TIP) {
+        vec2 detail_uv = detail_uv_from_ring(ring, UV.y, bullet_texture_scale_x, bullet_texture_scale_y);
         vec3 texture_sample = texture(bullet_texture, detail_uv).rgb;
         ALBEDO = bullet_tip_color.rgb * texture_sample;
         ALPHA = bullet_tip_color.a;
@@ -636,7 +672,6 @@ void fragment() {
         ROUGHNESS = bullet_roughness;
     }
     else if (surface_type == SURFACE_TRACER) {
-        // tracer is isolated (no neighbor texture sampling)
         float tracer_pos = get_tracer_position(parameter_t);
         float tracer_intensity = calculate_tracer_intensity(parameter_t);
         float pulse = 0.5 + 0.5 * sin(TIME * tracer_pulse_speed + tracer_pos * TAU);
