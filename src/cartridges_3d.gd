@@ -5,6 +5,14 @@ class_name AmmunitionDemo
 
 const BULLET_SHADER = "res://addons/cabra.lat_shooters/src/shaders/cartridge.gdshader"
 
+# Font atlas configuration - add this near the top
+const STAMP_FONT_PATH = "res://addons/cabra.lat_shooters/asset/cartridge-font.png"
+const STAMP_CONFIG = {
+	"cells_per_row": 16,
+	"cells_per_col": 16,
+	"cells_width": 32,
+	"cells_height": 32
+}
 
 # Ammunition database - real-world specifications
 const AMMO_DATABASE = {
@@ -27,6 +35,9 @@ const AMMO_DATABASE = {
 		"shoulder_percent": 0.85,  # Added missing parameter
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
+		"stamp_text": "5.56 NATO",
+		"stamp_depth": 0.0002,
+		"stamp_color": Color(0.3, 0.3, 0.3),
 	},
 	"7.62x51mm NATO": {
 		"land_diameter_mm": 7.62,
@@ -47,6 +58,9 @@ const AMMO_DATABASE = {
 		"shoulder_percent": 0.80,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
+		"stamp_text": "7.62 NATO",
+		"stamp_depth": 0.0002,
+		"stamp_color": Color(0.3, 0.3, 0.3),
 	},
 	"9x19mm Parabellum": {
 		"land_diameter_mm": 9.00,
@@ -67,6 +81,9 @@ const AMMO_DATABASE = {
 		"shoulder_percent": 0.90,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.65, 0.35, 0.15),
+		"stamp_text": "9mm LUGER",
+		"stamp_depth": 0.00015,
+		"stamp_color": Color(0.3, 0.3, 0.3),
 	},
 	".45 ACP": {
 		"land_diameter_mm": 11.43,
@@ -87,6 +104,9 @@ const AMMO_DATABASE = {
 		"shoulder_percent": 0.90,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.6, 0.3, 0.1),
+		"stamp_text": ".45 ACP",
+		"stamp_depth": 0.00015,
+		"stamp_color": Color(0.3, 0.3, 0.3),
 	},
 	".50 BMG": {
 		"land_diameter_mm": 12.70,
@@ -107,6 +127,9 @@ const AMMO_DATABASE = {
 		"shoulder_percent": 0.75,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.75, 0.45, 0.25),
+		"stamp_text": ".50 BMG",
+		"stamp_depth": 0.0003,
+		"stamp_color": Color(0.3, 0.3, 0.3),
 	},
 	"7.62x39mm Soviet": {
 		"land_diameter_mm": 7.62,
@@ -127,6 +150,9 @@ const AMMO_DATABASE = {
 		"shoulder_percent": 0.82,
 		"case_color": Color(0.8, 0.6, 0.2),
 		"bullet_color": Color(0.7, 0.4, 0.2),
+		"stamp_text": "7.62x39",
+		"stamp_depth": 0.0002,
+		"stamp_color": Color(0.3, 0.3, 0.3),
 	},
 	"7.62x54mmR": {
 		"land_diameter_mm": 7.62,
@@ -187,6 +213,7 @@ const AMMO_DATABASE = {
 		"shoulder_percent": 0.98,
 		"case_color": Color(0.95, 0.95, 0.95),
 		"bullet_color": Color(0.3, 0.3, 0.3),
+		"stamp_text": "12 GA",
 	},
 	"12 Gauge Slug": {
 		"land_diameter_mm": 18.53,
@@ -330,6 +357,15 @@ const AMMO_DATABASE = {
 	}
 }
 
+# Export variables for stamps
+@export_group("Stamp Settings")
+@export var stamp_enabled: bool = true
+@export_range(0.0, 0.001, 0.00001) var stamp_depth_override: float = 0.0001
+@export var stamp_color_override: Color = Color(0.3, 0.3, 0.3)
+@export_range(0.0, 1.0, 0.01) var stamp_ring_inner_override: float = 0.00
+@export_range(0.0, 1.0, 0.01) var stamp_ring_outer_override: float = 0.92
+@export_range(0.1, 2.0, 0.01) var stamp_char_scale_override: float = 0.49
+
 # Export variables for easy editing in inspector
 var current_ammo_index: int = 0:
 	set(value):
@@ -407,8 +443,8 @@ func create_bullet_mesh() -> MeshInstance3D:
 	cylinder.top_radius = 0.01
 	cylinder.bottom_radius = 0.01
 	cylinder.height = 0.1
-	cylinder.radial_segments = 64  # Increased for better quality
-	cylinder.rings = 128           # Increased for better quality
+	cylinder.radial_segments = 64
+	cylinder.rings = 128
 	cylinder.cap_top = false
 	cylinder.cap_bottom = false
 	
@@ -420,6 +456,18 @@ func create_bullet_mesh() -> MeshInstance3D:
 	if ResourceLoader.exists(BULLET_SHADER):
 		var shader = load(BULLET_SHADER)
 		shader_material.shader = shader
+		
+		# Set up stamp font texture
+		if ResourceLoader.exists(STAMP_FONT_PATH):
+			var font_texture = load(STAMP_FONT_PATH)
+			shader_material.set_shader_parameter("stamp_font", font_texture)
+		
+		# Set stamp configuration
+		shader_material.set_shader_parameter("cells_per_row", STAMP_CONFIG.cells_per_row)
+		shader_material.set_shader_parameter("cells_per_col", STAMP_CONFIG.cells_per_col)
+		shader_material.set_shader_parameter("cells_width", STAMP_CONFIG.cells_width)
+		shader_material.set_shader_parameter("cells_height", STAMP_CONFIG.cells_height)
+		
 	else:
 		push_warning("Bullet shader not found at: " + BULLET_SHADER)
 	
@@ -437,41 +485,77 @@ func apply_ammo_type(ammo_name: String):
 	if material:
 		# Apply all dimensions
 		for key in ammo_data:
-			if key != "case_color" and key != "bullet_color":
+			if key != "case_color" and key != "bullet_color" and key != "stamp_text":
 				material.set_shader_parameter(key, ammo_data[key])
 		
 		# Apply colors
 		material.set_shader_parameter("case_color", ammo_data.get("case_color", Color(0.8, 0.6, 0.2)))
 		material.set_shader_parameter("bullet_color", ammo_data.get("bullet_color", Color(0.7, 0.4, 0.2)))
 		material.set_shader_parameter("scale", 1.0)
+		
+		# Apply stamp settings
+		apply_stamp_settings(material, ammo_data)
+		
 	current_ammo_name = ammo_name
 	update_ui()
 
+func apply_stamp_settings(material: ShaderMaterial, ammo_data: Dictionary):
+	if not stamp_enabled:
+		material.set_shader_parameter("stamp_characters", 0)
+		return
+	
+	# Get stamp text from ammo data or use default
+	var stamp_text = ammo_data.get("stamp_text", current_ammo_name)
+	
+	# Convert text to ASCII codes
+	var stamp_codes = []
+	for i in range(stamp_text.length()):
+		stamp_codes.append(stamp_text.unicode_at(i))
+	
+	# Pad array to 20 elements with zeros
+	while stamp_codes.size() < 20:
+		stamp_codes.append(0)
+	
+	# Set stamp parameters
+	material.set_shader_parameter("stamp_characters", stamp_text.length())
+	material.set_shader_parameter("stamp_name", stamp_codes)
+	
+	# Use overrides if provided, otherwise use ammo-specific values
+	material.set_shader_parameter("stamp_depth", stamp_depth_override if stamp_depth_override > 0 else ammo_data.get("stamp_depth", 0.0001))
+	material.set_shader_parameter("stamp_color", stamp_color_override if stamp_color_override != Color.TRANSPARENT else ammo_data.get("stamp_color", Color(0.3, 0.3, 0.3)))
+	material.set_shader_parameter("stamp_ring_inner", stamp_ring_inner_override if stamp_ring_inner_override > 0 else ammo_data.get("stamp_ring_inner", 0.0))
+	material.set_shader_parameter("stamp_ring_outer", stamp_ring_outer_override if stamp_ring_outer_override > 0 else ammo_data.get("stamp_ring_outer", 0.92))
+	material.set_shader_parameter("stamp_char_scale", stamp_char_scale_override if stamp_char_scale_override > 0 else ammo_data.get("stamp_char_scale", 0.5))
+	material.set_shader_parameter("stamp_radius_offset", 0.8)
+	
 func update_ui():
 	if ui_label:
-		ui_label.text = "Current: %s\n\nControls:\n[1-5] Switch Ammo\n[SPACE] Extract Bullet\n[ENTER] Eject Casing\n[R] Reset\n[WASD] Move Camera\n[Q/E] Rotate Camera" % current_ammo_name
+		var stamp_status = "ON" if stamp_enabled else "OFF"
+		ui_label.text = "Current: %s\nStamp: %s\n\nControls:\n[1-9] Switch Ammo\n[,/.] Prev/Next Ammo\n[SPACE] Extract Bullet\n[ENTER] Eject Casing\n[R] Reset\n[T] Toggle Stamp\n[WASD] Move Camera\n[Q/E] Rotate Camera\n[Arrow Keys] Rotate Object" % [current_ammo_name, stamp_status]
 
 func _input(event):
 	if event is InputEventKey and event.is_pressed():
-		
 		if event.keycode == KEY_1: switch_ammo(0)
 		if event.keycode == KEY_2: switch_ammo(1)
 		if event.keycode == KEY_3: switch_ammo(2)
 		if event.keycode == KEY_4: switch_ammo(3)
 		if event.keycode == KEY_5: switch_ammo(4)
-		if event.keycode == KEY_6: switch_ammo(6)
-		if event.keycode == KEY_7: switch_ammo(7)
-		if event.keycode == KEY_8: switch_ammo(8)
-		if event.keycode == KEY_9: switch_ammo(9)
+		if event.keycode == KEY_6: switch_ammo(5)
+		if event.keycode == KEY_7: switch_ammo(6)
+		if event.keycode == KEY_8: switch_ammo(7)
+		if event.keycode == KEY_9: switch_ammo(8)
 		if event.keycode == KEY_COMMA: switch_ammo(current_ammo_index-1)
 		if event.keycode == KEY_PERIOD: switch_ammo(current_ammo_index+1)
 		if event.keycode == KEY_SPACE: extract_bullet()
 		if event.keycode == KEY_ENTER: eject_casing()
 		if event.keycode == KEY_R: reset_scene()
-		if event.keycode == KEY_W: move_camera(0, -1)
-		if event.keycode == KEY_A: move_camera(-1, 0)
-		if event.keycode == KEY_S: move_camera(0, 1)
-		if event.keycode == KEY_D: move_camera(1, 0)
+		if event.keycode == KEY_T: toggle_stamp()
+		if event.keycode == KEY_W: move_camera(0, -1, 0)
+		if event.keycode == KEY_A: move_camera(-1, 0, 0)
+		if event.keycode == KEY_S: move_camera(0, 1, 0)
+		if event.keycode == KEY_D: move_camera(1, 0, 0)
+		if event.keycode == KEY_X: move_camera(0, 0, +1)
+		if event.keycode == KEY_Z: move_camera(0, 0, -1)
 		if event.keycode == KEY_Q: rotate_camera(-15)
 		if event.keycode == KEY_E: rotate_camera(15)
 		if event.keycode == KEY_DOWN: rotate_object_x(5)
@@ -479,20 +563,16 @@ func _input(event):
 		if event.keycode == KEY_LEFT: rotate_object_y(5)
 		if event.keycode == KEY_RIGHT: rotate_object_y(-5)
 
+func toggle_stamp():
+	stamp_enabled = not stamp_enabled
+	apply_ammo_type(current_ammo_name)
+
 func switch_ammo(index: int):
 	current_ammo_index = index % AMMO_DATABASE.size()
 	current_ammo_name = AMMO_DATABASE.keys()[current_ammo_index]
 	apply_ammo_type(current_ammo_name)
 	reset_scene()
 
-
-func extract_bullet():
-	var material = main_bullet.material_override
-	if material:
-		# Animate bullet extraction
-		var tween = create_tween()
-		tween.tween_method(_set_bullet_extraction, 0.0, bullet_extraction, bullet_time)\
-			 .finished.connect(_set_bullet_extraction)
 
 func _set_bullet_extraction(value: float = 0.0):
 	var material = main_bullet.material_override
@@ -544,7 +624,6 @@ func reset_scene():
 			casing.queue_free()
 	ejected_casings.clear()
 
-
 func rotate_object_y(degrees: float):
 	if main_bullet:
 		main_bullet.rotation_degrees.y += degrees
@@ -557,10 +636,19 @@ func rotate_camera(degrees: float):
 	if camera:
 		camera.rotation_degrees.y += degrees
 
-func move_camera(x: float, y: float):
+func move_camera(x: float, y: float, z: float):
 	if camera:
 		camera.position.x += 0.006 * x
 		camera.position.z += 0.006 * y
+		camera.position.y += 0.006 * z
+
+func extract_bullet():
+	var material = main_bullet.material_override
+	if material:
+		# Animate bullet extraction
+		var tween = create_tween()
+		tween.tween_method(_set_bullet_extraction, 0.0, bullet_extraction, bullet_time)\
+			 .finished.connect(_set_bullet_extraction)
 
 # Tool function to automatically set up the scene in the editor
 func _get_configuration_warnings():
@@ -595,7 +683,52 @@ func _get_property_list():
 		"name": "bullet_extraction",
 		"type": TYPE_FLOAT,
 		"hint": PROPERTY_HINT_RANGE,
-		"hint_string": "0.0,100000.0,0.1" #% bullet_extraction
+		"hint_string": "0.0,100000.0,0.1"
+	})
+	
+	# Add stamp properties
+	properties.append({
+		"name": "Stamp Settings",
+		"type": TYPE_NIL,
+		"usage": PROPERTY_USAGE_GROUP
+	})
+	
+	properties.append({
+		"name": "stamp_enabled",
+		"type": TYPE_BOOL
+	})
+	
+	properties.append({
+		"name": "stamp_depth_override",
+		"type": TYPE_FLOAT,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0.0,0.001,0.00001"
+	})
+	
+	properties.append({
+		"name": "stamp_color_override",
+		"type": TYPE_COLOR
+	})
+	
+	properties.append({
+		"name": "stamp_ring_inner_override",
+		"type": TYPE_FLOAT,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0.0,1.0,0.01"
+	})
+	
+	properties.append({
+		"name": "stamp_ring_outer_override",
+		"type": TYPE_FLOAT,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0.0,1.0,0.01"
+	})
+	
+	properties.append({
+		"name": "stamp_char_scale_override",
+		"type": TYPE_FLOAT,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0.1,2.0,0.01"
 	})
 	
 	return properties

@@ -1,7 +1,8 @@
-[gd_scene load_steps=11 format=3 uid="uid://c6cf7l24o2dqe"]
+[gd_scene load_steps=19 format=3 uid="uid://c6cf7l24o2dqe"]
 
 [ext_resource type="Script" uid="uid://s6tir0ll13h3" path="res://addons/cabra.lat_shooters/src/cartridges_3d.gd" id="1_83bud"]
 [ext_resource type="Shader" uid="uid://o3jgodj7314a" path="res://addons/cabra.lat_shooters/src/shaders/cartridge.gdshader" id="2_aeqdp"]
+[ext_resource type="Texture2D" uid="uid://d0gbpba0pd43u" path="res://addons/cabra.lat_shooters/assets/cartridge-font.png" id="4_fbono"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_aeqdp"]
 sky_curve = 0.191184
@@ -18,38 +19,56 @@ sky = SubResource("Sky_1m3ej")
 tonemap_mode = 2
 ssao_enabled = true
 
-[sub_resource type="Gradient" id="Gradient_aeqdp"]
-offsets = PackedFloat32Array(0, 0.552941, 0.847059)
-colors = PackedColorArray(0, 0, 0, 1, 0.884058, 0.884058, 0.884058, 1, 1, 1, 1, 1)
+[sub_resource type="Gradient" id="Gradient_1m3ej"]
+offsets = PackedFloat32Array(0, 0.0235294, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0.182156, 0.182156, 0.182156, 1, 1, 1, 1, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_fbono"]
+frequency = 1.0
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_8jjh3"]
+color_ramp = SubResource("Gradient_1m3ej")
+noise = SubResource("FastNoiseLite_fbono")
+
+[sub_resource type="Gradient" id="Gradient_3hxk4"]
+colors = PackedColorArray(1, 1, 1, 1, 0, 0, 0, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_p0kqc"]
+gradient = SubResource("Gradient_3hxk4")
+fill = 1
+fill_from = Vector2(0.527273, 0.5)
+fill_to = Vector2(1, 1)
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_b4e4f"]
+noise = SubResource("FastNoiseLite_fbono")
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_1m3ej"]
-seed = 1
-frequency = 0.0424
+frequency = 1.0
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_fbono"]
 as_normal_map = true
-bump_strength = 32.0
-color_ramp = SubResource("Gradient_aeqdp")
 noise = SubResource("FastNoiseLite_1m3ej")
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_8jjh3"]
+frequency = 1.0
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_3hxk4"]
+noise = SubResource("FastNoiseLite_8jjh3")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_aeqdp"]
 render_priority = 0
 shader = ExtResource("2_aeqdp")
 shader_parameter/mesh_segments_length = 64
 shader_parameter/mesh_segments_circumference = 64
-shader_parameter/gap_segments = 2
+shader_parameter/gap_segments = 1
 shader_parameter/scale = 1000.0
 shader_parameter/center_of_mass = 0.0
-shader_parameter/bullet_extraction_mm = 116883.0
-shader_parameter/muzzle_velocity_ms = 800.0
-shader_parameter/bullet_drop_ms2 = 9.81
-shader_parameter/wind_velocity_ms = 0.0
-shader_parameter/zero_range_m = 100.0
-shader_parameter/ballistic_coefficient = 0.5
+shader_parameter/bullet_extraction_mm = 0.0
 shader_parameter/land_diameter_mm = 5.56
 shader_parameter/bullet_diameter_mm = 5.7
 shader_parameter/case_length_mm = 44.7
 shader_parameter/overall_length_mm = 57.4
+shader_parameter/case_wall_thickness_mm = 0.01
 shader_parameter/neck_diameter_mm = 6.43
 shader_parameter/shoulder_diameter_mm = 9.0
 shader_parameter/head_diameter_mm = 9.58
@@ -71,8 +90,7 @@ shader_parameter/primer_metallic = 0.3
 shader_parameter/primer_roughness = 0.7
 shader_parameter/rim_metallic = 0.3
 shader_parameter/rim_roughness = 0.7
-shader_parameter/case_wall_thickness_mm = 0.0
-shader_parameter/ogive_radius_factor = 1.0
+shader_parameter/ogive_radius_factor = 1.2
 shader_parameter/tip_profile = 1
 shader_parameter/bullet_base_percent = 0.1
 shader_parameter/bullet_tip_percent = 0.7
@@ -90,27 +108,60 @@ shader_parameter/tracer_color = Color(1, 0.5, 0.1, 1)
 shader_parameter/tracer_emission_energy = 1.0
 shader_parameter/tracer_radius_percent = 0.5
 shader_parameter/tracer_pulse_speed = 1.0
-shader_parameter/tracer_start_mm = 0.0
+shader_parameter/tracer_start_mm = 100.0
 shader_parameter/tracer_length_mm = 500.0
 shader_parameter/tracer_power = 1.5
-shader_parameter/case_texture = SubResource("NoiseTexture2D_fbono")
-shader_parameter/case_texture_scale_x = 1.0
-shader_parameter/case_texture_scale_y = 1.0
-shader_parameter/bullet_texture = SubResource("NoiseTexture2D_fbono")
+shader_parameter/case_texture = SubResource("NoiseTexture2D_8jjh3")
+shader_parameter/case_texture_scale_x = 10.0
+shader_parameter/case_texture_scale_y = 10.0
 shader_parameter/bullet_texture_scale_x = 1.0
 shader_parameter/bullet_texture_scale_y = 1.0
-shader_parameter/primer_texture = SubResource("NoiseTexture2D_fbono")
-shader_parameter/primer_texture_scale_x = 1.0
-shader_parameter/primer_texture_scale_y = 1.0
-shader_parameter/rim_texture = SubResource("NoiseTexture2D_fbono")
-shader_parameter/rim_texture_scale_x = 6.2
-shader_parameter/rim_texture_scale_y = 2.3
-shader_parameter/wear_amount = 0.1
+shader_parameter/primer_texture = SubResource("NoiseTexture2D_b4e4f")
+shader_parameter/primer_normal = SubResource("GradientTexture2D_p0kqc")
+shader_parameter/primer_texture_scale_x = 0.5
+shader_parameter/primer_texture_scale_y = 0.5
+shader_parameter/rim_texture = SubResource("NoiseTexture2D_3hxk4")
+shader_parameter/rim_normal = SubResource("NoiseTexture2D_fbono")
+shader_parameter/rim_texture_scale_x = 10.0
+shader_parameter/rim_texture_scale_y = 10.0
+shader_parameter/wear_amount = 0.334
+shader_parameter/muzzle_velocity_ms = 800.0
+shader_parameter/bullet_drop_ms2 = 9.81
+shader_parameter/wind_velocity_ms = 0.0
+shader_parameter/zero_range_m = 100.0
+shader_parameter/ballistic_coefficient = 0.5
+shader_parameter/stamp_font = ExtResource("4_fbono")
+shader_parameter/cells_per_row = 16
+shader_parameter/cells_per_col = 16
+shader_parameter/cells_width = 64
+shader_parameter/cells_height = 64
+shader_parameter/stamp_name = [53, 46, 53, 54, 32, 78, 65, 84, 79, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+shader_parameter/stamp_characters = 9
+shader_parameter/stamp_orientation = 0
+shader_parameter/stamp_style = 0
+shader_parameter/stamp_depth = 0.0001
+shader_parameter/stamp_size = 0.005
+shader_parameter/stamp_ring_inner = 0.0
+shader_parameter/stamp_ring_outer = 0.92
+shader_parameter/stamp_char_scale = 0.49
+shader_parameter/stamp_char_spacing = 1.0
+shader_parameter/stamp_radius_offset = 0.8
+shader_parameter/stamp_normal_strength = 20.0
+shader_parameter/stamp_start_angle = -3.1415
+shader_parameter/stamp_normal_detail = 0.5
+shader_parameter/stamp_bump_intensity = 2.0
+shader_parameter/stamp_bump_roughness = 0.3
+shader_parameter/stamp_edge_wear = 0.1
+shader_parameter/stamp_metal_scratch = 0.2
+shader_parameter/stamp_sdf_smoothness = 0.02
+shader_parameter/stamp_sdf_threshold = 0.3
+shader_parameter/stamp_sdf_outline = 0.0
+shader_parameter/stamp_sdf_outline_color = Color(0.1, 0.1, 0.1, 1)
+shader_parameter/stamp_ao_strength = 1.0
+shader_parameter/stamp_ao_radius = 0.02
+shader_parameter/stamp_ao_darkness = 0.651
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_1m3ej"]
-top_radius = 0.01
-bottom_radius = 0.01
-height = 0.1
 rings = 64
 cap_top = false
 cap_bottom = false
@@ -128,7 +179,6 @@ bullet_extraction = 6185.6
 metadata/_custom_type_script = "uid://s6tir0ll13h3"
 
 [node name="MainBullet" type="MeshInstance3D" parent="AmmunitionDemo"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.92679, 0)
 material_override = SubResource("ShaderMaterial_aeqdp")
 extra_cull_margin = 16384.0
 mesh = SubResource("CylinderMesh_1m3ej")
@@ -149,11 +199,15 @@ offset_bottom = 170.0
 theme_override_colors/font_color = Color(0, 0, 0, 1)
 theme_override_font_sizes/font_size = 20
 text = "Current: 5.56x45mm NATO
+Stamp: ON
 
 Controls:
-[1-5] Switch Ammo
+[1-9] Switch Ammo
+[,/.] Prev/Next Ammo
 [SPACE] Extract Bullet
 [ENTER] Eject Casing
 [R] Reset
+[T] Toggle Stamp
 [WASD] Move Camera
-[Q/E] Rotate Camera"
+[Q/E] Rotate Camera
+[Arrow Keys] Rotate Object"

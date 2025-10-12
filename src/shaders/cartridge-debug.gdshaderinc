@@ -1,13 +1,12 @@
-
 // ======================
 // ADVANCED DEBUG VISUALIZATION
 // ======================
-void get_debug_info(float parameter_t, out int segment_index, out int region_type, out vec3 region_color) {
+void get_debug_info(vec2 uv, float parameter_t, out int segment_index, out int region_type, out vec3 region_color) {
     int subdivisions = max(2, mesh_segments_length);
     float f = clamp(parameter_t, 0.0, 1.0) * float(subdivisions - 1);
     segment_index = int(floor(f + 0.5));
-    int primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
-    compute_boundaries(primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
+    int primer_start, primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index;
+    compute_boundaries(primer_start, primer_end, case_start, case_end, rim_end_local, head_end_local, shoulder_end_local, neck_end_local, mouth_start, mouth_end, gap_start, gap_end, bullet_start, last_index);
     // Determine exact region
     if (segment_index <= primer_end) {
         region_type = 0;
@@ -54,7 +53,10 @@ void get_debug_info(float parameter_t, out int segment_index, out int region_typ
     }
     else {
         region_type = -1;
-        region_color = vec3(1.0, 1.0, 1.0); // WHITE - Unknown
+        region_color = region_color = vec3(1.0, 0.2, 0.8); // Magenta base (for stripes)
+        // Stripe pattern based on UV.y angle around cylinder
+        float stripe = step(0.5, fract(uv.y * 20.0)); // 20 stripes per turn
+        region_color = mix(region_color, vec3(0.1), stripe); // alternate dark/light
     }
 }
 // Replace fragment() with this advanced debug version:
@@ -62,7 +64,7 @@ void fragment() {
     float parameter_t = UV.x;
     int segment_index, region_type;
     vec3 region_color;
-    get_debug_info(parameter_t, segment_index, region_type, region_color);
+    get_debug_info(UV, parameter_t, segment_index, region_type, region_color);
     ALBEDO = region_color;
     // Highlight segment boundaries
     int subdivisions = max(2, mesh_segments_length);
