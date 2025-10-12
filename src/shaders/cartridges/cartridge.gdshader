@@ -119,15 +119,15 @@ uniform float wind_velocity_ms      : hint_range(-100.0, 100.0, 0.1) = 0.0;
 uniform float zero_range_m          : hint_range(0.0, 1000.0, 1.0) = 100.0;
 uniform float ballistic_coefficient : hint_range(0.1, 1.0, 0.01) = 0.5;
 
-
-#ifdef CARTRIDGE_STAMP
-#include "cartridge-stamp.gdshaderinc"
-#endif
-
 // HELPER
 float to_meters(float mm) { return mm * 0.001 * scale; }
 float safe_div(float a, float b) { return a / max(b, EPS); }
 float my_lerp(float a, float b, float t) { return mix(a,b,clamp(t,0.0,1.0)); }
+
+#ifdef CARTRIDGE_STAMP
+#include "stamp.gdshaderinc"
+#endif
+
 
 // circumferential coordinate: wrap around UV.y * circumference tiles
 vec2 detail_uv_cylindrical(float u, float v, float  uv_scale_x, float uv_scale_y) {
@@ -583,8 +583,8 @@ vec3 calculate_surface_normal(float parameter_t, float angle, float overall_leng
   vec2 pf = sample_display_profile(t_forward);
   vec2 pb = sample_display_profile(t_backward);
 
-  if (abs(pf.x) < EPS) return normalize(vec3(0.0, +1.0, 0.0));
-  if (abs(pb.x) < EPS) return normalize(vec3(0.0, +1.0, 0.0));
+  //if (abs(pf.x) < EPS) return normalize(vec3(0.0, +1.0, 0.0));
+  //if (abs(pb.x) < EPS) return normalize(vec3(0.0, +1.0, 0.0));
 
   float dy = pf.x - pb.x;
   float dr = pf.y - pb.y;
@@ -639,6 +639,7 @@ void fragment() {
   //ROUGHNESS = 1.0;
   //EMISSION = vec3(0.0);
 
+
   if (surface_type == SURFACE_PRIMER) {
     // Use cylindrical UV mapping for all other surfaces
     vec2 detail_uv = detail_uv_circular(UV, model_space_position, primer_diameter_mm, primer_texture_scale_x, primer_texture_scale_y);
@@ -648,7 +649,7 @@ void fragment() {
     ALPHA = primer_color.a;
     METALLIC = primer_metallic;
     ROUGHNESS = primer_roughness + wear_amount * 0.4;
-    //NORMAL = normal_sample; // FIXME when there is none it looks bad
+    NORMAL += normal_sample; // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_RIM) {
     vec2 detail_uv = detail_uv_circular(UV, model_space_position, rim_diameter_mm + rim_thickness_mm, rim_texture_scale_x, rim_texture_scale_y);
@@ -659,11 +660,7 @@ void fragment() {
     ALPHA = mix(rim_color.a, rim_tint_color.a, rim_tint_percent);
     METALLIC = mix(rim_metallic, rim_metallic + 0.2 * rim_tint_percent, rim_tint_percent);
     ROUGHNESS = mix(rim_roughness, max(0.01, rim_roughness + 0.4 * rim_tint_percent), rim_tint_percent) + wear_amount * 0.2;
-    NORMAL = normal_sample; // FIXME when there is none it looks bad
-#ifdef CARTRIDGE_STAMP
-    // Apply procedural stamp
-    apply_stamp(ROUGHNESS, ALBEDO, NORMAL, model_space_position, to_meters(rim_diameter_mm) * 0.5);
-#endif
+    NORMAL += normal_sample; // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_CASE) {
     vec2 detail_uv = detail_uv_cylindrical(UV.x, UV.y, case_texture_scale_x, case_texture_scale_y);
@@ -673,7 +670,7 @@ void fragment() {
     ALPHA = case_color.a;
     METALLIC = case_metallic;
     ROUGHNESS = case_roughness + wear_amount * 0.3;
-    //NORMAL = normal_sample; // FIXME when there is none it looks bad
+    NORMAL += normal_sample; // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_BULLET_BASE) {
     vec2 detail_uv = detail_uv_cylindrical(UV.x, UV.y, bullet_texture_scale_x, bullet_texture_scale_y);
@@ -683,7 +680,7 @@ void fragment() {
     ALPHA = bullet_base_color.a;
     METALLIC = 0.1;
     ROUGHNESS = 0.8;
-    //NORMAL = normal_sample; // FIXME when there is none it looks bad
+    NORMAL += normal_sample; // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_BULLET_BODY) {
     vec2 detail_uv = detail_uv_cylindrical(UV.x, UV.y, bullet_texture_scale_x, bullet_texture_scale_y);
@@ -693,7 +690,7 @@ void fragment() {
     ALPHA = bullet_color.a;
     METALLIC = bullet_metallic;
     ROUGHNESS = bullet_roughness + wear_amount * 0.2;
-    //NORMAL = normal_sample; // FIXME when there is none it looks bad
+    NORMAL += normal_sample; // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_BULLET_TIP) {
     vec2 detail_uv = detail_uv_cylindrical(UV.x, UV.y, bullet_texture_scale_x, bullet_texture_scale_y);
@@ -703,7 +700,7 @@ void fragment() {
     ALPHA = bullet_tip_color.a;
     METALLIC = bullet_metallic;
     ROUGHNESS = bullet_roughness;
-    //NORMAL = normal_sample; // FIXME when there is none it looks bad
+    NORMAL += normal_sample; // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_TRACER) {
     float tracer_pos = get_tracer_position(parameter_t);
@@ -723,9 +720,17 @@ void fragment() {
     EMISSION += get_heat_with_distance(surface_type, parameter_t);
   }
 
+
+#ifdef CARTRIDGE_STAMP
+  if (surface_type == SURFACE_PRIMER || surface_type == SURFACE_RIM) {
+    // Apply procedural stamp
+    apply_stamp(ROUGHNESS, ALBEDO, NORMAL, model_space_position, to_meters(rim_diameter_mm) * 0.5, surface_type);
+  }
+#endif
+
   // subtle length gradient
   ALBEDO *= (0.8 + 0.2 * UV.x);
 }
 #else
-#include "cartridge-debug.gdshaderinc"
+#include "debug.gdshaderinc"
 #endif

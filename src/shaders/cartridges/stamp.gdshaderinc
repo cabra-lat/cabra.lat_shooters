@@ -1,3 +1,8 @@
+group_uniforms Bevel_Settings;
+uniform float primer_bevel_size : hint_range(0.0, 0.01) = 0.0002;
+uniform float rim_bevel_size : hint_range(0.0, 0.01) = 0.0003;
+uniform float bevel_smoothness : hint_range(0.0, 0.1) = 0.01;
+
 group_uniforms Stamp_Settings;
 uniform sampler2D stamp_font : source_color;
 uniform int cells_per_row = 16;
@@ -36,6 +41,7 @@ uniform float stamp_ao_strength : hint_range(0.0, 2.0) = 1.0;
 uniform float stamp_ao_radius : hint_range(0.0, 0.1) = 0.02;
 uniform float stamp_ao_darkness : hint_range(0.0, 1.0) = 0.3;
 
+
 // Simple edge-based ambient occlusion (more efficient)
 float calculate_stamp_ao(vec2 char_uv, int style) {
     float edge = length(char_uv);
@@ -58,8 +64,53 @@ float calculate_stamp_ao(vec2 char_uv, int style) {
     return clamp(ao, 0.3, 1.0);
 }
 
-// Apply stamp to normal and albedo with SDF font rendering
-void apply_stamp(inout float roughness, inout vec3 albedo, inout vec3 normal, vec3 world_pos, float max_radius) {
+// Apply bevel effect to primer and rim
+void apply_bevel(inout vec3 normal, vec3 world_pos, float max_radius, int surface_type) {
+    float radius = length(world_pos.xz);
+    
+    if (surface_type == SURFACE_PRIMER) {
+        // Primer bevel - create a slight slope at the edges
+        float primer_radius = to_meters(primer_diameter_mm) * 0.5;
+        float edge_distance = 1.0 - smoothstep(primer_radius - primer_bevel_size, primer_radius, radius);
+        
+        if (edge_distance > 0.0) {
+            // Create bevel normal that slopes outward
+            vec3 bevel_normal = normalize(vec3(world_pos.x, primer_bevel_size * 5.0, world_pos.z));
+            normal = normalize(mix(normal, bevel_normal, edge_distance));
+        }
+    }
+    else if (surface_type == SURFACE_RIM) {
+        // Rim bevel - create slope at both inner and outer edges
+        float rim_radius = to_meters(rim_diameter_mm) * 0.5;
+        float head_radius = to_meters(head_diameter_mm) * 0.5;
+        
+        // Outer edge bevel
+        float outer_edge = 1.0 - smoothstep(rim_radius - rim_bevel_size, rim_radius, radius);
+        // Inner edge bevel (where rim meets case head)
+        float inner_edge = smoothstep(head_radius, head_radius + rim_bevel_size, radius);
+        
+        float bevel_strength = max(outer_edge, inner_edge);
+        
+        if (bevel_strength > 0.0) {
+            // For outer edge, slope outward; for inner edge, slope inward
+            vec3 bevel_normal;
+            if (outer_edge > inner_edge) {
+                bevel_normal = normalize(vec3(world_pos.x, rim_bevel_size * 3.0, world_pos.z));
+            } else {
+                bevel_normal = normalize(vec3(-world_pos.x, rim_bevel_size * 3.0, -world_pos.z));
+            }
+            normal = normalize(mix(normal, bevel_normal, bevel_strength));
+        }
+    }
+}
+
+// Updated apply_stamp function with bevel support
+void apply_stamp(inout float roughness, inout vec3 albedo, inout vec3 normal, vec3 world_pos, float max_radius, int surface_type) {
+    // Apply bevel to primer and rim surfaces
+    if (surface_type == SURFACE_PRIMER || surface_type == SURFACE_RIM) {
+        apply_bevel(normal, world_pos, max_radius, surface_type);
+    }
+    
     vec2 stamp_uv = world_pos.xz / max_radius;
     float angle = atan(stamp_uv.x, stamp_uv.y);
     float radius = length(stamp_uv);
@@ -78,7 +129,7 @@ void apply_stamp(inout float roughness, inout vec3 albedo, inout vec3 normal, ve
         
         if (stamp_orientation == 1) { // Inward
             char_index = stamp_characters - 1 - i;
-            char_angle = - float(char_index) * angle_per_char + stamp_start_angle; // Need to reverse the angle as well
+            char_angle = - float(char_index) * angle_per_char + stamp_start_angle;
         }
         
         vec2 char_dir = vec2(cos(char_angle), sin(char_angle));
@@ -182,3 +233,4 @@ void apply_stamp(inout float roughness, inout vec3 albedo, inout vec3 normal, ve
         }
     }
 }
+

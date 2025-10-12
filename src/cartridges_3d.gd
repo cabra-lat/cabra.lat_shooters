@@ -3,7 +3,7 @@ extends Node3D
 
 class_name AmmunitionDemo
 
-const BULLET_SHADER = "res://addons/cabra.lat_shooters/src/shaders/cartridge.gdshader"
+const BULLET_SHADER = "res://addons/cabra.lat_shooters/src/shaders/cartridges/cartridge.gdshader"
 
 # Font atlas configuration - add this near the top
 const STAMP_FONT_PATH = "res://addons/cabra.lat_shooters/asset/cartridge-font.png"
@@ -556,12 +556,12 @@ func _input(event):
 		if event.keycode == KEY_D: move_camera(1, 0, 0)
 		if event.keycode == KEY_X: move_camera(0, 0, +1)
 		if event.keycode == KEY_Z: move_camera(0, 0, -1)
-		if event.keycode == KEY_Q: rotate_camera(-15)
-		if event.keycode == KEY_E: rotate_camera(15)
-		if event.keycode == KEY_DOWN: rotate_object_x(5)
-		if event.keycode == KEY_UP: rotate_object_x(-5)
-		if event.keycode == KEY_LEFT: rotate_object_y(5)
-		if event.keycode == KEY_RIGHT: rotate_object_y(-5)
+		if event.keycode == KEY_Q: rotate_camera(0, -1, 0)
+		if event.keycode == KEY_E: rotate_camera(0, +1, 0)
+		if event.keycode == KEY_DOWN: rotate_object(1, 0, 0)
+		if event.keycode == KEY_UP: rotate_object(-1, 0, 0)
+		if event.keycode == KEY_LEFT: rotate_object(0, 1, 0)
+		if event.keycode == KEY_RIGHT: rotate_object(0, -1, 0)
 
 func toggle_stamp():
 	stamp_enabled = not stamp_enabled
@@ -628,13 +628,17 @@ func rotate_object_y(degrees: float):
 	if main_bullet:
 		main_bullet.rotation_degrees.y += degrees
 
-func rotate_object_x(degrees: float):
+func rotate_object(x: float, y: float, z: float):
 	if main_bullet:
-		main_bullet.rotation_degrees.x += degrees
+		main_bullet.rotation_degrees.x += x
+		main_bullet.rotation_degrees.y += y
+		main_bullet.rotation_degrees.z += z
 
-func rotate_camera(degrees: float):
+func rotate_camera(x: float, y: float, z: float):
 	if camera:
-		camera.rotation_degrees.y += degrees
+		camera.rotation_degrees.x += x
+		camera.rotation_degrees.y += y
+		camera.rotation_degrees.z += z
 
 func move_camera(x: float, y: float, z: float):
 	if camera:
