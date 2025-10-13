@@ -360,6 +360,25 @@ const AMMO_DATABASE = {
 # Export variables for stamps
 @export_group("Stamp Settings")
 @export var stamp_enabled: bool = true
+@export var stamp_text_override: String = "":
+	set(value):
+		stamp_text_override = value
+		# Convert text to ASCII codes
+		var stamp_codes = []
+		for i in range(value.length()):
+			stamp_codes.append(value.unicode_at(i))
+		
+		# Pad array to 20 elements with zeros
+		while stamp_codes.size() < 20:
+			stamp_codes.append(0)
+		
+		if Engine.is_editor_hint() and has_node("MainBullet"):
+			var material = $MainBullet.material_override
+			if material:
+				# Set stamp parameters
+				material.set_shader_parameter("stamp_characters", value.length())
+				material.set_shader_parameter("stamp_name", stamp_codes)
+
 @export_range(0.0, 0.001, 0.00001) var stamp_depth_override: float = 0.0001
 @export var stamp_color_override: Color = Color(0.3, 0.3, 0.3)
 @export_range(0.0, 1.0, 0.01) var stamp_ring_inner_override: float = 0.00
@@ -505,7 +524,7 @@ func apply_stamp_settings(material: ShaderMaterial, ammo_data: Dictionary):
 		return
 	
 	# Get stamp text from ammo data or use default
-	var stamp_text = ammo_data.get("stamp_text", current_ammo_name)
+	var stamp_text = stamp_text_override if stamp_text_override else ammo_data.get("stamp_text", current_ammo_name)
 	
 	# Convert text to ASCII codes
 	var stamp_codes = []

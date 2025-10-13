@@ -82,7 +82,7 @@ void apply_bevel(inout vec3 normal, vec3 world_pos, float max_radius, int surfac
     else if (surface_type == SURFACE_RIM) {
         // Rim bevel - create slope at both inner and outer edges
         float rim_radius = to_meters(rim_diameter_mm) * 0.5;
-        float head_radius = to_meters(head_diameter_mm) * 0.5;
+        float head_radius = to_meters(primer_diameter_mm) * 0.5;
         
         // Outer edge bevel
         float outer_edge = 1.0 - smoothstep(rim_radius - rim_bevel_size, rim_radius, radius);

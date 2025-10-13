@@ -2,7 +2,7 @@
 #define CARTRIDGE_STAMP
 
 shader_type spatial;
-render_mode cull_front, depth_draw_always;
+render_mode cull_front, depth_draw_always, depth_prepass_alpha;
 // ======================
 const float EPS = 1e-6;
 
@@ -333,10 +333,10 @@ vec2 profile_display_for_ring(int idx) {
   float mouth_inner_radius = abs(neck_r - wall_thick);
 
   if (idx == mouth_start) return vec2(case_length, mouth_inner_radius);
-  if (idx == mouth_end)   return vec2(rim_thick, bullet_r * tracer_radius_percent );
+  if (idx == mouth_end && extraction > EPS)   return vec2(rim_thick, bullet_r * tracer_radius_percent );
 
 
-  if (idx >= gap_start && idx <= gap_end) {
+  if (idx >= gap_start && idx <= gap_end && extraction > EPS) {
     float y = rim_thick;
     float r = bullet_r * tracer_radius_percent;
     return vec2(y, r);
@@ -347,7 +347,7 @@ vec2 profile_display_for_ring(int idx) {
 
     int bullet_count = max(1, last_index - bullet_start + 1);
     float t = safe_div(float(idx - bullet_start), float(max(1, bullet_count - 1)));
-    float y = case_length + rim_thick + to_meters(bullet_extraction_mm) + t * bullet_length;
+    float y = case_length + to_meters(bullet_extraction_mm) + t * bullet_length;
 
     float base_section_length = bullet_length * bullet_base_percent;
     float current_pos = t * bullet_length;
@@ -649,7 +649,7 @@ void fragment() {
     ALPHA = primer_color.a;
     METALLIC = primer_metallic;
     ROUGHNESS = primer_roughness + wear_amount * 0.4;
-    NORMAL += normal_sample; // FIXME when there is none it looks bad
+    NORMAL = normalize(NORMAL + normal_sample); // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_RIM) {
     vec2 detail_uv = detail_uv_circular(UV, model_space_position, rim_diameter_mm + rim_thickness_mm, rim_texture_scale_x, rim_texture_scale_y);
@@ -670,7 +670,7 @@ void fragment() {
     ALPHA = case_color.a;
     METALLIC = case_metallic;
     ROUGHNESS = case_roughness + wear_amount * 0.3;
-    NORMAL += normal_sample; // FIXME when there is none it looks bad
+    NORMAL = normalize(NORMAL + normal_sample); // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_BULLET_BASE) {
     vec2 detail_uv = detail_uv_cylindrical(UV.x, UV.y, bullet_texture_scale_x, bullet_texture_scale_y);
@@ -680,7 +680,7 @@ void fragment() {
     ALPHA = bullet_base_color.a;
     METALLIC = 0.1;
     ROUGHNESS = 0.8;
-    NORMAL += normal_sample; // FIXME when there is none it looks bad
+    NORMAL = normalize(NORMAL + normal_sample); // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_BULLET_BODY) {
     vec2 detail_uv = detail_uv_cylindrical(UV.x, UV.y, bullet_texture_scale_x, bullet_texture_scale_y);
@@ -690,7 +690,7 @@ void fragment() {
     ALPHA = bullet_color.a;
     METALLIC = bullet_metallic;
     ROUGHNESS = bullet_roughness + wear_amount * 0.2;
-    NORMAL += normal_sample; // FIXME when there is none it looks bad
+    NORMAL = normalize(NORMAL + normal_sample); // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_BULLET_TIP) {
     vec2 detail_uv = detail_uv_cylindrical(UV.x, UV.y, bullet_texture_scale_x, bullet_texture_scale_y);
@@ -700,7 +700,7 @@ void fragment() {
     ALPHA = bullet_tip_color.a;
     METALLIC = bullet_metallic;
     ROUGHNESS = bullet_roughness;
-    NORMAL += normal_sample; // FIXME when there is none it looks bad
+    NORMAL = normalize(NORMAL + normal_sample); // FIXME when there is none it looks bad
   }
   else if (surface_type == SURFACE_TRACER) {
     float tracer_pos = get_tracer_position(parameter_t);
