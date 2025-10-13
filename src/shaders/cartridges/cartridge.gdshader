@@ -139,6 +139,44 @@ vec2 detail_uv_cylindrical(float u, float v, float  uv_scale_x, float uv_scale_y
 // NEW: Circular UV mapping for bottom surfaces (primer and rim) - using model space
 varying vec3 model_space_position;
 
+// Improved rim UV mapping that handles both bottom and sides
+vec2 detail_uv_rim(vec2 uv, vec3 pos, float rim_diameter, float rim_thickness, float scale_x, float scale_y) {
+    float max_radius = to_meters(rim_diameter) * 0.5;
+    float rim_height = to_meters(rim_thickness);
+    float radius = length(pos.xz);
+
+    // Determine if we're on the bottom or side of the rim
+    bool is_bottom = abs(pos.y) < EPS;
+    bool is_side = !is_bottom && pos.y > 0.0 && pos.y < rim_height;
+
+    if (is_bottom) {
+        // Bottom surface - use circular mapping
+        float normalized_radius = radius / max_radius;
+        float angle = atan(pos.x, pos.z);
+
+        vec2 circle_coord = vec2(cos(angle), sin(angle)) * normalized_radius;
+        float u = circle_coord.x * 0.5;
+        float v = circle_coord.y * 0.5;
+
+        return vec2(u * scale_x - 0.5, v * scale_y - 0.5);
+    }
+    else if (is_side) {
+        // Side surface - use cylindrical mapping but account for rim thickness
+        float angle = atan(pos.x, pos.z);
+        float height_ratio = pos.y / rim_height; // Normalize to rim thickness
+
+        // Map to texture: U = angle around, V = height along rim side
+        float u = (angle / (2.0 * PI)) * scale_x;
+        float v = height_ratio * scale_y;
+
+        return vec2(u, v);
+    }
+    else {
+        // Fallback to cylindrical for other rim areas
+        return detail_uv_cylindrical(uv.x, uv.y, scale_x, scale_y);
+    }
+}
+
 // NEW: Corrected Circular UV mapping for bottom surfaces (primer and rim)
 vec2 detail_uv_circular(vec2 uv, vec3 pos, float max_diameter, float scale_x, float scale_y) {
   float max_radius = to_meters(max_diameter) * 0.5;
@@ -632,35 +670,39 @@ void fragment() {
   int surface_type = get_surface_type(parameter_t);
 
   vec2 detail_uv;
-  // defaults
-  //ALBEDO = vec3(0.5);
-  //ALPHA = 1.0;
-  //METALLIC = 0.0;
-  //ROUGHNESS = 1.0;
-  //EMISSION = vec3(0.0);
-
 
   if (surface_type == SURFACE_PRIMER) {
-    // Use cylindrical UV mapping for all other surfaces
-    vec2 detail_uv = detail_uv_circular(UV, model_space_position, primer_diameter_mm, primer_texture_scale_x, primer_texture_scale_y);
-    vec3 texture_sample = texture(primer_texture, detail_uv).rgb;
-    vec3 normal_sample = texture(primer_normal, detail_uv).rgb;
-    ALBEDO = primer_color.rgb * texture_sample;
-    ALPHA = primer_color.a;
-    METALLIC = primer_metallic;
-    ROUGHNESS = primer_roughness + wear_amount * 0.4;
-    NORMAL = normalize(NORMAL + normal_sample); // FIXME when there is none it looks bad
+      // Use improved circular mapping for primer
+      vec2 detail_uv = detail_uv_circular(UV, model_space_position, primer_diameter_mm, primer_texture_scale_x, primer_texture_scale_y);
+      vec3 texture_sample = texture(primer_texture, detail_uv).rgb;
+      vec3 normal_sample = texture(primer_normal, detail_uv).rgb;
+      ALBEDO = primer_color.rgb * texture_sample;
+      ALPHA = primer_color.a;
+      METALLIC = primer_metallic;
+      ROUGHNESS = primer_roughness + wear_amount * 0.4;
+      NORMAL = normalize(NORMAL + normal_sample);
+
+#ifdef CARTRIDGE_STAMP
+      // Apply primer bevel
+      apply_primer_bevel(NORMAL, model_space_position, primer_diameter_mm);
+#endif
   }
   else if (surface_type == SURFACE_RIM) {
-    vec2 detail_uv = detail_uv_circular(UV, model_space_position, rim_diameter_mm + rim_thickness_mm, rim_texture_scale_x, rim_texture_scale_y);
-    vec3 texture_sample = texture(rim_texture, detail_uv).rgb;
-    vec3 normal_sample = texture(rim_normal, detail_uv).rgb;
-    vec3 base_albedo = rim_color.rgb * texture_sample;
-    ALBEDO = mix(base_albedo, rim_tint_color.rgb, rim_tint_percent);
-    ALPHA = mix(rim_color.a, rim_tint_color.a, rim_tint_percent);
-    METALLIC = mix(rim_metallic, rim_metallic + 0.2 * rim_tint_percent, rim_tint_percent);
-    ROUGHNESS = mix(rim_roughness, max(0.01, rim_roughness + 0.4 * rim_tint_percent), rim_tint_percent) + wear_amount * 0.2;
-    NORMAL += normal_sample; // FIXME when there is none it looks bad
+      // Use improved rim mapping that handles bottom and sides
+      vec2 detail_uv = detail_uv_rim(UV, model_space_position, rim_diameter_mm, rim_thickness_mm, rim_texture_scale_x, rim_texture_scale_y);
+      vec3 texture_sample = texture(rim_texture, detail_uv).rgb;
+      vec3 normal_sample = texture(rim_normal, detail_uv).rgb;
+      vec3 base_albedo = rim_color.rgb * texture_sample;
+      ALBEDO = mix(base_albedo, rim_tint_color.rgb, rim_tint_percent);
+      ALPHA = mix(rim_color.a, rim_tint_color.a, rim_tint_percent);
+      METALLIC = mix(rim_metallic, rim_metallic + 0.2 * rim_tint_percent, rim_tint_percent);
+      ROUGHNESS = mix(rim_roughness, max(0.01, rim_roughness + 0.4 * rim_tint_percent), rim_tint_percent) + wear_amount * 0.2;
+      NORMAL = normalize(NORMAL + normal_sample);
+
+#ifdef CARTRIDGE_STAMP
+      // Apply rim bevel
+      apply_rim_bevel(NORMAL, model_space_position, rim_diameter_mm, rim_thickness_mm);
+#endif
   }
   else if (surface_type == SURFACE_CASE) {
     vec2 detail_uv = detail_uv_cylindrical(UV.x, UV.y, case_texture_scale_x, case_texture_scale_y);

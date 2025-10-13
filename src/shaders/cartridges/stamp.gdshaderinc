@@ -1,8 +1,3 @@
-group_uniforms Bevel_Settings;
-uniform float primer_bevel_size : hint_range(0.0, 0.01) = 0.0002;
-uniform float rim_bevel_size : hint_range(0.0, 0.01) = 0.0003;
-uniform float bevel_smoothness : hint_range(0.0, 0.1) = 0.01;
-
 group_uniforms Stamp_Settings;
 uniform sampler2D stamp_font : source_color;
 uniform int cells_per_row = 16;
@@ -64,53 +59,42 @@ float calculate_stamp_ao(vec2 char_uv, int style) {
     return clamp(ao, 0.3, 1.0);
 }
 
-// Apply bevel effect to primer and rim
-void apply_bevel(inout vec3 normal, vec3 world_pos, float max_radius, int surface_type) {
+// Improved bevel system for rim and primer
+void apply_rim_bevel(inout vec3 normal, vec3 world_pos, float rim_diameter, float rim_thickness) {
+    float max_radius = to_meters(rim_diameter) * 0.5;
+    float rim_height = to_meters(rim_thickness);
+    float radius = length(world_pos.xz);
+    float y_pos = world_pos.y;
+    
+    // Bottom edge bevel (where rim meets primer area)
+    if (abs(y_pos) < EPS && radius > max_radius * 0.7) {
+        float edge = smoothstep(max_radius * 0.7, max_radius * 0.9, radius);
+        vec3 bevel_normal = normalize(vec3(world_pos.x, 1.0, world_pos.z));
+        normal = normalize(mix(normal, bevel_normal, edge * 0.3));
+    }
+    
+    // Top edge bevel (where rim meets case body)
+    if (y_pos > 0.0 && y_pos < rim_height * 0.2) {
+        float edge = 1.0 - smoothstep(0.0, rim_height * 0.2, y_pos);
+        vec3 bevel_normal = normalize(vec3(world_pos.x, -0.5, world_pos.z));
+        normal = normalize(mix(normal, bevel_normal, edge * 0.4));
+    }
+}
+
+void apply_primer_bevel(inout vec3 normal, vec3 world_pos, float primer_diameter) {
+    float primer_radius = to_meters(primer_diameter) * 0.5;
     float radius = length(world_pos.xz);
     
-    if (surface_type == SURFACE_PRIMER) {
-        // Primer bevel - create a slight slope at the edges
-        float primer_radius = to_meters(primer_diameter_mm) * 0.5;
-        float edge_distance = 1.0 - smoothstep(primer_radius - primer_bevel_size, primer_radius, radius);
-        
-        if (edge_distance > 0.0) {
-            // Create bevel normal that slopes outward
-            vec3 bevel_normal = normalize(vec3(world_pos.x, primer_bevel_size * 5.0, world_pos.z));
-            normal = normalize(mix(normal, bevel_normal, edge_distance));
-        }
-    }
-    else if (surface_type == SURFACE_RIM) {
-        // Rim bevel - create slope at both inner and outer edges
-        float rim_radius = to_meters(rim_diameter_mm) * 0.5;
-        float head_radius = to_meters(primer_diameter_mm) * 0.5;
-        
-        // Outer edge bevel
-        float outer_edge = 1.0 - smoothstep(rim_radius - rim_bevel_size, rim_radius, radius);
-        // Inner edge bevel (where rim meets case head)
-        float inner_edge = smoothstep(head_radius, head_radius + rim_bevel_size, radius);
-        
-        float bevel_strength = max(outer_edge, inner_edge);
-        
-        if (bevel_strength > 0.0) {
-            // For outer edge, slope outward; for inner edge, slope inward
-            vec3 bevel_normal;
-            if (outer_edge > inner_edge) {
-                bevel_normal = normalize(vec3(world_pos.x, rim_bevel_size * 3.0, world_pos.z));
-            } else {
-                bevel_normal = normalize(vec3(-world_pos.x, rim_bevel_size * 3.0, -world_pos.z));
-            }
-            normal = normalize(mix(normal, bevel_normal, bevel_strength));
-        }
+    // Primer edge bevel
+    if (abs(world_pos.y) < EPS && radius > primer_radius * 0.8) {
+        float edge = smoothstep(primer_radius * 0.8, primer_radius, radius);
+        vec3 bevel_normal = normalize(vec3(world_pos.x, 1.0, world_pos.z));
+        normal = normalize(mix(normal, bevel_normal, edge * 0.2));
     }
 }
 
 // Updated apply_stamp function with bevel support
 void apply_stamp(inout float roughness, inout vec3 albedo, inout vec3 normal, vec3 world_pos, float max_radius, int surface_type) {
-    // Apply bevel to primer and rim surfaces
-    if (surface_type == SURFACE_PRIMER || surface_type == SURFACE_RIM) {
-        apply_bevel(normal, world_pos, max_radius, surface_type);
-    }
-    
     vec2 stamp_uv = world_pos.xz / max_radius;
     float angle = atan(stamp_uv.x, stamp_uv.y);
     float radius = length(stamp_uv);
