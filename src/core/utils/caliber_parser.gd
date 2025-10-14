@@ -1,20 +1,7 @@
-class_name Utils
-extends Object
+# res://src/core/utils/caliber_parser.gd
+class_name CaliberParser
 
-static func create_timer(wait):
-	var timer = Timer.new()
-	timer.wait_time = wait
-	return timer
-
-## Calculates bullet energy, mass in g, speed in m/s
-static func bullet_energy(mass: float, speed: float):
-	return 0.5 * (mass / 1000.0) * (speed * speed)  # Joules
-
-## Calculates bullet velocity, mass in g, energy in J
-static func bullet_velocity(mass: float, energy: float):
-	return sqrt((2 * energy) / (mass / 1000.0))
-	
-static func parse_caliber(cal: String) -> Dictionary:
+static func parse(cal: String) -> Dictionary:
 	# Early return for FSP/gr designations
 	if cal.find("FSP") != -1 or cal.find("gr") != -1:
 		return {"bore_mm": 0.0, "case_mm": 0.0, "rimmed": false}
@@ -89,7 +76,3 @@ static func parse_caliber(cal: String) -> Dictionary:
 	
 	# Default return for unrecognized formats
 	return {"bore_mm": 0.0, "case_mm": 0.0, "rimmed": false}
-
-
-static func is_same_caliber(cal1: String, cal2: String) -> bool:
-	return parse_caliber(cal1) == parse_caliber(cal2)

@@ -1,6 +1,6 @@
-# test_caliber_parsing.gd
+# res://test/core/utils/caliber_parser.gd
 @tool
-class_name TestUtilsParsingCaliber extends EditorScript
+class_name TestUtilsCaliberParser extends EditorScript
 
 func _run():
 	print("🧪 Testing Caliber Parsing Utility...")
