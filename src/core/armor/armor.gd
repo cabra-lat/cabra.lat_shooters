@@ -1,6 +1,6 @@
 # res://src/core/armor/armor.gd
 class_name Armor
-extends Resource
+extends Item 
 
 enum BodyParts {
 	HEAD      = 1 << 0,
@@ -23,7 +23,6 @@ enum ArmorType {
 }
 
 @export var type: ArmorType = ArmorType.GENERIC
-@export var name: String = "Generic Armor"
 @export_multiline var description: String = "Default armor."
 @export var view_model: PackedScene
 @export var equip_sound: AudioStream

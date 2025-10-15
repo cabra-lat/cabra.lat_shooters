@@ -1,9 +1,9 @@
 # res://src/core/inventory/inventory_item.gd
 class_name InventoryItem
-extends Resource
+extends Resource 
 
 # What this item represents (Ammo, Weapon, Armor, etc.)
-@export var content: Resource
+@export var content: Item
 
 # Visual
 @export var preview: Texture2D

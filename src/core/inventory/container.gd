@@ -1,8 +1,7 @@
 # res://src/core/inventory/container.gd
 class_name InventoryContainer
-extends Resource
+extends Item 
 
-@export var name: String = "Container"
 @export var grid_width: int = 5
 @export var grid_height: int = 5
 @export var max_weight: float = 100.0  # kg

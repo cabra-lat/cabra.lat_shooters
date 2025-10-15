@@ -11,7 +11,6 @@ enum Type {
 	EXTERNAL,
 }
 
-@export var name: String = "Generic Ammofeed"
 @export_multiline var description: String = "This Ammofeed is the default one."
 @export var type: Type = Type.INTERNAL
 @export var empty_mass: float = 0.0
@@ -19,9 +18,6 @@ enum Type {
 @export var bore_tolerance: float = 0.1
 @export var case_tolerance: float = 1.0
 @export var strict_mode: bool = false
-
-var mass: float:
-	get: return get_mass()
 
 func get_mass() -> float:
 	var total = empty_mass

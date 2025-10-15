@@ -1,6 +1,6 @@
 # res://src/core/weapon/weapon.gd
 class_name Weapon
-extends Resource
+extends Item 
 
 # ─── SIGNALS ───────────────────────────────────────
 signal trigger_locked(weapon: Weapon)
@@ -29,7 +29,6 @@ enum AttachmentPoint {
 }
 
 # ─── METADATA ──────────────────────────────────────
-@export var name: String = "Unnamed Weapon"
 @export_multiline var description: String = "This Weapon is the default one."
 @export var view_model: PackedScene
 @export var equip_sound: AudioStream
@@ -65,7 +64,6 @@ var current_durability: float = 100.0
 var attachments: Dictionary = {}  # point: Attachment
 
 # ─── COMPUTED PROPERTIES ───────────────────────────
-var mass: float: get = get_mass
 var accuracy: float: get = get_current_accuracy
 var reload_time: float: get = get_reload_time
 var recoil_vertical: float: get = get_current_recoil_vertical

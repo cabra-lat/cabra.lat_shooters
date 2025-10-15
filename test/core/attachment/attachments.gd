@@ -6,12 +6,12 @@ func _run():
 	print("🧪 Testing Attachment...")
 
 	# Create weapon with top rail
-	var weapon = Weapon.new()
+	var weapon: Weapon = Weapon.new()
 	weapon.name = "Test Rifle"
 	weapon.attach_points = Weapon.AttachmentPoint.TOP_RAIL | Weapon.AttachmentPoint.MUZZLE
 
 	# Create compatible scope
-	var scope = Attachment.new()
+	var scope: Attachment = Attachment.new()
 	scope.name = "Red Dot"
 	scope.type = Attachment.AttachmentType.OPTICS
 	scope.attachment_point = Weapon.AttachmentPoint.TOP_RAIL
@@ -39,7 +39,7 @@ func _run():
 	check(weapon.get_attachment(Weapon.AttachmentPoint.TOP_RAIL) == null, "Scope should be removed")
 
 	# Test incompatible attachment
-	var laser = Attachment.new()
+	var laser: Attachment = Attachment.new()
 	laser.attachment_point = Weapon.AttachmentPoint.LEFT_RAIL  # Not on weapon
 	check(not laser._is_compatible(weapon), "Laser should be incompatible")
 

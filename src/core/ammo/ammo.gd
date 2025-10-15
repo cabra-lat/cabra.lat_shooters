@@ -1,9 +1,8 @@
 # res://src/core/ammo/ammo.gd
 class_name Ammo
-extends Resource
+extends Item 
 
 # ─── CORE METADATA ───────────────────────────────
-@export var name: String = "Unnamed Ammo"
 @export var caliber: String = "Unknown Caliber":
 	set(value):
 		_caliber_data = Utils.parse_caliber(value)
@@ -51,6 +50,9 @@ enum Type {
 @export_range(0.0, 1.0) var ricochet_chance: float = 0.0
 @export_range(0.0, 1.0) var fragment_chance: float = 0.0
 @export var accuracy: float = 1.0  # mm R50 at 300m
+
+func get_mass() -> float:
+	return cartridge_mass
 
 # ─── INTERNAL STATE ───────────────────────────────
 var _caliber_data: Dictionary = {}

@@ -17,7 +17,11 @@ func _run():
         TestHealth,
         TestBallisticsCalculator,
         TestBallisticsImpact,
-        TestWeaponSystem
+        TestWeaponSystem, 
+        TestInventoryContainer,
+        TestInventoryGrid,
+        TestInventoryItem,
+        TestPlayerBody
   ]:
     test.new()._run()
   print("🧪 TEST ENDED: %s" % Time.get_datetime_string_from_system())

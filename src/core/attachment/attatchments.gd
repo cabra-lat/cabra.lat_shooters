@@ -1,6 +1,6 @@
 # res://src/core/attachment/attachment.gd
 class_name Attachment
-extends Resource
+extends Item
 
 # ─── SIGNALS ───────────────────────────────────────
 signal attachment_attached(attachment: Attachment, weapon: Weapon)
@@ -30,17 +30,14 @@ enum ReticleType {
 }
 
 # ─── METADATA ──────────────────────────────────────
-@export var name: String = "Generic Attachment"
 @export_multiline var description: String = "This Attachment is the default one."
 @export var type: AttachmentType = AttachmentType.OTHER
 @export var attachment_point: int  # Weapon.AttachmentPoint (bit flag)
-@export var mass: float = 0.1
 @export var cost: int = 100
 
 # ─── VISUALS ───────────────────────────────────────
 @export var view_model: PackedScene
 @export var world_model: PackedScene
-@export var icon: Texture2D
 
 # ─── STAT MODIFIERS ────────────────────────────────
 @export var accuracy_modifier: float = 1.0
