@@ -1,14 +1,15 @@
-@tool
-class_name BallisticsImpact extends Resource
+# res://src/core/ballistics/ballistics_impact.gd
+class_name BallisticsImpact
+extends Resource
 
-var ricochet: bool = false
-var penetration_depth: float = 0.0
-var fragments: int = 0
-var mass: float = 0.0
-var hit_energy: float = 0.0
-var exit_energy: float = 0.0
-var thickness: float = 0.0
-var angle: float = 0.0
+@export var ricochet: bool = false
+@export var penetration_depth: float = 0.0      # mm
+@export var fragments: int = 0
+@export var mass: float = 0.0                   # grams
+@export var hit_energy: float = 0.0             # Joules
+@export var exit_energy: float = 0.0            # Joules
+@export var thickness: float = 0.0              # mm
+@export var angle: float = 0.0                  # degrees
 
 var penetrated: bool:
 	get: return penetration_depth >= thickness
@@ -16,22 +17,22 @@ var penetrated: bool:
 var fragmented: bool:
 	get: return fragments > 0
 
-var exit_velocity:
+var exit_velocity: float:
 	get: return Utils.bullet_velocity(mass, exit_energy)
 
-var hit_velocity:
+var hit_velocity: float:
 	get: return Utils.bullet_velocity(mass, hit_energy)
 
 func _to_string() -> String:
 	return "BallisticsImpact(" \
 		 + ", ".join([
-			"angle: %.2f °" % angle,
-			"thickness: %.2f mm" % thickness,
-			"hit_energy: %.2f J" % hit_energy,
-			"exit_energy: %.2f J" % exit_energy,
-			"hit_velocity: %.2f J" % hit_velocity,
-		 	"exit_velocity: %.2f m/s" % exit_velocity,
-			"ricochet: %s" % ricochet if ricochet else "",
-		 	"fragmented: (%d fgmts)" % fragments if fragmented else "",
-		 ("penetrated: (%.2f mm)" % penetration_depth if penetrated else "")
+			"angle: %.2f°" % angle,
+			"thickness: %.2fmm" % thickness,
+			"hit_energy: %.2fJ" % hit_energy,
+			"exit_energy: %.2fJ" % exit_energy,
+			"hit_velocity: %.2fm/s" % hit_velocity,
+		 	"exit_velocity: %.2fm/s" % exit_velocity,
+			"ricochet: %s" % ricochet,
+		 	"fragmented: (%d frags)" % fragments if fragmented else "",
+			"penetrated: (%.2fmm)" % penetration_depth if penetrated else ""
 		].filter(func(s): return s != "")) + ")"

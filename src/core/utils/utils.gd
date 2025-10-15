@@ -12,3 +12,6 @@ static func parse_caliber(cal: String) -> Dictionary:
 
 static func is_same_caliber(cal1: String, cal2: String) -> bool:
 	return parse_caliber(cal1) == parse_caliber(cal2)
+
+static func to_mm(cm: float = 0.0) -> float:
+	return cm * 0.1

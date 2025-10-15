@@ -17,7 +17,7 @@ static func get_armor_type_for_certification(standard: int, level: int) -> int:
 	"""Determines the appropriate armor type for a certification level."""
 	match standard:
 		Standard.NIJ:
-			if level <= 3: return BallisticMaterial.Type.ARMOR_SOFT    # Soft armor
+			if level <= 2: return BallisticMaterial.Type.ARMOR_SOFT    # Soft armor
 			else: return BallisticMaterial.Type.ARMOR_HARD             # Hard plates
 			
 		Standard.VPAM:

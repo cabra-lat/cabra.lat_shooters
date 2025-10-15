@@ -65,20 +65,13 @@ var current_durability: float = 100.0
 var attachments: Dictionary = {}  # point: Attachment
 
 # ─── COMPUTED PROPERTIES ───────────────────────────
-var mass: float:
-	get: return get_mass()
-var accuracy: float:
-	get: return get_current_accuracy()
-var reload_time: float:
-	get: return get_reload_time()
-var recoil_vertical: float:
-	get: return get_current_recoil_vertical()
-var recoil_horizontal: float:
-	get: return get_current_recoil_horizontal()
-var can_fire: bool:
-	get: return _can_fire()
-var cycle_time: float:
-	get: return (60.0 / firerate)
+var mass: float: get = get_mass
+var accuracy: float: get = get_current_accuracy
+var reload_time: float: get = get_reload_time
+var recoil_vertical: float: get = get_current_recoil_vertical
+var recoil_horizontal: float: get = get_current_recoil_horizontal
+var can_fire: bool: get = _can_fire
+var cycle_time: float: get = (60.0 / firerate)
 
 # ─── INIT ──────────────────────────────────────────
 func _init():
@@ -123,18 +116,7 @@ func get_all_attachments() -> Array:
 
 # ─── FIREMODE ──────────────────────────────────────
 func cycle_firemode():
-	var available = []
-	for mode in Firemode.get_priority_order():
-		if firemodes & mode:
-			available.append(mode)
-	if available.is_empty():
-		return
-	var idx = available.find(firemode)
-	var next_idx = (idx + 1) % available.size()
-	firemode = available[next_idx]
-	if firemode == Firemode.BURST:
-		burst_counter = burst_count
-	firemode_changed.emit(self, Firemode.get_name(firemode))
+	WeaponSystem.cycle_firemode(self)
 
 func safe_firemode():
 	firemode = Firemode.SAFE
@@ -166,67 +148,15 @@ func _can_fire() -> bool:
 		return true
 	return false
 
-func _update_firing_state():
-	match firemode:
-		Firemode.SEMI:
-			semi_control = true
-		Firemode.BURST:
-			burst_counter -= 1
-		Firemode.PUMP, Firemode.BOLT:
-			is_cycled = false
-
-func _handle_fire_failure():
-	if firemode == Firemode.SAFE:
-		if not semi_control:
-			trigger_locked.emit(self)
-			semi_control = true
-	else:
-		if (not ammofeed or ammofeed.is_empty()) and not semi_control:
-			ammofeed_empty.emit(self, ammofeed)
-			semi_control = true
-		elif not ammofeed and not semi_control:
-			ammofeed_missing.emit(self)
-			semi_control = true
-
 # ─── AMMO & MAGAZINE ───────────────────────────────
 func cycle_weapon():
-	if not is_cycled and ammofeed and not ammofeed.is_empty():
-		chambered_round = ammofeed.eject()
-		is_cycled = true
-		cartridge_inserted.emit(self, chambered_round)
+	WeaponSystem.cycle_weapon(self)
 
 func insert_cartridge(cartridge: Ammo):
-	if feed_type != AmmoFeed.Type.INTERNAL:
-		ammofeed_incompatible.emit(self, cartridge)
-		return
-	if not chambered_round:
-		chambered_round = cartridge
-		cartridge_inserted.emit(self, cartridge)
-	elif ammofeed:
-		ammofeed.insert(cartridge)
+	WeaponSystem.insert_cartridge(self, cartridge)
 
 func change_magazine(new_mag: AmmoFeed) -> bool:
-	if feed_type == AmmoFeed.Type.INTERNAL or new_mag.type != feed_type:
-		ammofeed_incompatible.emit(self, new_mag)
-		return false
-	var compatible = false
-	if ammofeed:
-		for cal in new_mag.compatible_calibers:
-			if ammofeed.compatible_calibers.has(cal):
-				compatible = true
-				break
-	else:
-		compatible = not new_mag.compatible_calibers.is_empty()
-	if not compatible:
-		ammofeed_incompatible.emit(self, new_mag)
-		return false
-	var old = ammofeed
-	ammofeed = new_mag.duplicate()
-	if ammofeed and not ammofeed.is_empty():
-		chambered_round = ammofeed.eject()
-		cartridge_inserted.emit(self, chambered_round)
-	ammofeed_changed.emit(self, old, new_mag)
-	return true
+	return WeaponSystem.change_magazine(self, new_mag)
 
 # ─── STATS ─────────────────────────────────────────
 func get_current_accuracy() -> float:
@@ -270,7 +200,4 @@ func get_recoil_vector() -> Vector2:
 	)
 
 func release_trigger():
-	if firemode == Firemode.BURST:
-		burst_counter = burst_count
-	semi_control = false
-	trigger_released.emit(self)
+	WeaponSystem.release_trigger(self)
