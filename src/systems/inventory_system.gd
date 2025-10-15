@@ -13,18 +13,6 @@ static func transfer_item(
   if not source or not target or not item:
     return false
 
-    # Handle WorldItem as source
-    if source is WorldItem:
-        # WorldItem always contains the item
-        pass
-    elif source is InventoryContainer:
-        if not source.items.has(item):
-            return false
-    elif source is AmmoFeed:
-        return false  # Cannot transfer FROM AmmoFeed
-    else:
-        return false
-
   # Step 2: Check if source contains the item (only for InventoryContainer)
   if source is InventoryContainer:
     if not source.items.has(item):
@@ -159,13 +147,3 @@ static func create_inventory_item(content: Resource, stack_count: int = 1) -> In
   else:
     item.dimensions = Vector2i(1, 1)
   return item
-
-# In src/systems/inventory_system.gd
-static func transfer_item_from_world(target: InventoryContainer, world_item: WorldItem) -> bool:
-  if not target or not world_item or not world_item.inventory_item:
-    return false
-  # Transfer the item
-  var success = transfer_item(world_item, target, world_item.inventory_item)
-  if success:
-    world_item.is_pickable = false
-  return success

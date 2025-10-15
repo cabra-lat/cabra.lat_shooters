@@ -14,8 +14,8 @@ var _data: Weapon
 		if value.view_model:
 			var new_vm = value.view_model.instantiate()
 			add_child(new_vm)
-		for signal_name in value.SIGNALS:
-			value.connect(signal_name, Callable(self, "_on_" + signal_name))
+		for sig in  value.get_signal_list():
+			value.connect(sig.name, Callable(self, "_on_" + sig.name))
 		self._data = value
 		
 

@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=3 uid="uid://c42qkmjwa8k8j"]
 
 [ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/resources/moving_logic.tres" id="1"]
-[ext_resource type="Script" uid="uid://btocqd0ckq2x0" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="1_gg1ss"]
+[ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="1_gg1ss"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cr8hjyxyw6huw" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="2"]
 [ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="2_5uhtu"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="3"]
@@ -13,7 +13,6 @@ libraries = {
 &"": SubResource("AnimationLibrary_ndebh")
 }
 script = ExtResource("1_gg1ss")
-metadata/_custom_type_script = "uid://btocqd0ckq2x0"
 
 [node name="MovingLogic" type="AnimationTree" parent="."]
 root_node = NodePath("../..")

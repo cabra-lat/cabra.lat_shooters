@@ -2,7 +2,7 @@ class_name PlayerAnimations extends AnimationPlayer
 
 var tween
 
-func _on_player_aiming(player: Player, reverse: bool) -> void:
+func _on_player_aiming(player: PlayerController, reverse: bool) -> void:
 	if tween: tween.kill()
 	tween = player.create_tween()
 	var duration = player.config.aim_time

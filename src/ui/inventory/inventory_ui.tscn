@@ -1,0 +1,114 @@
+[gd_scene load_steps=2 format=3 uid="uid://c12klxocgrga0"]
+
+[ext_resource type="Script" uid="uid://bqlt0o5wwk2u3" path="res://addons/cabra.lat_shooters/src/ui/inventory/inventory_ui.gd" id="1_sok43"]
+
+[node name="InventoryUi" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_sok43")
+
+[node name="Panel" type="FoldableContainer" parent="."]
+layout_mode = 2
+title = "Inventory"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Panel"]
+layout_mode = 2
+alignment = 1
+
+[node name="ContainerPanel" type="FoldableContainer" parent="Panel/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+title = "Container"
+
+[node name="ItemGrid" type="GridContainer" parent="Panel/HBoxContainer/ContainerPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 6
+
+[node name="EquipmentPanel" type="FoldableContainer" parent="Panel/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+title = "Equipment"
+
+[node name="PanelContainer" type="FlowContainer" parent="Panel/HBoxContainer/EquipmentPanel"]
+layout_mode = 2
+size_flags_horizontal = 4
+alignment = 1
+last_wrap_alignment = 2
+
+[node name="HelmetSlot" type="Panel" parent="Panel/HBoxContainer/EquipmentPanel/PanelContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/HBoxContainer/EquipmentPanel/PanelContainer/HelmetSlot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Helmet"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="VestSlot" type="Panel" parent="Panel/HBoxContainer/EquipmentPanel/PanelContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/HBoxContainer/EquipmentPanel/PanelContainer/VestSlot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Vest"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PrimaryWeaponSlot" type="Panel" parent="Panel/HBoxContainer/EquipmentPanel/PanelContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 100)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/HBoxContainer/EquipmentPanel/PanelContainer/PrimaryWeaponSlot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Primary"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SecondaryWeaponSlot" type="Panel" parent="Panel/HBoxContainer/EquipmentPanel/PanelContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/HBoxContainer/EquipmentPanel/PanelContainer/SecondaryWeaponSlot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Secondary"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CloseButton" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
+text = "(x)"

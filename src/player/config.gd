@@ -3,6 +3,10 @@ class_name PlayerConfig extends Resource
 const NOT_MOVING: float = 0.0
 const NO_BOBBING: float = 0.0
 
+@export var gravity: float = 9.81
+@export var gentle_push: float = 10.0
+@export var mouse_sensitivity: float = 1.0 # this is more like a game settings
+
 @export_group("Maximum")
 @export var max_weight: float = 100 ## Maximum amount of weight player can carry
 @export var letal_acceleration: float = 50 ## Maximum amount of acceleration player can take

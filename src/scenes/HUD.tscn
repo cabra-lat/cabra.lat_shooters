@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://bxlbq0drdtji4"]
 
-[ext_resource type="Script" uid="uid://cg2frdbwbs5qx" path="res://addons/cabra.lat_shooters/src/hud/hud.gd" id="1"]
+[ext_resource type="Script" uid="uid://c3c54enfd85t5" path="res://addons/cabra.lat_shooters/src/ui/hud/hud.gd" id="1"]
 
 [sub_resource type="FontFile" id="41"]
 subpixel_positioning = 0
