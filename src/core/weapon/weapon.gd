@@ -71,7 +71,8 @@ var reload_time: float: get = get_reload_time
 var recoil_vertical: float: get = get_current_recoil_vertical
 var recoil_horizontal: float: get = get_current_recoil_horizontal
 var can_fire: bool: get = _can_fire
-var cycle_time: float: get = (60.0 / firerate)
+var cycle_time: float:
+	get: return (60.0 / firerate)
 
 # ─── INIT ──────────────────────────────────────────
 func _init():
@@ -130,7 +131,7 @@ func is_automatic() -> bool:
 	return Firemode.is_automatic(firemode)
 
 func get_firemode_name() -> String:
-	return Firemode.get_name(firemode)
+	return Firemode.get_mode(firemode)
 
 func _can_fire() -> bool:
 	match firemode:
