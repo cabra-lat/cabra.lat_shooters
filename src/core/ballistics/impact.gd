@@ -12,27 +12,27 @@ extends Resource
 @export var angle: float = 0.0                  # degrees
 
 var penetrated: bool:
-	get: return penetration_depth >= thickness
+  get: return penetration_depth >= thickness
 
 var fragmented: bool:
-	get: return fragments > 0
+  get: return fragments > 0
 
 var exit_velocity: float:
-	get: return Utils.bullet_velocity(mass, exit_energy)
+  get: return Utils.bullet_velocity(mass, exit_energy)
 
 var hit_velocity: float:
-	get: return Utils.bullet_velocity(mass, hit_energy)
+  get: return Utils.bullet_velocity(mass, hit_energy)
 
 func _to_string() -> String:
-	return "BallisticsImpact(" \
-		 + ", ".join([
-			"angle: %.2f°" % angle,
-			"thickness: %.2fmm" % thickness,
-			"hit_energy: %.2fJ" % hit_energy,
-			"exit_energy: %.2fJ" % exit_energy,
-			"hit_velocity: %.2fm/s" % hit_velocity,
-		 	"exit_velocity: %.2fm/s" % exit_velocity,
-			"ricochet: %s" % ricochet,
-		 	"fragmented: (%d frags)" % fragments if fragmented else "",
-			"penetrated: (%.2fmm)" % penetration_depth if penetrated else ""
-		].filter(func(s): return s != "")) + ")"
+  return "BallisticsImpact(" \
+     + ", ".join([
+      "angle: %.2f°" % angle,
+      "thickness: %.2fmm" % thickness,
+      "hit_energy: %.2fJ" % hit_energy,
+      "exit_energy: %.2fJ" % exit_energy,
+      "hit_velocity: %.2fm/s" % hit_velocity,
+       "exit_velocity: %.2fm/s" % exit_velocity,
+      "ricochet: %s" % ricochet,
+       "fragmented: (%d frags)" % fragments if fragmented else "",
+      "penetrated: (%.2fmm)" % penetration_depth if penetrated else ""
+    ].filter(func(s): return s != "")) + ")"

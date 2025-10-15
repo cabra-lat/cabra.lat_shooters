@@ -1,4 +1,4 @@
-class_name Player extends CharacterBody3D
+class_name PlayerController extends CharacterBody3D
 
 const IDLE           = "Idle"
 const JUMPING        = "Jump"
@@ -24,22 +24,22 @@ const CONFIG_STATES = [ RELOADING, CHANGING_MODE ]
 const MOVING_STATES = [ WALKING, SPRINTING, JUMPING, FALLING]
 
 
-signal moved(player: Player, delta: float)
-signal leaned(player: Player, direction: int)
-signal proned(player: Player, reverse: bool)
-signal crouched(player: Player, reverse: bool)
-signal aiming(player: Player, reverse: bool)
-signal jumped(player: Player)
-signal landed(player: Player, max_velocity: float, delta: float)
-signal reloaded(player: Player)
-signal equipped(player: Player)
-signal unequiped(player: Player)
-signal insert_ammofeed(player: Player)
-signal check_ammofeed(player: Player, ammofeed: AmmoFeed)
-signal debug(player: Player, text: String)
+signal moved(player: PlayerController, delta: float)
+signal leaned(player: PlayerController, direction: int)
+signal proned(player: PlayerController, reverse: bool)
+signal crouched(player: PlayerController, reverse: bool)
+signal aiming(player: PlayerController, reverse: bool)
+signal jumped(player: PlayerController)
+signal landed(player: PlayerController, max_velocity: float, delta: float)
+signal reloaded(player: PlayerController)
+signal equipped(player: PlayerController)
+signal unequiped(player: PlayerController)
+signal insert_ammofeed(player: PlayerController)
+signal check_ammofeed(player: PlayerController, ammofeed: AmmoFeed)
+signal debug(player: PlayerController, text: String)
 
 @export var config: PlayerConfig  # No default instance — created in _ready if needed
-@export var inventory: Inventory
+@export var inventory: InventoryContainer
 
 @onready var moving_logic = $StateMachine/MovingLogic
 @onready var firing_logic = $StateMachine/FiringLogic
@@ -78,7 +78,7 @@ func _ready():
 	if config == null:
 		config = PlayerConfig.new()
 	if inventory == null:
-		inventory = Inventory.new()
+		inventory = InventoryContainer.new()
 
 	# Connect state machine entry signals
 	for logic in [moving_logic, crouch_logic, firing_logic]:

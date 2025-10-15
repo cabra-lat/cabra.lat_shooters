@@ -11,4 +11,4 @@ func get_mass() -> float: return mass
 func set_mass(value) -> void: mass = value
 
 func _init() -> void:
-	pass
+  pass
