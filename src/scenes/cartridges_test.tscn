@@ -1,8 +1,8 @@
 [gd_scene load_steps=23 format=3 uid="uid://c6cf7l24o2dqe"]
 
-[ext_resource type="Script" uid="uid://s6tir0ll13h3" path="res://addons/cabra.lat_shooters/src/cartridges_3d.gd" id="1_83bud"]
+[ext_resource type="Script" uid="uid://cw281trp1g5cs" path="res://addons/cabra.lat_shooters/src/cartridges_3d.gd" id="1_83bud"]
 [ext_resource type="Texture2D" uid="uid://rwr14fl7ogi4" path="res://addons/cabra.lat_shooters/assets/skybox.jpg" id="1_fbono"]
-[ext_resource type="Shader" uid="uid://o3jgodj7314a" path="res://addons/cabra.lat_shooters/src/shaders/cartridges/cartridge.gdshader" id="2_aeqdp"]
+[ext_resource type="Shader" uid="uid://bo7wc2x3ox5i1" path="res://addons/cabra.lat_shooters/src/shaders/cartridges/cartridge.gdshader" id="2_aeqdp"]
 [ext_resource type="Texture2D" uid="uid://d0gbpba0pd43u" path="res://addons/cabra.lat_shooters/assets/cartridge-font.png" id="4_fbono"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_8jjh3"]
@@ -81,20 +81,20 @@ shader_parameter/gap_segments = 1
 shader_parameter/scale = 1.0
 shader_parameter/center_of_mass = 0.0
 shader_parameter/bullet_extraction_mm = 0.0
-shader_parameter/land_diameter_mm = 5.56
-shader_parameter/bullet_diameter_mm = 5.7
-shader_parameter/case_length_mm = 44.7
-shader_parameter/overall_length_mm = 57.4
+shader_parameter/land_diameter_mm = 7.62
+shader_parameter/bullet_diameter_mm = 7.82
+shader_parameter/case_length_mm = 51.18
+shader_parameter/overall_length_mm = 69.85
 shader_parameter/case_wall_thickness_mm = 0.01
-shader_parameter/neck_diameter_mm = 6.43
-shader_parameter/shoulder_diameter_mm = 9.0
-shader_parameter/head_diameter_mm = 9.58
-shader_parameter/rim_diameter_mm = 9.6
-shader_parameter/rim_thickness_mm = 1.27
-shader_parameter/primer_diameter_mm = 3.0
+shader_parameter/neck_diameter_mm = 8.53
+shader_parameter/shoulder_diameter_mm = 11.53
+shader_parameter/head_diameter_mm = 11.84
+shader_parameter/rim_diameter_mm = 11.94
+shader_parameter/rim_thickness_mm = 1.4
+shader_parameter/primer_diameter_mm = 3.8
 shader_parameter/extractor_groove_diameter_mm = 8.0
-shader_parameter/neck_percent = 0.9
-shader_parameter/shoulder_percent = 0.85
+shader_parameter/neck_percent = 0.88
+shader_parameter/shoulder_percent = 0.8
 shader_parameter/head_percent = 0.05999999865888
 shader_parameter/rim_roundness = 0.61999998614176
 shader_parameter/case_color = Color(0.8, 0.6, 0.2, 1)
@@ -108,10 +108,10 @@ shader_parameter/primer_metallic = 0.8
 shader_parameter/primer_roughness = 0.3
 shader_parameter/rim_metallic = 0.8
 shader_parameter/rim_roughness = 0.3
-shader_parameter/ogive_radius_factor = 1.2199999839065598
+shader_parameter/ogive_radius_factor = 1.3
 shader_parameter/tip_profile = 1
-shader_parameter/bullet_base_percent = 0.1
-shader_parameter/bullet_tip_percent = 0.7
+shader_parameter/bullet_base_percent = 0.12
+shader_parameter/bullet_tip_percent = 0.65
 shader_parameter/bullet_color = Color(0.7, 0.4, 0.2, 1)
 shader_parameter/bullet_tip_color = Color(0.9, 0.8, 0.7, 1)
 shader_parameter/bullet_base_color = Color(0.1, 0.1, 0.1, 1)
@@ -199,7 +199,6 @@ casing_lifetime = 3.0
 use_low_poly_casings = true
 disable_casing_shadows = true
 casing_lod_distance = 20.0
-metadata/_custom_type_script = "uid://s6tir0ll13h3"
 
 [node name="MainBullet" type="MeshInstance3D" parent="AmmunitionDemo"]
 material_override = SubResource("ShaderMaterial_aeqdp")
@@ -247,5 +246,5 @@ offset_bottom = 64.0
 theme_override_colors/font_color = Color(0.96, 0.92288, 0.4032, 1)
 theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 20
-text = "FPS: 18 (Casings: 0)"
+text = "FPS: 87 (Casings: 0)"
 uppercase = true

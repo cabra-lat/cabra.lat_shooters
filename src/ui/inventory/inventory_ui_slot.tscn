@@ -1,0 +1,34 @@
+[gd_scene load_steps=2 format=3 uid="uid://b4nocuvgaea0x"]
+
+[ext_resource type="Script" uid="uid://bxg7q8ah6k4r3" path="res://addons/cabra.lat_shooters/src/ui/inventory/inventory_ui_slot.gd" id="1_dg2rb"]
+
+[node name="InventoryUiSlot" type="Panel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_dg2rb")
+
+[node name="Label" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Slot"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Icon" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 2
+stretch_mode = 5

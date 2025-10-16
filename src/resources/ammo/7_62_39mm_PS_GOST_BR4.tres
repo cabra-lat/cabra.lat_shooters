@@ -1,29 +1,18 @@
 [gd_resource type="Resource" script_class="Ammo" load_steps=2 format=3 uid="uid://hb6qrsnotiah"]
 
-[ext_resource type="Script" path="res://addons/cabra.lat_shooters/src/core/ammo/ammo.gd" id="1_up7cb"]
+[ext_resource type="Script" uid="uid://dl2e4okyiotb2" path="res://addons/cabra.lat_shooters/src/core/ammo/ammo.gd" id="1_up7cb"]
 
 [resource]
 script = ExtResource("1_up7cb")
-name = "762x39_PS_GOST_BR4"
 caliber = ""
 description = "7.62x39mm PS (GOST BR4)"
 type = 5
 bullet_mass = 7.9
 cartridge_mass = 13.43
 muzzle_velocity = 720.0
-penetration_value = 3.19438
 ballistic_coefficient = 0.275
 bullet_length = 39.0
-bullet_diameter = 7.62
 sectional_density = 173.232
 armor_modifier = 1.2
-flesh_modifier = 1.0
 ricochet_angle = 28.0
-tracer_duration = 0.0
-incendiary_chance = 0.0
-fragmentation_chance = 0.0
-armor_damage = 0.0
-bleeding_chance = 0.0
-ricochet_chance = 0.0
-fragment_chance = 0.0
-accuracy = 1.0
+name = "762x39_PS_GOST_BR4"

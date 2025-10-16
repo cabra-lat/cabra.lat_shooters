@@ -1,10 +1,11 @@
-[gd_scene load_steps=14 format=3 uid="uid://c864bi8w8mqif"]
+[gd_scene load_steps=15 format=3 uid="uid://pc011sk80jnn"]
 
-[ext_resource type="Script" uid="uid://dn0782newa14v" path="res://addons/cabra.lat_shooters/test/scenes/test.gd" id="1_lx1hn"]
+[ext_resource type="Script" uid="uid://c071gk80gvibn" path="res://addons/cabra.lat_shooters/test/scenes/test.gd" id="1_lx1hn"]
 [ext_resource type="PackedScene" uid="uid://ly33hk8t667t" path="res://addons/cabra.lat_shooters/src/player/scenes/player.tscn" id="2_yghno"]
 [ext_resource type="PackedScene" uid="uid://bxlbq0drdtji4" path="res://addons/cabra.lat_shooters/src/scenes/HUD.tscn" id="3_aiq23"]
 [ext_resource type="Texture2D" uid="uid://rwr14fl7ogi4" path="res://addons/cabra.lat_shooters/assets/skybox.jpg" id="3_yghno"]
 [ext_resource type="PackedScene" uid="uid://b0ejn6xouvmht" path="res://src/scenes/box.tscn" id="4_6vvmu"]
+[ext_resource type="PackedScene" uid="uid://4fpsqv2ujg4p" path="res://addons/cabra.lat_shooters/src/scenes/world_item.tscn" id="6_cnysa"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_aiq23"]
 panorama = ExtResource("3_yghno")
@@ -101,6 +102,10 @@ script = null
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.922256, 0.381521, 0.0623376, -0.254664, 0.478275, 0.840476, 0.290845, -0.791009, 0.538251, 7.94412, 14.9749, 27.3636)
+
+[node name="WorldItem" parent="." instance=ExtResource("6_cnysa")]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5041785, 1.4136353, 0)
 
 [connection signal="debug" from="Player" to="." method="_on_player_debug"]
 [connection signal="equipped" from="Player" to="." method="_on_player_equipped"]
