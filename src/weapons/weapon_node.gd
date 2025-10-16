@@ -5,9 +5,8 @@ const VIEWMODEL_NAME = "Viewmodel"
 
 var firerate_timer: Timer
 
-var _data: Weapon
 @export var data: Weapon:
-	get: return self._data
+	get: return data
 	set(value):
 		var old_vm = get_node_or_null(VIEWMODEL_NAME)
 		if old_vm: old_vm.queue_free()
@@ -16,7 +15,7 @@ var _data: Weapon
 			add_child(new_vm)
 		for sig in  value.get_signal_list():
 			value.connect(sig.name, Callable(self, "_on_" + sig.name))
-		self._data = value
+		data = value
 		
 
 func _ready():
@@ -26,7 +25,7 @@ func _ready():
 	add_child(firerate_timer)
 
 func _on_firerate_timeout():
-	data.pull_trigger()
+	WeaponSystem.pull_trigger(data)
 	if data.is_automatic():
 		firerate_timer.start()
 
@@ -38,7 +37,7 @@ func pull_trigger():
 		return
 	if not data: return
 	firerate_timer.wait_time = 60.0 / data.firerate
-	data.pull_trigger()
+	WeaponSystem.pull_trigger(data)
 	firerate_timer.start()
 
 func release_trigger():

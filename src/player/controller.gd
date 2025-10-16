@@ -288,11 +288,11 @@ func handle_process(delta):
             current_speed        = config.walk_speed
             current_head_bobbing = config.walk_bobbing
             current_lean_angle   = config.lean_angle_walk
-            moved.emit(self, delta)
+            #moved.emit(self, delta)
         SPRINTING: 
             current_speed        = config.sprint_speed
             current_head_bobbing = config.sprint_bobbing
-            moved.emit(self, delta)
+            #moved.emit(self, delta)
         FALLING:
             max_velocity = max(max_velocity, velocity.length())
 
@@ -324,4 +324,4 @@ func handle_process(delta):
         moving_logic.set_condition("+sprint", false)
         moving_logic.set_condition("-sprint", true)
     
-    debug.emit(self, debug_text)
+    #debug.emit(self, debug_text)

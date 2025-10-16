@@ -63,7 +63,7 @@ func _on_player_debug(player: PlayerController, text: String) -> void:
 
 func _on_player_landed(player: PlayerController, max_velocity: float, delta: float) -> void:
     var letal_g = player.config.letal_acceleration
-    var a = abs(max_velocity - player.velocity.length()) / delta
+    var a = abs(max_velocity - player.velocity.length()) / (2.0 * delta)
     var g = a / player.config.gravity
     var letality_ratio = g / letal_g
     if letality_ratio > 1:
