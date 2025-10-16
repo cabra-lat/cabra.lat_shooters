@@ -37,10 +37,12 @@ func _ready():
 func pick_up(player: PlayerController) -> bool:
   if not is_pickable or not inventory_item:
     return false
-  if not player or not player.inventory_system:
+  if not player:
     return false
-  # Delegate to InventorySystem
-  var success = player.inventory_system.transfer_item_from_world(player.backpack, self)
+  var equipped = player.player_body.get_equipped("back")
+  var first_equipped = equipped[0] if len(equipped) > 0 else null
+  var backpack = first_equipped.content as Backpack if first_equipped else null
+  var success = backpack and InventorySystem.transfer_item(null, backpack, self.inventory_item)
   if success:
     item_picked_up.emit(self, player)
     queue_free()
@@ -64,7 +66,8 @@ func _setup_area():
   if area:
     area.monitoring = true
     area.monitorable = false
-    area.connect("area_entered", _on_area_entered)
+    area.connect("body_entered", _on_body_entered)
+    area.connect("body_exited", _on_body_exited)
 
 func _update_visuals():
   if mesh_instance and inventory_item:
@@ -76,9 +79,13 @@ func _update_visuals():
       # Fallback: use a generic item mesh
       pass
 
-func _on_area_entered(area: Area3D):
-  # Optional: highlight item when player is near
-  pass
+func _on_body_entered(body: Node3D):
+  if body is PlayerController:
+    pick_up(body as PlayerController)
+  collision_shape.debug_color = Color.RED
+
+func _on_body_exited(body: Node3D):
+  print("Area _on_area_exited")
 
 func _process(delta: float):
   if auto_rotate and mesh_instance:

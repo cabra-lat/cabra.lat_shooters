@@ -1,22 +1,11 @@
-[gd_scene load_steps=15 format=3 uid="uid://pc011sk80jnn"]
+[gd_scene load_steps=16 format=3 uid="uid://pc011sk80jnn"]
 
-[ext_resource type="Script" uid="uid://c071gk80gvibn" path="res://addons/cabra.lat_shooters/test/scenes/test.gd" id="1_lx1hn"]
+[ext_resource type="Script" uid="uid://dn0782newa14v" path="res://addons/cabra.lat_shooters/test/scenes/test_player.gd" id="1_cnysa"]
 [ext_resource type="PackedScene" uid="uid://ly33hk8t667t" path="res://addons/cabra.lat_shooters/src/player/scenes/player.tscn" id="2_yghno"]
 [ext_resource type="PackedScene" uid="uid://bxlbq0drdtji4" path="res://addons/cabra.lat_shooters/src/scenes/HUD.tscn" id="3_aiq23"]
 [ext_resource type="Texture2D" uid="uid://rwr14fl7ogi4" path="res://addons/cabra.lat_shooters/assets/skybox.jpg" id="3_yghno"]
 [ext_resource type="PackedScene" uid="uid://b0ejn6xouvmht" path="res://src/scenes/box.tscn" id="4_6vvmu"]
 [ext_resource type="PackedScene" uid="uid://4fpsqv2ujg4p" path="res://addons/cabra.lat_shooters/src/scenes/world_item.tscn" id="6_cnysa"]
-
-[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_aiq23"]
-panorama = ExtResource("3_yghno")
-
-[sub_resource type="Sky" id="Sky_6vvmu"]
-sky_material = SubResource("PanoramaSkyMaterial_aiq23")
-
-[sub_resource type="Environment" id="Environment_m5uds"]
-background_mode = 2
-sky = SubResource("Sky_6vvmu")
-tonemap_mode = 2
 
 [sub_resource type="BoxMesh" id="BoxMesh_lx1hn"]
 size = Vector3(40, 1, 10)
@@ -36,72 +25,89 @@ normal_texture = SubResource("NoiseTexture2D_n5vox")
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uk0x"]
 size = Vector3(40, 1, 10)
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_cnysa"]
+size = Vector3(400, 1, 100)
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_aiq23"]
+panorama = ExtResource("3_yghno")
+
+[sub_resource type="Sky" id="Sky_6vvmu"]
+sky_material = SubResource("PanoramaSkyMaterial_aiq23")
+
+[sub_resource type="Environment" id="Environment_m5uds"]
+background_mode = 2
+sky = SubResource("Sky_6vvmu")
+tonemap_mode = 2
+
 [node name="Node3D" type="Node3D"]
-script = ExtResource("1_lx1hn")
+script = ExtResource("1_cnysa")
 
 [node name="HUD" parent="." instance=ExtResource("3_aiq23")]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-environment = SubResource("Environment_m5uds")
+[node name="Level" type="Node3D" parent="."]
 
-[node name="room" type="StaticBody3D" parent="."]
+[node name="room" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, 0, 0.00437784)
 collision_layer = 7
 collision_mask = 0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="room"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00212133, 0, -0.00437784)
 mesh = SubResource("BoxMesh_lx1hn")
 surface_material_override/0 = SubResource("StandardMaterial3D_egtcd")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="room"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room"]
 shape = SubResource("BoxShape3D_5uk0x")
 
-[node name="room2" type="StaticBody3D" parent="."]
+[node name="room2" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -2.9469411, 8.511776)
 collision_layer = 7
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="room2"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room2"]
 shape = SubResource("BoxShape3D_5uk0x")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="room2"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room2"]
 mesh = SubResource("BoxMesh_lx1hn")
 surface_material_override/0 = SubResource("StandardMaterial3D_egtcd")
 
-[node name="room3" type="StaticBody3D" parent="."]
+[node name="room3" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -11.679918, 16.026487)
 collision_layer = 7
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="room3"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room3"]
 shape = SubResource("BoxShape3D_5uk0x")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="room3"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room3"]
 mesh = SubResource("BoxMesh_lx1hn")
 surface_material_override/0 = SubResource("StandardMaterial3D_egtcd")
 
-[node name="room4" type="StaticBody3D" parent="."]
+[node name="room4" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -29.594725, 29.43588)
 collision_layer = 7
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="room4"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room4"]
 shape = SubResource("BoxShape3D_5uk0x")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="room4"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room4"]
 mesh = SubResource("BoxMesh_lx1hn")
 surface_material_override/0 = SubResource("StandardMaterial3D_egtcd")
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="Level/room4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.0170326, -25.427063)
+shape = SubResource("BoxShape3D_cnysa")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_m5uds")
 
 [node name="Player" parent="." instance=ExtResource("2_yghno")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
 
 [node name="box" parent="." instance=ExtResource("4_6vvmu")]
-transform = Transform3D(0.9096353, -0.3463026, 0.22943006, 0.4154078, 0.7583129, -0.5023923, 0, 0.5523008, 0.8336449, 0, 5.9419456, 7.1768827)
+transform = Transform3D(0.9096353, -0.3463026, 0.22943006, 0.4154078, 0.7583129, -0.5023923, 0, 0.5523008, 0.8336449, 0, 5.9419456, 13.660682)
 script = null
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.922256, 0.381521, 0.0623376, -0.254664, 0.478275, 0.840476, 0.290845, -0.791009, 0.538251, 7.94412, 14.9749, 27.3636)
 
 [node name="WorldItem" parent="." instance=ExtResource("6_cnysa")]
 unique_name_in_owner = true

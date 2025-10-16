@@ -9,7 +9,7 @@ enum SlotType {
   LEGS,
   PRIMARY_WEAPON,
   SECONDARY_WEAPON,
-  UTILITY
+  BACK
 }
 
 @export var slot_type: SlotType

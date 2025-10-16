@@ -1,8 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://4fpsqv2ujg4p"]
+[gd_scene load_steps=2 format=3 uid="uid://4fpsqv2ujg4p"]
 
 [ext_resource type="Script" uid="uid://xe0reik2e07u" path="res://addons/cabra.lat_shooters/src/gameplay/world_item.gd" id="1_dv1vi"]
-
-[sub_resource type="SphereShape3D" id="SphereShape3D_dv1vi"]
 
 [node name="WorldItem" type="Node3D"]
 script = ExtResource("1_dv1vi")
@@ -15,4 +13,3 @@ unique_name_in_owner = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
 unique_name_in_owner = true
-shape = SubResource("SphereShape3D_dv1vi")

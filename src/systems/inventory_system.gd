@@ -10,16 +10,13 @@ static func transfer_item(
   item: InventoryItem
 ) -> bool:
   # Step 1: Validate inputs
-  if not source or not target or not item:
+  if not target or not item:
     return false
 
   # Step 2: Check if source contains the item (only for InventoryContainer)
   if source is InventoryContainer:
     if not source.items.has(item):
       return false
-  elif source is AmmoFeed:
-    # Cannot transfer FROM AmmoFeed in this design
-    return false
 
   # Step 3: Validate compatibility
   if not _is_compatible_with_target(item, target):

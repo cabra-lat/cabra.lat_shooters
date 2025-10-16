@@ -1,29 +1,49 @@
-extends Node3D
+# res://test/scenes/test_player.gd
+extends Node
 
 var can_connect_signals: bool = false
 
 # DEV/DEBUG
-@onready var ammo_762x39mm: Ammo = preload("../../src/resources/ammo/7_62_39mm_PS_GOST_BR4.tres")
-@onready var weapon_ak47: Weapon = preload("../../src/resources/weapons/AK_47.tres")
-@onready var magazine_ak47: AmmoFeed = AmmoFeed.new()
+@onready var ammo: Ammo = preload("../../src/resources/ammo/7_62_39mm_PS_GOST_BR4.tres")
+@onready var weapon: Weapon = preload("../../src/resources/weapons/AK_47.tres")
+@onready var mag: AmmoFeed = AmmoFeed.new()
 @onready var player: PlayerController = $Player
 # END DEV/DEBUG
 
+#func _ready():
+    #magazine_ak47.compatible_calibers = [ "7.62x39mm" ]
+    #magazine_ak47.type = AmmoFeed.Type.EXTERNAL
+    ## Fill debug magazine
+    #for i in range(magazine_ak47.max_capacity):
+        #magazine_ak47.insert(ammo_762x39mm)
+    #
+    #weapon_ak47.change_magazine(magazine_ak47)
+    #var item = InventorySystem.create_inventory_item(weapon_ak47)
+    #player.player_body.equip(item, "primary")
+
 func _ready():
-    magazine_ak47.compatible_calibers = [ "7.62x39mm" ]
-    magazine_ak47.type = AmmoFeed.Type.EXTERNAL
-    # Fill debug magazine
-    for i in range(magazine_ak47.max_capacity):
-        magazine_ak47.insert(ammo_762x39mm)
+    # Equip to player body
+    var weapon_item = InventorySystem.create_inventory_item(weapon)
+    $Player.player_body.equip(weapon_item, "primary")
     
-    weapon_ak47.change_magazine(magazine_ak47)
-    var item = InventorySystem.create_inventory_item(weapon_ak47)
-    player.player_body.equip(item, "primary")
+    var backpack = Backpack.new()
+    var backpack_item = InventorySystem.create_inventory_item(backpack)
+    $Player.player_body.equip(backpack_item, "back")
+    
+    # Create world item
+    var world_item = %WorldItem
+    var item = InventorySystem.create_inventory_item(ammo, 5)
+    world_item.inventory_item = item
+    world_item._ready()
+    
+    var signals = $Player.get_signal_list()
+    for sig in signals:
+        $Player.connect(sig.name, Callable(self, "_on_" + sig.name))
 
 func _on_player_inserted_ammofeed(player: PlayerController):
     if player.weapon:
-        player.weapon.change_magazine(magazine_ak47)
-    
+        player.weapon.change_magazine(mag)
+
 func _on_trigger_locked():
     $HUD.show_popup("[can't pull the trigger]")
 

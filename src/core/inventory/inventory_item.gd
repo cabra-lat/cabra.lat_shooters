@@ -5,9 +5,6 @@ extends Item
 # What this item represents (Ammo, Weapon, Armor, etc.)
 @export var content: Item
 
-# Visual
-@export var preview: Texture2D
-
 # Stacking
 @export var max_stack: int = 1  # 1 = not stackable, >1 = stackable
 @export var stack_count: int = 1:
@@ -46,7 +43,6 @@ func merge(other: InventoryItem) -> bool:
 func duplicate(deep: bool = false) -> InventoryItem:
   var copy = InventoryItem.new()
   copy.content = content.duplicate() if (deep and content) else content
-  copy.preview = preview
   copy.max_stack = max_stack
   copy.stack_count = stack_count
   copy.dimensions = dimensions

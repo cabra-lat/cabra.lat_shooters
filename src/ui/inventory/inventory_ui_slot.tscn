@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://bxg7q8ah6k4r3" path="res://addons/cabra.lat_shooters/src/ui/inventory/inventory_ui_slot.gd" id="1_dg2rb"]
 
 [node name="InventoryUiSlot" type="Panel"]
+custom_minimum_size = Vector2(50, 50)
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

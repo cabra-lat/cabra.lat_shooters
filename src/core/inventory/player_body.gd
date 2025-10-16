@@ -10,7 +10,7 @@ var slots: Dictionary = {
   "legs": EquipmentSlot.new(),
   "primary": EquipmentSlot.new(),
   "secondary": EquipmentSlot.new(),
-  "utility": EquipmentSlot.new()
+  "back": EquipmentSlot.new()
 }
 
 func _init():
@@ -21,11 +21,12 @@ func _init():
   slots["legs"].slot_type = EquipmentSlot.SlotType.LEGS
   slots["primary"].slot_type = EquipmentSlot.SlotType.PRIMARY_WEAPON
   slots["secondary"].slot_type = EquipmentSlot.SlotType.SECONDARY_WEAPON
-  slots["utility"].slot_type = EquipmentSlot.SlotType.UTILITY
+  slots["back"].slot_type = EquipmentSlot.SlotType.BACK
 
   # Weapon slots: only 1 item
   slots["primary"].max_items = 1
   slots["secondary"].max_items = 1
+  slots["back"].max_items = 1
 
   # Clothing/armor slots: allow layering (optional)
   slots["torso"].max_items = 3  # base layer + clothing + armor

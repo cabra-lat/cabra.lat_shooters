@@ -1,12 +1,12 @@
 # ui/inventory/container_ui.gd
 class_name ContainerUI
-extends Control
+extends Container
 
 signal item_drag_started(item: InventoryItem, source: InventoryContainer)
 signal slot_clicked(container: InventoryContainer, position: Vector2i)
 signal container_closed()
 
-@onready var title_label: Label = %TitleLabel
+@onready var foldable_panel: FoldableContainer = %Panel
 @onready var grid_container: GridContainer = %GridContainer
 @onready var close_button: Button = %CloseButton
 
@@ -17,7 +17,7 @@ func _ready():
 
 func open_container(container: InventoryContainer):
     current_container = container
-    title_label.text = container.name
+    foldable_panel.title = container.name
     _setup_grid()
     _update_ui()
     show()
@@ -53,7 +53,7 @@ func _update_ui():
             slot.item_icon = item.content.icon if item.content.icon else \
                 preload("../../../assets/ui/inventory/placeholder.png")
 
-func _on_slot_gui_input(slot: InventoryUISlot, position: Vector2i, event: InputEvent):
+func _on_slot_gui_input(event: InputEvent, slot: InventoryUISlot, position: Vector2i):
     if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
         if current_container:
             slot_clicked.emit(current_container, position)

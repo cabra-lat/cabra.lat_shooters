@@ -1,8 +1,7 @@
-[gd_scene load_steps=32 format=3 uid="uid://ly33hk8t667t"]
+[gd_scene load_steps=31 format=3 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
 [ext_resource type="Script" uid="uid://c18se5foxdv01" path="res://addons/cabra.lat_shooters/src/weapons/weapon_node.gd" id="2_hwib0"]
-[ext_resource type="Resource" uid="uid://dv2woy0isa6w5" path="res://addons/cabra.lat_shooters/src/resources/weapons/AK_47.tres" id="3_a20rg"]
 [ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="3_gsogp"]
 [ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="4_a20rg"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="5_4275n"]
@@ -127,7 +126,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.11685789, -0.28274703)
 [node name="WeaponNode" type="Node3D" parent="Head/Shoulder/Hand"]
 unique_name_in_owner = true
 script = ExtResource("2_hwib0")
-data = ExtResource("3_a20rg")
 metadata/_edit_group_ = true
 
 [node name="StateMachine" type="AnimationPlayer" parent="."]

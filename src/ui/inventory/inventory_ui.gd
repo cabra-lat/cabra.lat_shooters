@@ -1,6 +1,6 @@
 # ui/inventory/inventory_ui.gd
 class_name InventoryUI
-extends Window
+extends PanelContainer
 
 @onready var equipment_panel: FoldableContainer = %EquipmentPanel
 @onready var helmet_slot: InventoryUISlot = %HelmetSlot
@@ -8,8 +8,7 @@ extends Window
 @onready var primary_weapon_slot: InventoryUISlot = %PrimaryWeaponSlot
 @onready var secondary_weapon_slot: InventoryUISlot = %SecondaryWeaponSlot
 
-@onready var containers_scroll: ScrollContainer = %ContainersScroll
-@onready var containers_vbox: VBoxContainer = %ContainersVBox  # child of ScrollContainer
+@onready var containers_vbox: VBoxContainer = %VBoxContainer  # child of ScrollContainer
 @onready var close_button: Button = %CloseButton
 
 var player_controller: PlayerController
@@ -17,7 +16,7 @@ var open_containers: Array[ContainerUI] = []
 
 func _ready():
     _setup_equipment_slots()
-    #close_button.pressed.connect(_on_close_button_pressed)
+    close_button.pressed.connect(_on_close_button_pressed)
 
 func _setup_equipment_slots():
     helmet_slot.gui_input.connect(_on_equipment_slot_input.bind(helmet_slot, "head"))
@@ -28,8 +27,11 @@ func _setup_equipment_slots():
 func open_inventory(player: PlayerController, container: InventoryContainer = null):
     player_controller = player
     _update_equipment()
-    if container:
-        _open_container(container)
+    var equipped = player.player_body.get_equipped("back")
+    var first_equipped = equipped[0] if len(equipped) > 0 else null
+    var backpack = first_equipped.content as Backpack if first_equipped else null
+    if backpack: _open_container(backpack)
+    if container: _open_container(container)
     show()
 
 func _open_container(container: InventoryContainer):
@@ -59,13 +61,14 @@ func _update_equipment_slot(slot: InventoryUISlot, slot_name: String):
     if not equipped.is_empty():
         slot.item_icon = equipped[0].content.icon if equipped[0].content.icon else \
             preload("../../../assets/ui/inventory/placeholder.png")
-
+    else:
+        slot.slot_name = slot_name
 # ─── DRAG & DROP ───────────────────────────────────
 func _on_item_drag_started(item: InventoryItem, source: InventoryContainer):
     # Handle drag start (e.g., highlight)
     pass
 
-func _on_equipment_slot_input(slot: InventoryUISlot, slot_name: String, event: InputEvent):
+func _on_equipment_slot_input(event: InputEvent, slot: InventoryUISlot, slot_name: String):
     if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
         # Handle equip drop
         pass
