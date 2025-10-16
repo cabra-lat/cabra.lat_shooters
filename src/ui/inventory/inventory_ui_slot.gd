@@ -1,21 +1,35 @@
-# ui/inventory/inventory_ui_slot.gd
+# src/ui/inventory/inventory_ui_slot.gd
 class_name InventoryUISlot
 extends Panel
 
-@onready var icon: TextureRect = %Icon
-@onready var label: Label = %Label
+signal drag_started(item: InventoryItem, source: InventoryContainer)
+signal dropped_here(item: InventoryItem, source: InventoryContainer)
 
-# Public properties
+@onready var icon: TextureRect = %Icon
+
+var associated_item: InventoryItem = null
+var source_container: InventoryContainer = null
+
 @export var item_icon: Texture2D:
     set(value):
         item_icon = value
         if icon: icon.texture = value
-@export var slot_name: String:
-    set(value):
-        slot_name = value
-        if label: label.text = value
-        name = value
+
+func _get_drag_data(at_position: Vector2) -> Variant:
+    if not associated_item:
+        return null
+    var preview = TextureRect.new()
+    preview.texture = icon.texture
+    preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    preview.expand_mode = TextureRect.EXPAND_FIT_HEIGHT
+    preview.custom_minimum_size = size
+    set_drag_preview(preview)
+    drag_started.emit(associated_item, source_container)
+    return {"item": associated_item, "source": source_container}
+
+func _drop_data(at_position: Vector2,  data: Variant) -> void:
+    if data is Dictionary and data.has("item"):
+        dropped_here.emit(data["item"], data["source"])
 
 func clear():
-    if icon: icon.texture = null
-    if label: label.text = ""
+    associated_item = null

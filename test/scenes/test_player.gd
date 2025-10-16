@@ -27,6 +27,7 @@ func _ready():
     $Player.player_body.equip(weapon_item, "primary")
     
     var backpack = Backpack.new()
+    backpack.icon = preload("../../assets/ui/inventory/backpack.png")
     var backpack_item = InventorySystem.create_inventory_item(backpack)
     $Player.player_body.equip(backpack_item, "back")
     

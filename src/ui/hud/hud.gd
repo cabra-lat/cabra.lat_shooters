@@ -25,7 +25,6 @@ func _on_show_ammo_left(remaining: int, capacity: int):
     if remaining == 0 and capacity == 0:
         show_popup(tr("dettached"), duration)
         return
-        
     var ratio = float(remaining) / float(capacity)
     if abs(ratio - 1.0) < 0.1:
         show_popup(tr("full"), duration)

@@ -1,6 +1,6 @@
 # res://src/core/inventory/player_body.gd
 class_name PlayerBody
-extends Resource
+extends InventoryContainer
 
 # Body zones with slot types
 var slots: Dictionary = {
@@ -40,7 +40,7 @@ func equip(item: InventoryItem, slot_name: String) -> bool:
 func unequip(item: InventoryItem, slot_name: String) -> bool:
   if not slots.has(slot_name):
     return false
-  return slots[slot_name].remove_item(item)
+  return slots[slot_name].remove_item(item)  # Must return true if removed
 
 func get_equipped(slot_name: String) -> Array[InventoryItem]:
   if slots.has(slot_name):

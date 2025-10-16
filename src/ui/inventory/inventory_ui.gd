@@ -1,91 +1,72 @@
-# ui/inventory/inventory_ui.gd
+# src/ui/inventory/inventory_ui.gd
 class_name InventoryUI
 extends PanelContainer
 
-@onready var equipment_panel: FoldableContainer = %EquipmentPanel
-@onready var helmet_slot: InventoryUISlot = %HelmetSlot
-@onready var vest_slot: InventoryUISlot = %VestSlot
-@onready var primary_weapon_slot: InventoryUISlot = %PrimaryWeaponSlot
-@onready var secondary_weapon_slot: InventoryUISlot = %SecondaryWeaponSlot
-
-@onready var containers_vbox: VBoxContainer = %VBoxContainer  # child of ScrollContainer
-@onready var close_button: Button = %CloseButton
+@onready var equipment_slots: Array[InventoryUISlot] = [
+    %Equipment/helmet, %Equipment/vest, %Equipment/back, %Equipment/primary, %Equipment/secondary
+]
+@onready var containers_vbox: VBoxContainer = %VBoxContainer
 
 var player_controller: PlayerController
 var open_containers: Array[ContainerUI] = []
 
-func _ready():
-    _setup_equipment_slots()
-    close_button.pressed.connect(_on_close_button_pressed)
-
-func _setup_equipment_slots():
-    helmet_slot.gui_input.connect(_on_equipment_slot_input.bind(helmet_slot, "head"))
-    vest_slot.gui_input.connect(_on_equipment_slot_input.bind(vest_slot, "torso"))
-    primary_weapon_slot.gui_input.connect(_on_equipment_slot_input.bind(primary_weapon_slot, "primary"))
-    secondary_weapon_slot.gui_input.connect(_on_equipment_slot_input.bind(secondary_weapon_slot, "secondary"))
-
 func open_inventory(player: PlayerController, container: InventoryContainer = null):
     player_controller = player
     _update_equipment()
-    var equipped = player.player_body.get_equipped("back")
-    var first_equipped = equipped[0] if len(equipped) > 0 else null
-    var backpack = first_equipped.content as Backpack if first_equipped else null
-    if backpack: _open_container(backpack)
-    if container: _open_container(container)
+    var backpack = _get_backpack()
+    if backpack: _open_container_once(backpack)
+    if container: _open_container_once(container)
     show()
 
-func _open_container(container: InventoryContainer):
-    # Close existing if same
+func _update_equipment():
+    for slot in equipment_slots:
+        _update_slot(slot)
+
+func _update_slot(slot: InventoryUISlot):
+    var equipped = player_controller.player_body.get_equipped(slot.name)
+    slot.associated_item = equipped[0] if not equipped.is_empty() else null
+    slot.source_container = player_controller.player_body
+    slot.item_icon = equipped[0].content.icon if not equipped.is_empty() else null
+
+func _get_backpack() -> Backpack:
+    var equipped = player_controller.player_body.get_equipped("back")
+    return equipped[0].content as Backpack if not equipped.is_empty() else null
+
+func _open_container_once(container: InventoryContainer):
     for ui in open_containers:
         if ui.current_container == container:
-            return  # already open
-
-    # Create new ContainerUI
+            return
     var container_ui = preload("container_ui.tscn").instantiate()
-    container_ui.item_drag_started.connect(_on_item_drag_started)
-    container_ui.slot_clicked.connect(_on_container_slot_clicked)
-    container_ui.container_closed.connect(_on_container_closed.bind(container_ui))
     containers_vbox.add_child(container_ui)
     open_containers.append(container_ui)
     container_ui.open_container(container)
 
-func _update_equipment():
-    _update_equipment_slot(helmet_slot, "head")
-    _update_equipment_slot(vest_slot, "torso")
-    _update_equipment_slot(primary_weapon_slot, "primary")
-    _update_equipment_slot(secondary_weapon_slot, "secondary")
+# ─── DROP HANDLER ──────────────────────────────────
 
-func _update_equipment_slot(slot: InventoryUISlot, slot_name: String):
-    slot.clear()
-    var equipped = player_controller.player_body.get_equipped(slot_name)
-    if not equipped.is_empty():
-        slot.item_icon = equipped[0].content.icon if equipped[0].content.icon else \
-            preload("../../../assets/ui/inventory/placeholder.png")
+func _on_item_dropped(data: Dictionary, target_slot: InventoryUISlot, target_container: InventoryContainer):
+    var parent = target_slot.get_parent()
+    var success = false
+
+    # Equipment slot
+    if parent == %EquipmentPanel.find_child("PanelContainer"):
+        var slot_name = target_slot.name
+        if slot_name == "back" and data["item"].content is Backpack:
+            success = InventorySystem.transfer_item(data["source"], player_controller.player_body, data["item"])
+            if success:
+                var backpack = _get_backpack()
+                if backpack: _open_container_once(backpack)
+        elif slot_name == "back":
+            var backpack = _get_backpack()
+            if backpack:
+                success = InventorySystem.transfer_item(data["source"], backpack, data["item"])
+        else:
+            success = InventorySystem.transfer_item(data["source"], player_controller.player_body, data["item"])
+
+    # Grid container
     else:
-        slot.slot_name = slot_name
-# ─── DRAG & DROP ───────────────────────────────────
-func _on_item_drag_started(item: InventoryItem, source: InventoryContainer):
-    # Handle drag start (e.g., highlight)
-    pass
+        success = InventorySystem.transfer_item(data["source"], target_container, data["item"])
 
-func _on_equipment_slot_input(event: InputEvent, slot: InventoryUISlot, slot_name: String):
-    if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-        # Handle equip drop
-        pass
-
-func _on_container_slot_clicked(container: InventoryContainer, position: Vector2i):
-    # Handle container drop
-    pass
-
-func _on_container_closed(container_ui: ContainerUI):
-    if container_ui in open_containers:
-        open_containers.erase(container_ui)
-        containers_vbox.remove_child(container_ui)
-        container_ui.queue_free()
-
-func _on_close_button_pressed():
-    hide()
-    # Close all container UIs
-    for ui in open_containers:
-        ui.queue_free()
-    open_containers.clear()
+    if success:
+        _update_equipment()
+        for ui in open_containers:
+            ui._update_ui()
