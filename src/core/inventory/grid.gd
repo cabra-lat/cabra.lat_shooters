@@ -7,7 +7,7 @@ extends Resource
 
 var items: Array[InventoryItem] = []
 var _occupancy_grid: Array[Array] = [] # -1 = free, item_index = occupied
-var _temp_ignored_item: InventoryItem = null  # NEW: Item being dragged
+var _temp_ignored_item: InventoryItem = null
 
 func _init():
     _reset_grid()
@@ -21,13 +21,19 @@ func _reset_grid():
             row[x] = -1
         _occupancy_grid.append(row)
 
-# NEW: Set item to temporarily ignore during drag
-func set_temp_ignored_item(item: InventoryItem):
-    _temp_ignored_item = item
-
-# NEW: Clear temporary ignored item
-func clear_temp_ignored_item():
-    _temp_ignored_item = null
+# NEW: Check if a position is occupied by the ignored item
+func _is_position_ignored(position: Vector2i) -> bool:
+    if not _temp_ignored_item:
+        return false
+    
+    # Check if this position falls within the ignored item's area
+    var item_pos = _temp_ignored_item.position
+    var item_size = _temp_ignored_item.dimensions
+    
+    return (position.x >= item_pos.x and 
+            position.y >= item_pos.y and 
+            position.x < item_pos.x + item_size.x and 
+            position.y < item_pos.y + item_size.y)
 
 func is_area_free(position: Vector2i, size: Vector2i) -> bool:
     # Check bounds more carefully
@@ -54,7 +60,7 @@ func is_area_free(position: Vector2i, size: Vector2i) -> bool:
                 
             var cell_value = _occupancy_grid[check_y][check_x]
             
-            # MODIFIED: Ignore cells occupied by the temporary ignored item
+            # MODIFIED: Also ignore cells that are part of the ignored item's area
             if cell_value != -1:
                 # Check if this cell is occupied by the ignored item
                 var item_index = cell_value
@@ -67,9 +73,23 @@ func is_area_free(position: Vector2i, size: Vector2i) -> bool:
                         # This is a different item, so the cell is occupied
                         print("DEBUG: Cell occupied at: ", Vector2i(check_x, check_y), " by different item")
                         return false
+                else:
+                    print("DEBUG: Invalid item index: ", item_index)
+            # NEW: Also check if this position is part of the ignored item's original area
+            elif _is_position_ignored(Vector2i(check_x, check_y)):
+                # This position is currently occupied by the ignored item, treat as free
+                continue
+                
     return true
 
-# Rest of the functions remain the same...
+# Rest of your existing functions remain the same...
+func set_temp_ignored_item(item: InventoryItem):
+    _temp_ignored_item = item
+    print("DEBUG: Temporarily ignoring item at position: ", item.position if item else "null")
+
+func clear_temp_ignored_item():
+    _temp_ignored_item = null
+
 func occupy_area(position: Vector2i, size: Vector2i, item_index: int):
     print("DEBUG: Occupying area at ", position, " size ", size, " for item ", item_index)
     for y in range(size.y):

@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="Ammo" load_steps=2 format=3 uid="uid://hb6qrsnotiah"]
+[gd_resource type="Resource" script_class="Ammo" load_steps=3 format=3 uid="uid://hb6qrsnotiah"]
 
 [ext_resource type="Script" uid="uid://dl2e4okyiotb2" path="res://addons/cabra.lat_shooters/src/core/ammo/ammo.gd" id="1_up7cb"]
+[ext_resource type="Texture2D" uid="uid://binx4ahv4oaog" path="res://addons/cabra.lat_shooters/assets/ui/inventory/icon_ammo.png" id="1_wxkd3"]
 
 [resource]
 script = ExtResource("1_up7cb")
@@ -16,3 +17,4 @@ sectional_density = 173.232
 armor_modifier = 1.2
 ricochet_angle = 28.0
 name = "762x39_PS_GOST_BR4"
+icon = ExtResource("1_wxkd3")

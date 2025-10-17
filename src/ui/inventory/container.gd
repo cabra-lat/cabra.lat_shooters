@@ -1,4 +1,3 @@
-# container.gd - FIXED
 class_name ContainerUI
 extends PanelContainer
 
@@ -17,8 +16,21 @@ var slot_displays: Array[InventorySlotUI] = []
 var debug_label: Label
 var error_label: Label
 
+# NEW: Drop preview
+var drop_preview: ColorRect
+var dragged_item: InventoryItem = null
+
 func _ready():
     close_button.pressed.connect(_on_close_button_pressed)
+    _create_drop_preview()
+
+func _create_drop_preview():
+    # Create drop preview overlay
+    drop_preview = ColorRect.new()
+    drop_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    drop_preview.visible = false
+    drop_preview.z_index = 10  # Make sure it's on top
+    items_container.add_child(drop_preview)
 
 func open_container(container: InventoryContainer):
     current_container = container
@@ -34,13 +46,14 @@ func _setup_grid():
         child.queue_free()
     
     for child in items_container.get_children():
-        items_container.remove_child(child)
-        child.queue_free()
+        if child != drop_preview:  # Don't remove drop preview
+            items_container.remove_child(child)
+            child.queue_free()
     
     item_displays.clear()
     slot_displays.clear()
     
-    # Set container size - FIXED: Use size instead of custom_minimum_size
+    # Set container size
     var grid_size = Vector2(
         current_container.grid_width * slot_size,
         current_container.grid_height * slot_size
@@ -52,7 +65,7 @@ func _setup_grid():
     print("Setting up container grid: %dx%d, slot_size: %d" % [current_container.grid_width, current_container.grid_height, slot_size])
     print("Grid background size: %s" % grid_size)
     
-    # Create grid slots - REMOVED visual debugging styles
+    # Create grid slots
     for y in range(current_container.grid_height):
         for x in range(current_container.grid_width):
             var slot: InventorySlotUI = preload("res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn").instantiate()
@@ -64,6 +77,10 @@ func _setup_grid():
             # Set container reference directly
             slot.set_container_ui(self)
             
+            # NEW: Connect drag signals
+            slot.drag_started.connect(_on_drag_started)
+            slot.drag_ended.connect(_on_drag_ended)
+            
             slot.mouse_entered.connect(_on_slot_mouse_entered.bind(slot))
             slot.mouse_exited.connect(_on_slot_mouse_exited.bind(slot))
             slot.slot_dropped.connect(_on_slot_dropped)
@@ -71,6 +88,32 @@ func _setup_grid():
             slot_displays.append(slot)
     
     print("Total slots created: %d" % slot_displays.size())
+
+# NEW: Handle drag start - dim the original item
+func _on_drag_started(item: InventoryItem):
+    dragged_item = item
+    for display in item_displays:
+        if display.inventory_item == item:
+            display.modulate = Color(1, 1, 1, 0.3)  # Dim the original
+            break
+
+# NEW: Handle drag end - restore all items
+func _on_drag_ended():
+    dragged_item = null
+    for display in item_displays:
+        display.modulate = Color(1, 1, 1, 1)  # Restore opacity
+    hide_drop_preview()
+
+# NEW: Show drop preview spanning multiple slots
+func show_drop_preview(position: Vector2i, dimensions: Vector2i, color: Color):
+    drop_preview.position = Vector2(position.x * slot_size, position.y * slot_size)
+    drop_preview.size = Vector2(dimensions.x * slot_size, dimensions.y * slot_size)
+    drop_preview.color = color
+    drop_preview.visible = true
+
+# NEW: Hide drop preview
+func hide_drop_preview():
+    drop_preview.visible = false
 
 func _update_ui():
     if not current_container:
@@ -84,9 +127,9 @@ func _deferred_update_ui():
         slot.clear()
         slot.set_occupied(false)
     
-    # Remove old item displays
+    # Remove old item displays (but keep drop preview)
     for display in item_displays:
-        if is_instance_valid(display):
+        if is_instance_valid(display) and display != drop_preview:
             items_container.remove_child(display)
             display.queue_free()
     item_displays.clear()
