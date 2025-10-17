@@ -111,7 +111,7 @@ script = null
 
 [node name="WorldItem" parent="." instance=ExtResource("6_cnysa")]
 unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5041785, 1.4136353, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5041785, 1.9745305, 0)
 
 [connection signal="debug" from="Player" to="." method="_on_player_debug"]
 [connection signal="equipped" from="Player" to="." method="_on_player_equipped"]

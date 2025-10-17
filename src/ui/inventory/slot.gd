@@ -3,8 +3,8 @@ class_name InventorySlotUI
 extends Panel
 
 signal slot_dropped(data: Dictionary, target_slot: InventorySlotUI)
-signal drag_started(item: InventoryItem)  # NEW: Signal for drag start
-signal drag_ended()  # NEW: Signal for drag end
+signal drag_started(item: InventoryItem)
+signal drag_ended()
 
 @onready var icon: TextureRect = $Icon
 @onready var label: Label = $Label
@@ -26,6 +26,37 @@ func _ready():
     size_flags_vertical = Control.SIZE_FILL
     mouse_filter = Control.MOUSE_FILTER_STOP
     is_equipment_slot = (grid_position == Vector2i(-1, -1))
+    
+    # NEW: Configure icon for equipment slots
+    if is_equipment_slot:
+        icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+        icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+        icon.custom_minimum_size = size
+        icon.size = size
+
+func clear():
+    if icon: 
+        icon.texture = null
+        call_deferred("_reset_icon_size")
+    if label: 
+        label.text = ""
+    associated_item = null
+    source_container = null
+    is_main_slot = false
+    is_occupied = false
+    item_dimensions = Vector2i.ONE
+    modulate = Color(1, 1, 1, 1)
+    
+func _reset_icon_size():
+    if icon:
+        icon.custom_minimum_size = Vector2(50, 50)
+
+func set_occupied(occupied: bool):
+    is_occupied = occupied
+    if occupied:
+        self_modulate = Color(0.7, 0.7, 0.7, 0.3)
+    else:
+        self_modulate = Color(1, 1, 1, 1)
 
 func _get_drag_data(at_position: Vector2) -> Variant:
     print("Slot _get_drag_data called at position: ", grid_position)
@@ -39,10 +70,10 @@ func _get_drag_data(at_position: Vector2) -> Variant:
         dragged_item = associated_item
         source = source_container
         
-        # NEW: Dim the equipment slot icon
-        icon.modulate = Color(1, 1, 1, 0.3)
+        # NEW: Hide the equipment slot icon during drag
+        icon.visible = false
         
-        # NEW: Tell the source container's grid to ignore this item
+        # Tell the source container's grid to ignore this item
         if source is InventoryContainer:
             source.grid.set_temp_ignored_item(associated_item)
     
@@ -54,10 +85,10 @@ func _get_drag_data(at_position: Vector2) -> Variant:
             dragged_item = item_at_slot
             source = container_ui.current_container
             
-            # NEW: Tell the container's grid to ignore this item
+            # Tell the container's grid to ignore this item
             container_ui.current_container.grid.set_temp_ignored_item(item_at_slot)
             
-            # NEW: Emit signal to dim the original item
+            # Emit signal to hide the original item
             drag_started.emit(item_at_slot)
     
     if dragged_item:
@@ -71,16 +102,16 @@ func _get_drag_data(at_position: Vector2) -> Variant:
     
     return null
 
-# NEW: Enhanced drag end handling
+# Enhanced drag end handling
 func _notification(what):
     if what == NOTIFICATION_DRAG_END:
         print("Drag ended, cleaning up...")
         
-        # NEW: Restore equipment slot appearance
-        if associated_item and source_container:
-            icon.modulate = Color(1, 1, 1, 1)
+        # NEW: Restore equipment slot icon visibility
+        if is_equipment_slot:
+            icon.visible = true
         
-        # NEW: Emit signal to restore original items
+        # Emit signal to restore original items
         drag_ended.emit()
         
         # Clear temporary ignored items from all relevant containers
@@ -109,7 +140,7 @@ func _create_drag_preview(item: InventoryItem) -> Control:
     var control = Control.new()
     control.add_child(preview)
     control.size = preview_size
-    preview.position = -0.5 * preview_size
+    preview.position = -0.25 * preview_size
     
     return control
 
@@ -137,14 +168,13 @@ func _can_drop_data(at_position: Vector2, data: Variant) -> bool:
             print("Drop rejected: No container reference for slot %s" % grid_position)
             return false
         
-        # NEW: Also tell the target container to temporarily ignore the dragged item
-        # This allows dropping on positions that overlap with the item's original position
+        # Also tell the target container to temporarily ignore the dragged item
         container_ui.current_container.grid.set_temp_ignored_item(item)
         
         var can_place = container_ui.current_container.grid.can_add_item(item, grid_position)
         print("Container drop check at %s: %s (item: %s, dimensions: %s)" % [grid_position, "CAN PLACE" if can_place else "CANNOT PLACE", item.content.name if item.content else "Unknown", item.dimensions])
         
-        # NEW: Show visual feedback for the drop area
+        # Show visual feedback for the drop area
         _show_drop_preview(item.dimensions, can_place)
         
         return can_place
@@ -153,10 +183,10 @@ func _drop_data(at_position: Vector2, data: Variant) -> void:
     if data is Dictionary and data.has("item"):
         print("Drop accepted at slot %s (equipment: %s)" % [grid_position, is_equipment_slot])
         
-        # NEW: Hide drop preview
+        # Hide drop preview
         _hide_drop_preview()
         
-        # NEW: Clear temporary ignores
+        # Clear temporary ignores
         if container_ui and container_ui.current_container:
             container_ui.current_container.grid.clear_temp_ignored_item()
         if data["source"] is InventoryContainer:
@@ -164,7 +194,7 @@ func _drop_data(at_position: Vector2, data: Variant) -> void:
         
         slot_dropped.emit(data, self)
 
-# NEW: Visual feedback for drop area
+# Visual feedback for drop area
 func _show_drop_preview(dimensions: Vector2i, valid: bool):
     if not container_ui:
         return
@@ -180,24 +210,6 @@ func _hide_drop_preview():
     if container_ui and container_ui.has_method("hide_drop_preview"):
         container_ui.hide_drop_preview()
 
-func clear():
-    if icon: 
-        icon.texture = null
-        call_deferred("_reset_icon_size")
-    if label: 
-        label.text = ""
-    associated_item = null
-    source_container = null
-    is_main_slot = false
-    is_occupied = false
-    item_dimensions = Vector2i.ONE
-    modulate = Color(1, 1, 1, 1)
-
-func _reset_icon_size():
-    if icon:
-        icon.custom_minimum_size = Vector2(50, 50)
-        icon.size = Vector2(50, 50)
-
 # Set container reference directly (for container slots only)
 func set_container_ui(container: ContainerUI):
     if not is_equipment_slot:  # Only set for container slots
@@ -206,10 +218,3 @@ func set_container_ui(container: ContainerUI):
 
 func get_parent_container() -> ContainerUI:
     return container_ui
-
-func set_occupied(occupied: bool):
-    is_occupied = occupied
-    if occupied:
-        self_modulate = Color(0.7, 0.7, 0.7, 0.3)
-    else:
-        self_modulate = Color(1, 1, 1, 1)

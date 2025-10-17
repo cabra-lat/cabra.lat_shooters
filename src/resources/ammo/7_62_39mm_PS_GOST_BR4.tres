@@ -1,12 +1,14 @@
-[gd_resource type="Resource" script_class="Ammo" load_steps=3 format=3 uid="uid://hb6qrsnotiah"]
+[gd_resource type="Resource" script_class="Ammo" load_steps=4 format=3 uid="uid://hb6qrsnotiah"]
 
 [ext_resource type="Script" uid="uid://dl2e4okyiotb2" path="res://addons/cabra.lat_shooters/src/core/ammo/ammo.gd" id="1_up7cb"]
 [ext_resource type="Texture2D" uid="uid://binx4ahv4oaog" path="res://addons/cabra.lat_shooters/assets/ui/inventory/icon_ammo.png" id="1_wxkd3"]
+[ext_resource type="PackedScene" uid="uid://c6cf7l24o2dqe" path="res://addons/cabra.lat_shooters/test/scenes/cartridges_test.tscn" id="3_parm7"]
 
 [resource]
 script = ExtResource("1_up7cb")
-caliber = ""
+caliber = "7.62x39mm"
 description = "7.62x39mm PS (GOST BR4)"
+view_model = ExtResource("3_parm7")
 type = 5
 bullet_mass = 7.9
 cartridge_mass = 13.43

@@ -16,9 +16,10 @@ var slot_displays: Array[InventorySlotUI] = []
 var debug_label: Label
 var error_label: Label
 
-# NEW: Drop preview
+# Drop preview
 var drop_preview: ColorRect
 var dragged_item: InventoryItem = null
+var current_hovered_slot: InventorySlotUI = null  # NEW: Track hovered slot
 
 func _ready():
     close_button.pressed.connect(_on_close_button_pressed)
@@ -29,8 +30,8 @@ func _create_drop_preview():
     drop_preview = ColorRect.new()
     drop_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
     drop_preview.visible = false
-    drop_preview.z_index = 10  # Make sure it's on top
-    items_container.add_child(drop_preview)
+    drop_preview.z_index = -1  # NEW: Put it behind items (items are z_index=1)
+    grid_background.add_child(drop_preview)  # NEW: Add to grid background, not items container
 
 func open_container(container: InventoryContainer):
     current_container = container
@@ -42,13 +43,13 @@ func open_container(container: InventoryContainer):
 func _setup_grid():
     # Clear existing slots and items
     for child in grid_background.get_children():
-        grid_background.remove_child(child)
-        child.queue_free()
+        if child != drop_preview:  # NEW: Don't remove drop preview
+            grid_background.remove_child(child)
+            child.queue_free()
     
     for child in items_container.get_children():
-        if child != drop_preview:  # Don't remove drop preview
-            items_container.remove_child(child)
-            child.queue_free()
+        items_container.remove_child(child)
+        child.queue_free()
     
     item_displays.clear()
     slot_displays.clear()
@@ -77,7 +78,7 @@ func _setup_grid():
             # Set container reference directly
             slot.set_container_ui(self)
             
-            # NEW: Connect drag signals
+            # Connect drag signals
             slot.drag_started.connect(_on_drag_started)
             slot.drag_ended.connect(_on_drag_ended)
             
@@ -89,29 +90,50 @@ func _setup_grid():
     
     print("Total slots created: %d" % slot_displays.size())
 
-# NEW: Handle drag start - dim the original item
+# NEW: Handle slot mouse enter during drag
+func _on_slot_mouse_entered(slot: InventorySlotUI):
+    current_hovered_slot = slot
+    # Visual feedback for drag operations
+    if slot.is_occupied:
+        slot.modulate = Color(1.0, 0.5, 0.5, 0.522)
+    else:
+        slot.modulate = Color(0.5, 1.0, 0.5, 0.553)
+
+# NEW: Handle slot mouse exit during drag
+func _on_slot_mouse_exited(slot: InventorySlotUI):
+    if current_hovered_slot == slot:
+        current_hovered_slot = null
+        # Hide drop preview when leaving slot
+        hide_drop_preview()
+    # Reset visual feedback
+    slot.modulate = Color(1, 1, 1, 1)
+
+# Handle drag start - hide the original item
 func _on_drag_started(item: InventoryItem):
     dragged_item = item
     for display in item_displays:
         if display.inventory_item == item:
-            display.modulate = Color(1, 1, 1, 0.3)  # Dim the original
+            display.visible = false  # NEW: Completely hide instead of dimming
             break
 
-# NEW: Handle drag end - restore all items
+# Handle drag end - restore all items
 func _on_drag_ended():
     dragged_item = null
     for display in item_displays:
-        display.modulate = Color(1, 1, 1, 1)  # Restore opacity
+        display.visible = true  # NEW: Make visible again
     hide_drop_preview()
+    current_hovered_slot = null
 
-# NEW: Show drop preview spanning multiple slots
+# Show drop preview spanning multiple slots
 func show_drop_preview(position: Vector2i, dimensions: Vector2i, color: Color):
-    drop_preview.position = Vector2(position.x * slot_size, position.y * slot_size)
-    drop_preview.size = Vector2(dimensions.x * slot_size, dimensions.y * slot_size)
-    drop_preview.color = color
-    drop_preview.visible = true
+    # Only show if we're actually hovering a slot in this container
+    if current_hovered_slot:
+        drop_preview.position = Vector2(position.x * slot_size, position.y * slot_size)
+        drop_preview.size = Vector2(dimensions.x * slot_size, dimensions.y * slot_size)
+        drop_preview.color = color
+        drop_preview.visible = true
 
-# NEW: Hide drop preview
+# Hide drop preview
 func hide_drop_preview():
     drop_preview.visible = false
 
@@ -127,9 +149,9 @@ func _deferred_update_ui():
         slot.clear()
         slot.set_occupied(false)
     
-    # Remove old item displays (but keep drop preview)
+    # Remove old item displays
     for display in item_displays:
-        if is_instance_valid(display) and display != drop_preview:
+        if is_instance_valid(display):
             items_container.remove_child(display)
             display.queue_free()
     item_displays.clear()
@@ -143,7 +165,7 @@ func _create_item_display(item: InventoryItem):
     display.slot_size = slot_size
     display.setup(item, self)
     items_container.add_child(display)
-    display.z_index = 1
+    display.z_index = 1  # Items appear above grid/slots
     item_displays.append(display)
     
     # Position the item correctly
@@ -164,17 +186,6 @@ func _get_slot_at_position(position: Vector2i) -> InventorySlotUI:
         if slot.grid_position == position:
             return slot
     return null
-
-func _on_slot_mouse_entered(slot: InventorySlotUI):
-    # Visual feedback for drag operations
-    if slot.is_occupied:
-        slot.modulate = Color(1, 0.5, 0.5, 1)
-    else:
-        slot.modulate = Color(0.5, 1, 0.5, 1)
-
-func _on_slot_mouse_exited(slot: InventorySlotUI):
-    # Reset visual feedback
-    slot.modulate = Color(1, 1, 1, 1)
 
 func _on_slot_dropped(data: Dictionary, target_slot: InventorySlotUI):
     print("ContainerUI: Slot dropped: %s -> %s" % [data["item"].content.name if data["item"].content else "Unknown", target_slot.grid_position])
