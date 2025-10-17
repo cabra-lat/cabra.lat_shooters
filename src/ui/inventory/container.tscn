@@ -14,10 +14,11 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 title = "Container"
 
-[node name="Items" type="GridContainer" parent="Panel"]
+[node name="GridBackground" type="Control" parent="Panel"]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
+
+[node name="ItemsContainer" type="Control" parent="Panel"]
+layout_mode = 2
 
 [node name="CloseButton" type="Button" parent="."]
 unique_name_in_owner = true

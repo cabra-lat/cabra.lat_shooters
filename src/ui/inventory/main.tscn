@@ -39,6 +39,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 2
 
+[node name="ContainerUI" parent="InventoryUi/HB/ScrollContainer/VB" instance_placeholder="res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"]
+layout_mode = 2
+
+[node name="ContainerUI2" parent="InventoryUi/HB/ScrollContainer/VB" instance_placeholder="res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"]
+layout_mode = 2
+
 [node name="EquipmentPanel" type="FoldableContainer" parent="InventoryUi/HB"]
 layout_mode = 2
 size_flags_horizontal = 3

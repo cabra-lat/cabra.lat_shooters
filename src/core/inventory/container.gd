@@ -1,6 +1,5 @@
-# src/core/inventory/container.gd (UPDATED)
-class_name InventoryContainer
-extends Item
+# src/core/inventory/container.gd
+class_name InventoryContainer extends Item
 
 @export var grid_width: int = 5
 @export var grid_height: int = 5
@@ -62,7 +61,6 @@ func get_used_space() -> int:
         return grid.get_used_area()
     return 0
 
-# ✅ Expose grid lookup
 func get_item_at(position: Vector2i) -> InventoryItem:
     if grid:
         return grid.get_item_at(position)

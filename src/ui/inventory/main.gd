@@ -20,15 +20,6 @@ var debug_label: Label
 func _ready():
     _setup_equipment_slots()
     close_button.pressed.connect(_on_close_button_pressed)
-    _create_debug_label()
-
-func _create_debug_label():
-    debug_label = Label.new()
-    debug_label.name = "DebugLabel"
-    debug_label.modulate = Color.YELLOW
-    debug_label.add_theme_font_size_override("font_size", 14)
-    debug_label.position = Vector2(0.1, 0.1)
-    add_child(debug_label)
 
 func _setup_equipment_slots():
     for slot in slots:
@@ -45,18 +36,6 @@ func open_inventory(player: PlayerController, container: InventoryContainer = nu
         _open_container_once(container)
     show()
     
-    # Update debug info
-    _update_debug_info()
-
-func _update_debug_info():
-    if debug_label and player_controller:
-        var debug_text = "Player Inventory Debug\n"
-        debug_text += "Open containers: %d\n" % open_containers.size()
-        for container_ui in open_containers:
-            if container_ui.current_container:
-                debug_text += "- %s: %d items\n" % [container_ui.current_container.name, container_ui.current_container.items.size()]
-        debug_label.text = debug_text
-
 func _open_container_once(container: InventoryContainer):
     for ui in open_containers:
         if ui.current_container == container:
@@ -67,7 +46,6 @@ func _open_container_once(container: InventoryContainer):
     containers_vbox.add_child(container_ui)
     open_containers.append(container_ui)
     container_ui.open_container(container)
-    _update_debug_info()
 
 func _update_equipment():
      for slot in slots:
@@ -83,14 +61,18 @@ func _update_equipment_slot(slot: InventorySlotUI, slot_name: String):
         slot.source_container = player_controller.player_body
         print("Equipment slot %s: %s" % [slot_name, equipped[0].content.name if equipped[0].content else "Unknown"])
 
+# main.gd - UPDATED _on_slot_dropped method
 func _on_slot_dropped(data: Dictionary, target_slot: InventorySlotUI):
     print("=== DROP EVENT START ===")
     print("Drop data: %s -> %s" % [data["item"].content.name if data["item"].content else "Unknown", target_slot.name])
     print("Source: %s" % data["source"])
+    print("Target slot type: %s" % ("EQUIPMENT" if target_slot.grid_position == Vector2i(-1, -1) else "CONTAINER"))
+    print("Target slot position: %s" % target_slot.grid_position)  # ADD THIS
     
     var parent = target_slot.get_parent()
     
-    if target_slot in slots:
+    # Handle equipment slots (grid_position == (-1, -1))
+    if target_slot.grid_position == Vector2i(-1, -1):
         print("Target is equipment slot: %s" % target_slot.name)
         _handle_equipment_drop(data, target_slot)
     else:
@@ -138,8 +120,10 @@ func _handle_equipment_drop(data: Dictionary, target_slot: InventorySlotUI):
         else:
             print("Failed to equip item")
 
+# main.gd - UPDATE _handle_container_drop function
 func _handle_container_drop(data: Dictionary, target_slot: InventorySlotUI):
-    var container_ui = target_slot.get_parent_container()
+    # FIXED: Use the direct container_ui reference instead of get_parent_container()
+    var container_ui = target_slot.container_ui
     if container_ui and container_ui.current_container:
         var pos = target_slot.grid_position
         if pos != Vector2i(-1, -1):
@@ -153,19 +137,17 @@ func _handle_container_drop(data: Dictionary, target_slot: InventorySlotUI):
         else:
             print("Invalid position")
     else:
-        print("No container found")
+        print("No container found for slot %s" % target_slot.grid_position)
 
 func _refresh_open_containers():
     for ui in open_containers:
         ui._update_ui()
-    _update_debug_info()
 
 func _on_container_closed(container_ui: ContainerUI):
     if container_ui in open_containers:
         open_containers.erase(container_ui)
         containers_vbox.remove_child(container_ui)
         container_ui.queue_free()
-    _update_debug_info()
 
 func _on_close_button_pressed():
     hide()

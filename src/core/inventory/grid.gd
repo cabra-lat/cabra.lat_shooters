@@ -1,4 +1,4 @@
-# src/core/inventory/inventory_grid.gd (FIXED)
+# src/core/inventory/grid.gd
 class_name InventoryGrid
 extends Resource
 
@@ -7,6 +7,7 @@ extends Resource
 
 var items: Array[InventoryItem] = []
 var _occupancy_grid: Array[Array] = [] # -1 = free, item_index = occupied
+var _temp_ignored_item: InventoryItem = null  # NEW: Item being dragged
 
 func _init():
     _reset_grid()
@@ -19,6 +20,14 @@ func _reset_grid():
         for x in range(width):
             row[x] = -1
         _occupancy_grid.append(row)
+
+# NEW: Set item to temporarily ignore during drag
+func set_temp_ignored_item(item: InventoryItem):
+    _temp_ignored_item = item
+
+# NEW: Clear temporary ignored item
+func clear_temp_ignored_item():
+    _temp_ignored_item = null
 
 func is_area_free(position: Vector2i, size: Vector2i) -> bool:
     # Check bounds more carefully
@@ -43,11 +52,24 @@ func is_area_free(position: Vector2i, size: Vector2i) -> bool:
                 print("DEBUG: Grid column out of bounds: ", check_x, " >= ", _occupancy_grid[check_y].size())
                 return false
                 
-            if _occupancy_grid[check_y][check_x] != -1:
-                print("DEBUG: Cell occupied at: ", Vector2i(check_x, check_y))
-                return false
+            var cell_value = _occupancy_grid[check_y][check_x]
+            
+            # MODIFIED: Ignore cells occupied by the temporary ignored item
+            if cell_value != -1:
+                # Check if this cell is occupied by the ignored item
+                var item_index = cell_value
+                if item_index >= 0 and item_index < items.size():
+                    var occupying_item = items[item_index]
+                    if occupying_item == _temp_ignored_item:
+                        # This is the item we're dragging, so treat it as free
+                        continue
+                    else:
+                        # This is a different item, so the cell is occupied
+                        print("DEBUG: Cell occupied at: ", Vector2i(check_x, check_y), " by different item")
+                        return false
     return true
 
+# Rest of the functions remain the same...
 func occupy_area(position: Vector2i, size: Vector2i, item_index: int):
     print("DEBUG: Occupying area at ", position, " size ", size, " for item ", item_index)
     for y in range(size.y):
@@ -74,6 +96,14 @@ func free_area(position: Vector2i, size: Vector2i):
             else:
                 print("ERROR: Attempted to free out-of-bounds cell: ", Vector2i(free_x, free_y))
 
+func can_add_item(item: InventoryItem, position: Vector2i = Vector2i(-1, -1)) -> bool:
+    var target_pos = position
+    if position == Vector2i(-1, -1):
+        target_pos = find_free_space_for_item(item)
+        return target_pos != Vector2i(-1, -1)
+    else:
+        return is_area_free(target_pos, item.dimensions)
+
 func find_free_space_for_item(item: InventoryItem) -> Vector2i:
     print("DEBUG: Finding free space for item dimensions: ", item.dimensions)
     for y in range(height - item.dimensions.y + 1):
@@ -83,14 +113,6 @@ func find_free_space_for_item(item: InventoryItem) -> Vector2i:
                 return Vector2i(x, y)
     print("DEBUG: No free space found for item")
     return Vector2i(-1, -1)
-
-func can_add_item(item: InventoryItem, position: Vector2i = Vector2i(-1, -1)) -> bool:
-    var target_pos = position
-    if position == Vector2i(-1, -1):
-        target_pos = find_free_space_for_item(item)
-        return target_pos != Vector2i(-1, -1)
-    else:
-        return is_area_free(target_pos, item.dimensions)
 
 func add_item(item: InventoryItem, position: Vector2i = Vector2i(-1, -1)) -> bool:
     print("DEBUG: Adding item to grid at position: ", position)
@@ -187,15 +209,15 @@ func get_free_area() -> int:
     print("DEBUG: Free area: ", free, "/", width * height)
     return free
 
-# DEBUG: Print grid for debugging
-func print_grid():
-    print("=== INVENTORY GRID (", width, "x", height, ") ===")
-    for y in range(_occupancy_grid.size()):
+# Add to inventory_grid.gd
+func debug_print_grid():
+    print("=== GRID STATE ===")
+    for y in range(height):
         var row = ""
-        for x in range(_occupancy_grid[y].size()):
+        for x in range(width):
             if _occupancy_grid[y][x] == -1:
                 row += "[ ]"
             else:
                 row += "[X]"
         print(row)
-    print("======================")
+    print("=================")

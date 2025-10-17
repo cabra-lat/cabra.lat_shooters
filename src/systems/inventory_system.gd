@@ -77,13 +77,6 @@ static func transfer_item_to_position(
                 if target_pos != Vector2i(-1, -1):
                     print("Found best position: %s" % target_pos)
                     added = target.grid.add_item(item, target_pos)
-                else:
-                    # Last resort: find any free space
-                    print("Finding any free space")
-                    target_pos = target.grid.find_free_space_for_item(item)
-                    if target_pos != Vector2i(-1, -1):
-                        print("Found free space: %s" % target_pos)
-                        added = target.grid.add_item(item, target_pos)
         else:
             # Find any free space
             print("Finding any free space")
@@ -95,7 +88,6 @@ static func transfer_item_to_position(
         var slot_name = _infer_slot(item)
         if slot_name != "":
             print("Equipping to slot: %s" % slot_name)
-            # FIXED: Use the actual equip method instead of assuming it uses grid
             added = target.equip(item, slot_name)
             print("Equip result: %s" % added)
         else:

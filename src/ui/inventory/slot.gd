@@ -1,11 +1,12 @@
-# src/ui/inventory/slot.gd (UPDATED)
+# slot.gd - UPDATED
 class_name InventorySlotUI
 extends Panel
 
 signal slot_dropped(data: Dictionary, target_slot: InventorySlotUI)
 
-@onready var icon: TextureRect = %Icon
-@onready var label: Label = %Label
+@onready var icon: TextureRect = $Icon
+@onready var label: Label = $Label
+
 @export var grid_position: Vector2i = Vector2i(-1,-1)
 
 var associated_item: InventoryItem = null
@@ -13,24 +14,16 @@ var source_container: Resource = null
 var is_main_slot: bool = false
 var is_occupied: bool = false
 var item_dimensions: Vector2i = Vector2i.ONE
+var container_ui: ContainerUI = null
 var debug_label: Label
+var is_equipment_slot: bool = false  # NEW: Track if this is equipment
 
 func _ready():
     custom_minimum_size = Vector2(50, 50)
     size_flags_horizontal = Control.SIZE_FILL
     size_flags_vertical = Control.SIZE_FILL
-    _create_debug_label()
-
-func _create_debug_label():
-    debug_label = Label.new()
-    debug_label.name = "DebugLabel"
-    debug_label.modulate = Color.YELLOW
-    debug_label.add_theme_font_size_override("font_size", 8)
-    debug_label.text = str(grid_position)
-    debug_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-    debug_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-    debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    add_child(debug_label)
+    mouse_filter = Control.MOUSE_FILTER_STOP
+    is_equipment_slot = (grid_position == Vector2i(-1, -1))
 
 func clear():
     if icon: 
@@ -44,61 +37,82 @@ func clear():
     is_occupied = false
     item_dimensions = Vector2i.ONE
     modulate = Color(1, 1, 1, 1)
-    
-    # Update debug info
-    if debug_label:
-        debug_label.text = str(grid_position)
 
 func _reset_icon_size():
     if icon:
         icon.custom_minimum_size = Vector2(50, 50)
         icon.size = Vector2(50, 50)
 
-func set_occupied(occupied: bool):
-    is_occupied = occupied
-    if occupied:
-        self_modulate = Color(0.7, 0.7, 0.7, 0.3)
-        if debug_label:
-            debug_label.text = "%s\nOCCUPIED" % grid_position
-    else:
-        self_modulate = Color(1, 1, 1, 1)
-        if debug_label:
-            debug_label.text = str(grid_position)
-
 func _get_drag_data(at_position: Vector2) -> Variant:
-    # Allow dragging from equipment slots (they don't have InventoryItemUI)
+    print("Slot _get_drag_data called at position: ", grid_position)
+    
+    # Handle equipment slots
     if associated_item and source_container:
         print("Starting drag from equipment: %s (dimensions: %s)" % [associated_item.content.name if associated_item.content else "Unknown", associated_item.dimensions])
         
-        var preview = TextureRect.new()
-        preview.texture = icon.texture if icon.texture else \
-            preload("../../../assets/ui/inventory/placeholder.png")
-        preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-        preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+        # NEW: Tell the grid to temporarily ignore this item
+        if source_container is InventoryContainer:
+            source_container.grid.set_temp_ignored_item(associated_item)
         
-        # Scale preview to match item dimensions - use fixed size to avoid huge previews
-        var max_preview_size = 100
-        var preview_size_base = Vector2(50, 50) * Vector2(associated_item.dimensions)
-        var preview_scale = min(1.0, max_preview_size / max(preview_size_base.x, preview_size_base.y))
-        var preview_size = preview_size_base * preview_scale
-        
-        preview.custom_minimum_size = preview_size
-        preview.size = preview_size
-        preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        
-        var control = Control.new()
-        control.add_child(preview)
-        control.size = preview_size
-        preview.position = -0.5 * preview_size
-        
-        set_drag_preview(control)
+        var preview = _create_drag_preview(associated_item)
+        set_drag_preview(preview)
         
         return {
             "item": associated_item,
             "source": source_container
         }
     
+    # Handle container slots
+    if container_ui and container_ui.current_container:
+        var item_at_slot = container_ui.current_container.get_item_at(grid_position)
+        if item_at_slot:
+            print("Starting drag from container: %s at %s (dimensions: %s)" % [item_at_slot.content.name if item_at_slot.content else "Unknown", grid_position, item_at_slot.dimensions])
+            
+            # NEW: Tell the grid to temporarily ignore this item
+            container_ui.current_container.grid.set_temp_ignored_item(item_at_slot)
+            
+            var preview = _create_drag_preview(item_at_slot)
+            set_drag_preview(preview)
+            
+            return {
+                "item": item_at_slot,
+                "source": container_ui.current_container
+            }
+    
     return null
+
+# NEW: Handle drag ending to clear the temporary ignore
+func _notification(what):
+    if what == NOTIFICATION_DRAG_END:
+        # Clear temporary ignored item when drag ends (whether successful or not)
+        if container_ui and container_ui.current_container:
+            container_ui.current_container.grid.clear_temp_ignored_item()
+        elif source_container is InventoryContainer:
+            source_container.grid.clear_temp_ignored_item()
+
+func _create_drag_preview(item: InventoryItem) -> Control:
+    var preview = TextureRect.new()
+    preview.texture = item.content.icon if item.content and item.content.icon else \
+        preload("../../../assets/ui/inventory/placeholder.png")
+    preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+    preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    
+    # Scale preview to match item dimensions
+    var max_preview_size = 100
+    var preview_size_base = Vector2(50, 50) * Vector2(item.dimensions)
+    var preview_scale = min(1.0, max_preview_size / max(preview_size_base.x, preview_size_base.y))
+    var preview_size = preview_size_base * preview_scale
+    
+    preview.custom_minimum_size = preview_size
+    preview.size = preview_size
+    preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    
+    var control = Control.new()
+    control.add_child(preview)
+    control.size = preview_size
+    preview.position = -0.5 * preview_size
+    
+    return control
 
 func _can_drop_data(at_position: Vector2, data: Variant) -> bool:
     if not data is Dictionary or not data.has("item"):
@@ -107,49 +121,56 @@ func _can_drop_data(at_position: Vector2, data: Variant) -> bool:
     
     # Don't allow dropping on occupied slots
     if is_occupied:
-        print("Drop rejected: Slot %s is occupied" % grid_position)
+        print("Drop rejected: Slot is occupied")
         return false
     
-    # Check if the item can be placed here - FIXED: Get container from scene tree
-    var container_ui = _get_parent_container()
-    if container_ui and container_ui.current_container:
-        var item = data["item"]
-        var can_place = container_ui.current_container.grid.can_add_item(item, grid_position)
-        print("Drop check at %s: %s (item: %s, dimensions: %s)" % [grid_position, "CAN PLACE" if can_place else "CANNOT PLACE", item.content.name if item.content else "Unknown", item.dimensions])
-        return can_place
+    var item = data["item"]
     
-    print("Drop rejected: No container found for slot %s" % grid_position)
-    return false
+    # Prevent containers from being placed in themselves
+    if container_ui and container_ui.current_container and item.content == container_ui.current_container:
+        print("Drop rejected: Cannot place container in itself")
+        return false
+    
+    # Handle equipment slots differently
+    if is_equipment_slot:
+        print("Equipment slot drop check for %s" % name)
+        return true
+    
+    # Handle container slots
+    else:
+        print("Container slot drop check")
+        if not container_ui or not container_ui.current_container:
+            print("Drop rejected: No container reference for slot %s" % grid_position)
+            return false
+        
+        var can_place = container_ui.current_container.grid.can_add_item(item, grid_position)
+        print("Container drop check at %s: %s (item: %s, dimensions: %s)" % [grid_position, "CAN PLACE" if can_place else "CANNOT PLACE", item.content.name if item.content else "Unknown", item.dimensions])
+        return can_place
 
 func _drop_data(at_position: Vector2, data: Variant) -> void:
     if data is Dictionary and data.has("item"):
-        print("Drop accepted at slot %s" % grid_position)
+        print("Drop accepted at slot %s (equipment: %s)" % [grid_position, is_equipment_slot])
+        
+        # NEW: Clear the temporary ignore when drop is completed
+        if container_ui and container_ui.current_container:
+            container_ui.current_container.grid.clear_temp_ignored_item()
+        elif data["source"] is InventoryContainer:
+            data["source"].grid.clear_temp_ignored_item()
+        
         slot_dropped.emit(data, self)
 
-# FIXED: Better container detection
-func _get_parent_container() -> ContainerUI:
-    # First try the direct parent approach
-    var parent = get_parent()
-    while parent and not parent is ContainerUI:
-        parent = parent.get_parent()
-    
-    if parent is ContainerUI:
-        return parent as ContainerUI
-    
-    # If that fails, try to find any ContainerUI in the scene
-    var scene_root = get_tree().current_scene
-    if scene_root:
-        return _find_container_in_children(scene_root)
-    
-    return null
+# Set container reference directly (for container slots only)
+func set_container_ui(container: ContainerUI):
+    if not is_equipment_slot:  # Only set for container slots
+        container_ui = container
+        print("Set container_ui for slot %s" % grid_position)
 
-func _find_container_in_children(node: Node) -> ContainerUI:
-    if node is ContainerUI:
-        return node as ContainerUI
-    
-    for child in node.get_children():
-        var result = _find_container_in_children(child)
-        if result:
-            return result
-    
-    return null
+func get_parent_container() -> ContainerUI:
+    return container_ui
+
+func set_occupied(occupied: bool):
+    is_occupied = occupied
+    if occupied:
+        self_modulate = Color(0.7, 0.7, 0.7, 0.3)
+    else:
+        self_modulate = Color(1, 1, 1, 1)
