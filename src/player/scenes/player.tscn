@@ -8,7 +8,7 @@
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cr8hjyxyw6huw" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="6_y0q3g"]
 [ext_resource type="PackedScene" uid="uid://8x85dbyhhwva" path="res://addons/cabra.lat_cursors/cursor_3d.tscn" id="7_nqh7h"]
 [ext_resource type="PackedScene" uid="uid://c6mfjk8v5pslc" path="res://addons/cabra.lat_interactions/interactor.tscn" id="8_g5121"]
-[ext_resource type="PackedScene" uid="uid://c12klxocgrga0" path="res://addons/cabra.lat_shooters/src/ui/inventory/inventory_ui.tscn" id="9_hwib0"]
+[ext_resource type="PackedScene" uid="uid://c12klxocgrga0" path="res://addons/cabra.lat_shooters/src/ui/inventory/main.tscn" id="9_hwib0"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_5m4bh"]
 height = 1.7

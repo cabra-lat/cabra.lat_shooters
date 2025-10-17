@@ -1,0 +1,95 @@
+[gd_scene load_steps=3 format=3 uid="uid://c12klxocgrga0"]
+
+[ext_resource type="Script" uid="uid://bqlt0o5wwk2u3" path="res://addons/cabra.lat_shooters/src/ui/inventory/main.gd" id="1_6temw"]
+[ext_resource type="PackedScene" uid="uid://b4nocuvgaea0x" path="res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn" id="2_26t5g"]
+
+[node name="InventoryUi" type="PanelContainer"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -300.0
+offset_right = 400.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_6temw")
+
+[node name="InventoryUi" type="FoldableContainer" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(800, 600)
+layout_mode = 2
+title = "Inventory"
+title_alignment = 1
+
+[node name="HB" type="HBoxContainer" parent="InventoryUi"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="InventoryUi/HB"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+
+[node name="VB" type="VBoxContainer" parent="InventoryUi/HB/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 2
+
+[node name="EquipmentPanel" type="FoldableContainer" parent="InventoryUi/HB"]
+layout_mode = 2
+size_flags_horizontal = 3
+title = "Equipment"
+
+[node name="Equipment" type="Panel" parent="InventoryUi/HB/EquipmentPanel"]
+layout_mode = 2
+
+[node name="helmet" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
+layout_mode = 1
+offset_left = 169.0
+offset_top = 44.0
+offset_right = 219.0
+offset_bottom = 94.0
+
+[node name="vest" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+offset_left = 83.0
+offset_top = 130.0
+offset_right = 183.0
+offset_bottom = 230.0
+
+[node name="back" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+offset_left = 213.0
+offset_top = 122.0
+offset_right = 313.0
+offset_bottom = 222.0
+
+[node name="secondary" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+offset_left = 236.0
+offset_top = 280.0
+offset_right = 336.0
+offset_bottom = 380.0
+
+[node name="primary" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
+custom_minimum_size = Vector2(150, 100)
+layout_mode = 1
+offset_left = 43.0
+offset_top = 279.0
+offset_right = 193.0
+offset_bottom = 379.0
+
+[node name="CloseButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
+text = "(x)"
+flat = true

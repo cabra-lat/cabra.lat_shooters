@@ -1,11 +1,11 @@
 [gd_scene load_steps=2 format=3 uid="uid://d05fq2yy0re3b"]
 
-[ext_resource type="Script" uid="uid://b6mp3goqm6e7r" path="res://addons/cabra.lat_shooters/src/ui/inventory/container_ui.gd" id="1_s6tfe"]
+[ext_resource type="Script" uid="uid://b6mp3goqm6e7r" path="res://addons/cabra.lat_shooters/src/ui/inventory/container.gd" id="1_avk0j"]
 
 [node name="PanelContainer" type="PanelContainer"]
 offset_right = 952.0
 offset_bottom = 1688.0
-script = ExtResource("1_s6tfe")
+script = ExtResource("1_avk0j")
 
 [node name="Panel" type="FoldableContainer" parent="."]
 unique_name_in_owner = true
@@ -14,11 +14,10 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 title = "Container"
 
-[node name="GridContainer" type="GridContainer" parent="Panel"]
+[node name="Items" type="GridContainer" parent="Panel"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-columns = 7
 
 [node name="CloseButton" type="Button" parent="."]
 unique_name_in_owner = true

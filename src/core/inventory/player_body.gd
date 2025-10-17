@@ -1,6 +1,6 @@
 # res://src/core/inventory/player_body.gd
 class_name PlayerBody
-extends InventoryContainer
+extends Resource
 
 # Body zones with slot types
 var slots: Dictionary = {

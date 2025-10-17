@@ -66,7 +66,7 @@ func _test_equip_weapon():
   backpack.add_item(item)
 
   # Equip
-  var success = InventorySystem.equip_item(backpack, player_body, item, "primary")
+  var success = InventorySystem.transfer_item(backpack, player_body, item)
   check(success, "Should equip weapon to primary slot")
   check(player_body.get_equipped("primary").size() == 1, "Primary slot should have weapon")
   check(backpack.items.is_empty(), "Backpack should be empty")

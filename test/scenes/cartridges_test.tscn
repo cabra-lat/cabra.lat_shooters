@@ -1,6 +1,6 @@
 [gd_scene load_steps=23 format=3 uid="uid://c6cf7l24o2dqe"]
 
-[ext_resource type="Script" uid="uid://cw281trp1g5cs" path="res://addons/cabra.lat_shooters/src/cartridges_3d.gd" id="1_83bud"]
+[ext_resource type="Script" uid="uid://cw281trp1g5cs" path="res://addons/cabra.lat_shooters/test/scenes/cartridges_3d.gd" id="1_83bud"]
 [ext_resource type="Texture2D" uid="uid://rwr14fl7ogi4" path="res://addons/cabra.lat_shooters/assets/skybox.jpg" id="1_fbono"]
 [ext_resource type="Shader" uid="uid://bo7wc2x3ox5i1" path="res://addons/cabra.lat_shooters/src/shaders/cartridges/cartridge.gdshader" id="2_aeqdp"]
 [ext_resource type="Texture2D" uid="uid://d0gbpba0pd43u" path="res://addons/cabra.lat_shooters/assets/cartridge-font.png" id="4_fbono"]

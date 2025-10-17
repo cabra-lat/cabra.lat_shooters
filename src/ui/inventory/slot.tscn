@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b4nocuvgaea0x"]
 
-[ext_resource type="Script" uid="uid://bxg7q8ah6k4r3" path="res://addons/cabra.lat_shooters/src/ui/inventory/inventory_ui_slot.gd" id="1_dg2rb"]
+[ext_resource type="Script" uid="uid://bxg7q8ah6k4r3" path="res://addons/cabra.lat_shooters/src/ui/inventory/slot.gd" id="1_dg2rb"]
 
 [node name="InventoryUiSlot" type="Panel"]
 custom_minimum_size = Vector2(50, 50)
