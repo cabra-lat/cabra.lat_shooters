@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b6mp3goqm6e7r" path="res://addons/cabra.lat_shooters/src/ui/inventory/container.gd" id="1_avk0j"]
 
-[node name="PanelContainer" type="PanelContainer"]
+[node name="ContainerUI" type="PanelContainer"]
 offset_right = 952.0
 offset_bottom = 1688.0
 script = ExtResource("1_avk0j")
