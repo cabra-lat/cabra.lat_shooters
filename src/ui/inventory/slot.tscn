@@ -1,11 +1,21 @@
-[gd_scene load_steps=2 format=3 uid="uid://b4nocuvgaea0x"]
+[gd_scene load_steps=3 format=3 uid="uid://b4nocuvgaea0x"]
 
 [ext_resource type="Script" uid="uid://bxg7q8ah6k4r3" path="res://addons/cabra.lat_shooters/src/ui/inventory/slot.gd" id="1_dg2rb"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_m0whj"]
+bg_color = Color(0, 0, 0, 0.34901962)
+border_width_left = 5
+border_width_top = 5
+border_width_right = 5
+border_width_bottom = 5
+border_color = Color(0.47918278, 0.47918284, 0.47918254, 1)
+border_blend = true
 
 [node name="InventorySlotUI" type="Panel"]
 custom_minimum_size = Vector2(50, 50)
 offset_right = 50.0
 offset_bottom = 50.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_m0whj")
 script = ExtResource("1_dg2rb")
 
 [node name="Label" type="Label" parent="."]

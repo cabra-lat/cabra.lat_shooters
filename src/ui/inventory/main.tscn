@@ -71,10 +71,10 @@ offset_bottom = 230.0
 [node name="back" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
 custom_minimum_size = Vector2(100, 100)
 layout_mode = 1
-offset_left = 213.0
-offset_top = 122.0
-offset_right = 313.0
-offset_bottom = 222.0
+offset_left = 214.0
+offset_top = 132.0
+offset_right = 314.0
+offset_bottom = 232.0
 
 [node name="secondary" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
 custom_minimum_size = Vector2(100, 100)
