@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://c083lnjbgx1of"]
+
+[ext_resource type="Script" uid="uid://bx6js4a6dn7e" path="res://addons/cabra.lat_shooters/src/ui/inventory/world_drop_zone.gd" id="1_xknxb"]
+
+[node name="WorldDropZone" type="ColorRect"]
+z_index = 4096
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.22352941)
+script = ExtResource("1_xknxb")

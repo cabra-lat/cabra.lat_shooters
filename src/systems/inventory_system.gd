@@ -1,4 +1,4 @@
-# src/systems/inventory_system.gd (UPDATED EQUIPMENT COMPATIBILITY)
+# src/systems/inventory_system.gd
 class_name InventorySystem
 extends Resource
 

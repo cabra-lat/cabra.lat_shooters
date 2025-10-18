@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3 uid="uid://c12klxocgrga0"]
+[gd_scene load_steps=4 format=3 uid="uid://c12klxocgrga0"]
 
 [ext_resource type="Script" uid="uid://bqlt0o5wwk2u3" path="res://addons/cabra.lat_shooters/src/ui/inventory/main.gd" id="1_6temw"]
+[ext_resource type="PackedScene" uid="uid://c083lnjbgx1of" path="res://addons/cabra.lat_shooters/src/ui/inventory/world_drop_zone.tscn" id="2_3seow"]
 [ext_resource type="PackedScene" uid="uid://b4nocuvgaea0x" path="res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn" id="2_26t5g"]
 
 [node name="InventoryUi" type="Control"]
@@ -11,6 +12,15 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_6temw")
+
+[node name="WorldDropZone" parent="." instance=ExtResource("2_3seow")]
+unique_name_in_owner = true
+layout_mode = 0
+anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+grow_horizontal = 1
+grow_vertical = 1
 
 [node name="InventoryUi" type="FoldableContainer" parent="."]
 unique_name_in_owner = true
@@ -116,13 +126,3 @@ size_flags_horizontal = 8
 size_flags_vertical = 0
 text = "(x)"
 flat = true
-
-[node name="WorldDropZone" type="ColorRect" parent="."]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0, 0, 0, 0.22352941)
