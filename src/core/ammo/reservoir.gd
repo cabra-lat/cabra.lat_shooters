@@ -1,6 +1,6 @@
 # res://src/core/ammo/reservoir.gd
 class_name Reservoir
-extends Item 
+extends Item
 
 @export var max_capacity: int = 30
 @export var contents: Array[Item] = []

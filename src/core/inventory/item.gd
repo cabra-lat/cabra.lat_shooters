@@ -1,6 +1,6 @@
 # res://src/core/inventory/inventory_item.gd
 class_name InventoryItem
-extends Item 
+extends Item
 
 # What this item represents (Ammo, Weapon, Armor, etc.)
 @export var content: Item

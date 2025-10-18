@@ -15,12 +15,9 @@ script = ExtResource("1_6temw")
 
 [node name="WorldDropZone" parent="." instance=ExtResource("2_3seow")]
 unique_name_in_owner = true
-layout_mode = 0
-anchors_preset = 0
-anchor_right = 0.0
-anchor_bottom = 0.0
-grow_horizontal = 1
-grow_vertical = 1
+z_index = 999
+layout_mode = 1
+color = Color(0, 0, 0, 0)
 
 [node name="InventoryUi" type="FoldableContainer" parent="."]
 unique_name_in_owner = true
@@ -57,9 +54,13 @@ size_flags_vertical = 2
 
 [node name="ContainerUI" parent="InventoryUi/HB/ScrollContainer/VB" instance_placeholder="res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="ContainerUI2" parent="InventoryUi/HB/ScrollContainer/VB" instance_placeholder="res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="EquipmentPanel" type="FoldableContainer" parent="InventoryUi/HB"]
 layout_mode = 2

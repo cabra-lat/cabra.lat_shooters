@@ -6,6 +6,8 @@ extends Resource
 @export var name: String = "Item"
 @export var mass: float: get = get_mass, set = set_mass
 @export var icon: Texture2D
+@export var view_model: PackedScene
+@export var equip_sound: AudioStream
 
 func get_mass() -> float: return mass
 func set_mass(value) -> void: mass = value

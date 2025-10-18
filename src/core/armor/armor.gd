@@ -1,6 +1,6 @@
 # res://src/core/armor/armor.gd
 class_name Armor
-extends Item 
+extends Item
 
 enum BodyParts {
   HEAD      = 1 << 0,
@@ -24,8 +24,6 @@ enum ArmorType {
 
 @export var type: ArmorType = ArmorType.GENERIC
 @export_multiline var description: String = "Default armor."
-@export var view_model: PackedScene
-@export var equip_sound: AudioStream
 @export var hit_sound: AudioStream
 
 @export var max_durability: int = 100

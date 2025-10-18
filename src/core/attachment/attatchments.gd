@@ -35,10 +35,6 @@ enum ReticleType {
 @export var attachment_point: int  # Weapon.AttachmentPoint (bit flag)
 @export var cost: int = 100
 
-# ─── VISUALS ───────────────────────────────────────
-@export var view_model: PackedScene
-@export var world_model: PackedScene
-
 # ─── STAT MODIFIERS ────────────────────────────────
 @export var accuracy_modifier: float = 1.0
 @export var recoil_modifier: float = 1.0

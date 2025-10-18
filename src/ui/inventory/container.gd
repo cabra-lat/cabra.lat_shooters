@@ -46,26 +46,29 @@ func _setup_grid():
         if child != drop_preview:  # NEW: Don't remove drop preview
             grid_background.remove_child(child)
             child.queue_free()
-    
+
     for child in items_container.get_children():
         items_container.remove_child(child)
         child.queue_free()
-    
+
     item_displays.clear()
     slot_displays.clear()
-    
+
     # Set container size
     var grid_size = Vector2(
         current_container.grid_width * slot_size,
         current_container.grid_height * slot_size
     )
-    
+
     grid_background.size = grid_size
     items_container.size = grid_size
-    
+
+    #grid_background.custom_minimum_size = grid_size
+    #items_container.custom_minimum_size = grid_size
+
     print("Setting up container grid: %dx%d, slot_size: %d" % [current_container.grid_width, current_container.grid_height, slot_size])
     print("Grid background size: %s" % grid_size)
-    
+
     # Create grid slots
     for y in range(current_container.grid_height):
         for x in range(current_container.grid_width):
@@ -74,20 +77,20 @@ func _setup_grid():
             slot.name = "Slot[%d,%d]" % [x, y]
             slot.size = Vector2(slot_size, slot_size)
             slot.position = Vector2(x * slot_size, y * slot_size)
-            
+
             # Set container reference directly
             slot.set_container_ui(self)
-            
+
             # Connect drag signals
             slot.drag_started.connect(_on_drag_started)
             slot.drag_ended.connect(_on_drag_ended)
-            
+
             slot.mouse_entered.connect(_on_slot_mouse_entered.bind(slot))
             slot.mouse_exited.connect(_on_slot_mouse_exited.bind(slot))
             slot.slot_dropped.connect(_on_slot_dropped)
             grid_background.add_child(slot)
             slot_displays.append(slot)
-    
+
     print("Total slots created: %d" % slot_displays.size())
 
 # NEW: Handle slot mouse enter during drag
@@ -140,7 +143,7 @@ func hide_drop_preview():
 func _update_ui():
     if not current_container:
         return
-    
+
     call_deferred("_deferred_update_ui")
 
 func _deferred_update_ui():
@@ -148,14 +151,14 @@ func _deferred_update_ui():
     for slot in slot_displays:
         slot.clear()
         slot.set_occupied(false)
-    
+
     # Remove old item displays
     for display in item_displays:
         if is_instance_valid(display):
             items_container.remove_child(display)
             display.queue_free()
     item_displays.clear()
-    
+
     # Create item displays for each item
     for item in current_container.items:
         _create_item_display(item)
@@ -167,12 +170,12 @@ func _create_item_display(item: InventoryItem):
     items_container.add_child(display)
     display.z_index = 1  # Items appear above grid/slots
     item_displays.append(display)
-    
+
     # Position the item correctly
     display.position = Vector2(item.position.x * slot_size, item.position.y * slot_size)
-    
+
     print("Created item display: %s at %s (dimensions: %s)" % [item.content.name if item.content else "Unknown", item.position, item.dimensions])
-    
+
     # Mark occupied slots
     for y in range(item.dimensions.y):
         for x in range(item.dimensions.x):

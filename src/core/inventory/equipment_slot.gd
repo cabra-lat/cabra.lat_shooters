@@ -17,16 +17,16 @@ enum SlotType {
 
 func can_add_item(item: InventoryItem) -> bool:
   print("EquipmentSlot.can_add_item: checking %s in slot type %s (current items: %d/%d)" % [
-      item.content.name if item.content else "Unknown", 
-      slot_type, 
-      items.size(), 
+      item.content.name if item.content else "Unknown",
+      slot_type,
+      items.size(),
       max_items
   ])
-  
+
   if items.size() >= max_items:
     print("  -> REJECTED: Slot full")
     return false
-  
+
   # Add compatibility logic here
   var compatible = false
   match slot_type:
@@ -44,7 +44,7 @@ func can_add_item(item: InventoryItem) -> bool:
       compatible = item.content is Weapon
     SlotType.BACK:
       compatible = item.content is Backpack
-  
+
   print("  -> %s: %s" % ["COMPATIBLE" if compatible else "INCOMPATIBLE", item.content.name if item.content else "Unknown"])
   return compatible
 

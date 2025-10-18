@@ -4,7 +4,7 @@ extends Resource
 
 enum Severity {
   MINOR,      # Surface wounds, light bleeding
-  MODERATE,   # Muscle damage, moderate bleeding  
+  MODERATE,   # Muscle damage, moderate bleeding
   SEVERE,     # Bone/organ damage, heavy bleeding
   CRITICAL    # Limb loss, instant death scenarios
 }

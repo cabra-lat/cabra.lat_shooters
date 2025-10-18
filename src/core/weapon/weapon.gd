@@ -1,6 +1,6 @@
 # res://src/core/weapon/weapon.gd
 class_name Weapon
-extends Item 
+extends Item
 
 # ─── SIGNALS ───────────────────────────────────────
 signal trigger_locked(weapon: Weapon)
@@ -30,8 +30,6 @@ enum AttachmentPoint {
 
 # ─── METADATA ──────────────────────────────────────
 @export_multiline var description: String = "This Weapon is the default one."
-@export var view_model: PackedScene
-@export var equip_sound: AudioStream
 @export var fire_sound: AudioStream
 @export var feed_sound: AudioStream
 @export var empty_sound: AudioStream

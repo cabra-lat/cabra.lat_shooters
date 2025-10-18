@@ -25,19 +25,19 @@ func _ready():
     # Equip to player body
     var weapon_item = InventorySystem.create_inventory_item(weapon)
     $Player.player_body.equip(weapon_item, "primary")
-    
+
     var backpack = Backpack.new()
     backpack.icon = preload("../../assets/ui/inventory/backpack.png")
     var backpack_item = InventorySystem.create_inventory_item(backpack)
     backpack_item.dimensions = Vector2i(2,2)
     $Player.player_body.equip(backpack_item, "back")
-    
+
     # Create world item
     var world_item = %WorldItem
     var item = InventorySystem.create_inventory_item(ammo, 5)
     world_item.inventory_item = item
     world_item._ready()
-    
+
     var signals = $Player.get_signal_list()
     for sig in signals:
         $Player.connect(sig.name, Callable(self, "_on_" + sig.name))
@@ -60,7 +60,7 @@ func _on_cartridge_fired(ejected):
 
 func _on_trigger_released():
     $HUD.show_popup("Released trigger")
-    
+
 func _on_firemode_changed(new):
     $HUD.show_popup("changed firemode: %s" % new)
 
@@ -69,7 +69,7 @@ func _on_ammofeed_empty():
 
 func _on_ammofeed_missing():
     $HUD.show_popup('Click!')
-    
+
 func _on_ammofeed_changed(old, new):
     $HUD.show_popup("changed mag %d/%d to %d/%d"
          % [old.remaining  if old else 0,

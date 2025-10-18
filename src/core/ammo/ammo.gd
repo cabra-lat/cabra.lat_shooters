@@ -1,6 +1,6 @@
 # res://src/core/ammo/ammo.gd
 class_name Ammo
-extends Item 
+extends Item
 
 # ─── CORE METADATA ───────────────────────────────
 @export var caliber: String = "Unknown Caliber":
@@ -8,7 +8,6 @@ extends Item
     _caliber_data = Utils.parse_caliber(value)
     caliber = value
 @export_multiline var description: String = "Generic ammunition"
-@export var view_model: PackedScene
 @export var shell_model: PackedScene
 @export var shell_sound: AudioStream
 

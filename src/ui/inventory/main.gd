@@ -25,29 +25,27 @@ func _ready():
     _setup_equipment_slots()
     close_button.pressed.connect(_on_close_button_pressed)
     world_drop_zone.item_dropped.connect(_on_world_drop)
-    
+
 func _on_world_drop(data: Dictionary):
     if data and data.has("item") and data.has("source"):
-        _handle_world_drop(current_drag_data)
+        _handle_world_drop(data)
 
 func _on_drag_started(item: InventoryItem):
     current_drag_data = {"item": item}
-    world_drop_zone.visible = true
     print("World drop zone activated")
 
 func _on_drag_ended():
-    world_drop_zone.visible = false
     current_drag_data = {}
     print("World drop zone deactivated")
 
 func _handle_world_drop(data: Dictionary):
     print("=== WORLD DROP START ===")
     print("Dropping item in world: %s" % data["item"].content.name if data["item"].content else "Unknown")
-    
+
     var item = data["item"]
     var source = data["source"]
     var removed = false
-    
+
     if source is InventoryContainer:
         removed = source.remove_item(item)
         print("Removed from container: %s" % removed)
@@ -59,38 +57,38 @@ func _handle_world_drop(data: Dictionary):
                 removed = slot.remove_item(item)
                 print("Removed from equipment slot %s: %s" % [slot_name, removed])
                 break
-    
+
     if removed:
         # Create world item
         _create_world_item(item)
         print("World item created successfully")
-        
+
         # Update UI
         _update_equipment()
         _refresh_open_containers()
     else:
         print("Failed to remove item from source")
-    
+
     print("=== WORLD DROP END ===")
 
 func _create_world_item(item: InventoryItem):
     var world_item_scene = preload("../../gameplay/world_item.tscn")
     var world_item = world_item_scene.instantiate() as WorldItem
-    
+
     # Set up the world item
     world_item.inventory_item = item.duplicate(true)
-    
+
     # Position the item in front of the player
     if player_controller and player_controller.player_body:
         var player_pos = player_controller.global_position
         var player_forward = -player_controller.global_transform.basis.z
         var drop_pos = player_pos + player_forward * 2.0 + Vector3(0, 1, 0)  # 2m in front, 1m up
-        
+
         world_item.global_position = drop_pos
-        
+
         # Add some random rotation
         world_item.rotate_y(randf() * PI * 2)
-    
+
     # Add to scene
     get_tree().current_scene.add_child(world_item)
     print("Created world item at position: %s" % world_item.global_position)
@@ -100,21 +98,21 @@ func _on_slot_dropped(data: Dictionary, target_slot: InventorySlotUI):
     print("=== DROP EVENT START ===")
     print("Drop data: %s -> %s" % [data["item"].content.name if data["item"].content else "Unknown", target_slot.name])
     print("Source: %s" % data["source"])
-    
+
     # UPDATE: Store the source in current drag data for world drops
     if current_drag_data and current_drag_data.has("item"):
         current_drag_data["source"] = data["source"]
-    
+
     # Rest of your existing drop handling code...
     var parent = target_slot.get_parent()
-    
+
     if target_slot.grid_position == Vector2i(-1, -1):
         print("Target is equipment slot: %s" % target_slot.name)
         _handle_equipment_drop(data, target_slot)
     else:
         print("Target is container slot: %s" % target_slot.grid_position)
         _handle_container_drop(data, target_slot)
-    
+
     print("=== DROP EVENT END ===")
 
 func open_inventory(player: PlayerController, container: InventoryContainer = null):
@@ -150,12 +148,12 @@ func _drop_data_at_position(at_position: Vector2, data: Variant) -> void:
     if data is Dictionary and data.has("item") and data.has("source"):
         print("=== WORLD DROP START ===")
         print("Dropping item in world: %s" % data["item"].content.name if data["item"].content else "Unknown")
-        
+
         # Remove item from source
         var item = data["item"]
         var source = data["source"]
         var removed = false
-        
+
         if source is InventoryContainer:
             removed = source.remove_item(item)
             print("Removed from container: %s" % removed)
@@ -167,18 +165,18 @@ func _drop_data_at_position(at_position: Vector2, data: Variant) -> void:
                     removed = slot.remove_item(item)
                     print("Removed from equipment slot %s: %s" % [slot_name, removed])
                     break
-        
+
         if removed:
             # Create world item
             _create_world_item(item)
             print("World item created successfully")
-            
+
             # Update UI
             _update_equipment()
             _refresh_open_containers()
         else:
             print("Failed to remove item from source")
-        
+
         print("=== WORLD DROP END ===")
 
 func _open_container_once(container: InventoryContainer):
@@ -210,9 +208,9 @@ func _handle_equipment_drop(data: Dictionary, target_slot: InventorySlotUI):
     var slot_name = target_slot.name
     var item = data["item"]
     var source = data["source"]
-    
+
     print("Equipment drop: %s -> %s" % [item.content.name if item.content else "Unknown", slot_name])
-    
+
     # Special handling for backpack
     if slot_name == "back" and item.content is Backpack:
         print("Attempting to equip backpack")

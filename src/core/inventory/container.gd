@@ -8,9 +8,9 @@ class_name InventoryContainer extends Item
 
 var grid: InventoryGrid
 var items: Array[InventoryItem] = []:
-    get: 
+    get:
         if grid:
-            return grid.items 
+            return grid.items
         else:
             push_error("Grid is null in container!")
             return []
