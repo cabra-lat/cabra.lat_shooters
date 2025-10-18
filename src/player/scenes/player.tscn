@@ -212,10 +212,6 @@ Cursor = NodePath("../Cursor3D")
 [node name="InventoryUi" parent="." instance=ExtResource("9_hwib0")]
 unique_name_in_owner = true
 visible = false
-offset_left = 91.0
-offset_top = 99.0
-offset_right = -105.0
-offset_bottom = -59.0
 
 [connection signal="aiming" from="." to="StateMachine" method="_on_player_aiming"]
 [connection signal="check_ammofeed" from="." to="StateMachine" method="_on_player_check_ammofeed"]

@@ -1,6 +1,6 @@
 # src/ui/inventory/main.gd
 class_name InventoryUI
-extends PanelContainer
+extends Control
 
 @onready var equipment_panel: FoldableContainer = $InventoryUi/HB/EquipmentPanel
 @onready var slots: Array[InventorySlotUI] = [
@@ -13,17 +13,21 @@ extends PanelContainer
 @onready var containers_vbox: VBoxContainer = $InventoryUi/HB/ScrollContainer/VB
 @onready var close_button: Button = %CloseButton
 
+# NEW: World drop zone
+@onready var world_drop_zone: ColorRect = $WorldDropZone
+
 var player_controller: PlayerController
 var open_containers: Array[ContainerUI] = []
 var debug_label: Label
+var current_drag_data: Dictionary = {}  # NEW: Track current drag
 
 func _ready():
     _setup_equipment_slots()
     close_button.pressed.connect(_on_close_button_pressed)
-
-func _setup_equipment_slots():
-    for slot in slots:
-        slot.connect("slot_dropped", _on_slot_dropped)
+    
+    # NEW: Set up world drop zone
+    world_drop_zone.visible = false
+    world_drop_zone.mouse_filter = Control.MOUSE_FILTER_STOP
 
 func open_inventory(player: PlayerController, container: InventoryContainer = null):
     player_controller = player
@@ -35,7 +39,121 @@ func open_inventory(player: PlayerController, container: InventoryContainer = nu
     if container:
         _open_container_once(container)
     show()
+
+func _setup_equipment_slots():
+    for slot in slots:
+        slot.connect("slot_dropped", _on_slot_dropped)
+        # NEW: Connect drag signals
+        slot.connect("drag_started", _on_drag_started)
+        slot.connect("drag_ended", _on_drag_ended)
+
+# NEW: Handle drag start - show world drop zone
+func _on_drag_started(item: InventoryItem):
+    current_drag_data = {"item": item, "source": null}  # Will be filled in _get_drag_data
+    world_drop_zone.visible = true
+
+# NEW: Handle drag end - hide world drop zone
+func _on_drag_ended():
+    world_drop_zone.visible = false
+    current_drag_data = {}
+
+# NEW: World drop zone drag handling
+func _get_drag_data_at_position(at_position: Vector2) -> Variant:
+    # Forward drag data from the current drag
+    if current_drag_data and current_drag_data.has("item"):
+        return current_drag_data
+    return null
+
+func _can_drop_data_at_position(at_position: Vector2, data: Variant) -> bool:
+    # Always allow dropping in world when dragging outside inventory
+    return data is Dictionary and data.has("item")
+
+func _drop_data_at_position(at_position: Vector2, data: Variant) -> void:
+    if data is Dictionary and data.has("item") and data.has("source"):
+        print("=== WORLD DROP START ===")
+        print("Dropping item in world: %s" % data["item"].content.name if data["item"].content else "Unknown")
+        
+        # Remove item from source
+        var item = data["item"]
+        var source = data["source"]
+        var removed = false
+        
+        if source is InventoryContainer:
+            removed = source.remove_item(item)
+            print("Removed from container: %s" % removed)
+        elif source is PlayerBody:
+            # Find which slot the item is in and remove it
+            for slot_name in source.slots:
+                var slot = source.slots[slot_name]
+                if item in slot.items:
+                    removed = slot.remove_item(item)
+                    print("Removed from equipment slot %s: %s" % [slot_name, removed])
+                    break
+        
+        if removed:
+            # Create world item
+            _create_world_item(item)
+            print("World item created successfully")
+            
+            # Update UI
+            _update_equipment()
+            _refresh_open_containers()
+        else:
+            print("Failed to remove item from source")
+        
+        print("=== WORLD DROP END ===")
+
+func _create_world_item(item: InventoryItem):
+    var world_item_scene = preload("res://addons/cabra.lat_shooters/src/gameplay/world_item.tscn")
+    var world_item = world_item_scene.instantiate() as WorldItem
     
+    # Set up the world item
+    world_item.inventory_item = item.duplicate(true)
+    
+    # Position the item in front of the player
+    if player_controller and player_controller.player_body:
+        var player_pos = player_controller.global_position
+        var player_forward = -player_controller.global_transform.basis.z
+        var drop_pos = player_pos + player_forward * 2.0 + Vector3(0, 1, 0)  # 2m in front, 1m up
+        
+        world_item.global_position = drop_pos
+        
+        # Add some random rotation and force for realism
+        world_item.rotate_y(randf() * PI * 2)
+        
+        # If it's a rigid body, add some force
+        if world_item is RigidBody3D:
+            var force_dir = player_forward + Vector3(0, 0.5, 0)  # Up and forward
+            world_item.apply_impulse(force_dir * 2.0)
+    
+    # Add to scene
+    get_tree().current_scene.add_child(world_item)
+    print("Created world item at position: %s" % world_item.global_position)
+
+# UPDATED: Store source when drag starts from equipment
+func _on_slot_dropped(data: Dictionary, target_slot: InventorySlotUI):
+    print("=== DROP EVENT START ===")
+    print("Drop data: %s -> %s" % [data["item"].content.name if data["item"].content else "Unknown", target_slot.name])
+    print("Source: %s" % data["source"])
+    print("Target slot type: %s" % ("EQUIPMENT" if target_slot.grid_position == Vector2i(-1, -1) else "CONTAINER"))
+    print("Target slot position: %s" % target_slot.grid_position)
+    
+    # NEW: Update current drag data with source
+    if current_drag_data:
+        current_drag_data["source"] = data["source"]
+    
+    var parent = target_slot.get_parent()
+    
+    # Handle equipment slots (grid_position == (-1, -1))
+    if target_slot.grid_position == Vector2i(-1, -1):
+        print("Target is equipment slot: %s" % target_slot.name)
+        _handle_equipment_drop(data, target_slot)
+    else:
+        print("Target is container slot: %s" % target_slot.grid_position)
+        _handle_container_drop(data, target_slot)
+    
+    print("=== DROP EVENT END ===")
+
 func _open_container_once(container: InventoryContainer):
     for ui in open_containers:
         if ui.current_container == container:
@@ -60,26 +178,6 @@ func _update_equipment_slot(slot: InventorySlotUI, slot_name: String):
         slot.associated_item = equipped[0]
         slot.source_container = player_controller.player_body
         print("Equipment slot %s: %s" % [slot_name, equipped[0].content.name if equipped[0].content else "Unknown"])
-
-# main.gd - UPDATED _on_slot_dropped method
-func _on_slot_dropped(data: Dictionary, target_slot: InventorySlotUI):
-    print("=== DROP EVENT START ===")
-    print("Drop data: %s -> %s" % [data["item"].content.name if data["item"].content else "Unknown", target_slot.name])
-    print("Source: %s" % data["source"])
-    print("Target slot type: %s" % ("EQUIPMENT" if target_slot.grid_position == Vector2i(-1, -1) else "CONTAINER"))
-    print("Target slot position: %s" % target_slot.grid_position)  # ADD THIS
-    
-    var parent = target_slot.get_parent()
-    
-    # Handle equipment slots (grid_position == (-1, -1))
-    if target_slot.grid_position == Vector2i(-1, -1):
-        print("Target is equipment slot: %s" % target_slot.name)
-        _handle_equipment_drop(data, target_slot)
-    else:
-        print("Target is container slot: %s" % target_slot.grid_position)
-        _handle_container_drop(data, target_slot)
-    
-    print("=== DROP EVENT END ===")
 
 func _handle_equipment_drop(data: Dictionary, target_slot: InventorySlotUI):
     var slot_name = target_slot.name

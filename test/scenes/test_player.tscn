@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://bxlbq0drdtji4" path="res://addons/cabra.lat_shooters/src/scenes/HUD.tscn" id="3_aiq23"]
 [ext_resource type="Texture2D" uid="uid://rwr14fl7ogi4" path="res://addons/cabra.lat_shooters/assets/skybox.jpg" id="3_yghno"]
 [ext_resource type="PackedScene" uid="uid://b0ejn6xouvmht" path="res://src/scenes/box.tscn" id="4_6vvmu"]
-[ext_resource type="PackedScene" uid="uid://4fpsqv2ujg4p" path="res://addons/cabra.lat_shooters/src/scenes/world_item.tscn" id="6_cnysa"]
+[ext_resource type="PackedScene" uid="uid://4fpsqv2ujg4p" path="res://addons/cabra.lat_shooters/src/gameplay/world_item.tscn" id="6_cnysa"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_lx1hn"]
 size = Vector3(40, 1, 10)
