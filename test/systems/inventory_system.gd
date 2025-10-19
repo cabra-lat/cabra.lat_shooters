@@ -57,7 +57,7 @@ func _test_ammo_to_magazine():
 # Test equipping a weapon
 func _test_equip_weapon():
   var backpack = Backpack.new()
-  var player_body = PlayerBody.new()
+  var equipment = EquipmentSlot.new()
 
   # Create weapon
   var weapon = Weapon.new()
@@ -66,9 +66,9 @@ func _test_equip_weapon():
   backpack.add_item(item)
 
   # Equip
-  var success = InventorySystem.transfer_item(backpack, player_body, item)
+  var success = InventorySystem.transfer_item(backpack, equipment, item)
   check(success, "Should equip weapon to primary slot")
-  check(player_body.get_equipped("primary").size() == 1, "Primary slot should have weapon")
+  check(equipment.get_equipped("primary").size() == 1, "Primary slot should have weapon")
   check(backpack.items.is_empty(), "Backpack should be empty")
 
 # Test incompatible ammo rejection

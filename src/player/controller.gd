@@ -43,7 +43,7 @@ signal debug(player: PlayerController, text: String)
 # ─── REFERENCES ────────────────────────────────────
 @export var config: PlayerConfig
 @export var health: Health  # Player health system
-@export var player_body: PlayerBody  # Equipment slots
+@export var equipment: Equipment  # Equipment slots
 
 @onready var moving_logic = %MovingLogic
 @onready var firing_logic = %FiringLogic
@@ -83,8 +83,8 @@ func _ready():
     config = PlayerConfig.new()
   if health == null:
     health = Health.new()
-  if player_body == null:
-    player_body = PlayerBody.new()
+  if equipment == null:
+    equipment = Equipment.new()
 
   # Connect state machine signals
   for logic in [moving_logic, crouch_logic, firing_logic]:
@@ -187,7 +187,7 @@ func _on_state_changed(new_state: String, old_state: String):
       crouched.emit(self, true)
     [BARE_HANDED, _]:
       # Equip first weapon from primary slot
-      var primary = player_body.get_equipped("primary")
+      var primary = equipment.get_equipped("primary")
       if not primary.is_empty():
         current_weapon = primary[0].content as Weapon
         weapon_node.data = current_weapon

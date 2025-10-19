@@ -1,0 +1,184 @@
+[gd_scene load_steps=5 format=3 uid="uid://14435ab6smgu"]
+
+[ext_resource type="PackedScene" uid="uid://b4nocuvgaea0x" path="res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn" id="1_n82b3"]
+[ext_resource type="Script" uid="uid://yhu4obd6r7aj" path="res://addons/cabra.lat_shooters/src/ui/inventory/equipment.gd" id="1_quol3"]
+[ext_resource type="Texture2D" uid="uid://bu52pdeq0jup2" path="res://addons/cabra.lat_shooters/assets/ui/inventory/player_body.png" id="2_fddp0"]
+[ext_resource type="Script" uid="uid://dfds0mlc4myq4" path="res://addons/cabra.lat_shooters/src/ui/inventory/equipment_slot.gd" id="3_adt6v"]
+
+[node name="PanelContainer" type="PanelContainer"]
+custom_minimum_size = Vector2(300, 550)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -150.0
+offset_top = -275.0
+offset_right = 150.0
+offset_bottom = 275.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_quol3")
+
+[node name="Equipment" type="FoldableContainer" parent="."]
+layout_mode = 2
+title = "Equipment"
+
+[node name="TabContainer" type="TabContainer" parent="Equipment"]
+layout_mode = 2
+tab_alignment = 1
+current_tab = 2
+tabs_position = 1
+
+[node name="Front" type="Control" parent="Equipment/TabContainer"]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 0
+
+[node name="front_body" type="TextureRect" parent="Equipment/TabContainer/Front"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+texture = ExtResource("2_fddp0")
+expand_mode = 3
+stretch_mode = 5
+
+[node name="helmet" parent="Equipment/TabContainer/Front" instance=ExtResource("1_n82b3")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -24.0
+offset_top = -224.0
+offset_right = 26.0
+offset_bottom = -174.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_adt6v")
+slot_type = "head"
+allowed_categories = Array[String]([])
+
+[node name="vest" parent="Equipment/TabContainer/Front" instance=ExtResource("1_n82b3")]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -47.999985
+offset_top = -146.0
+offset_right = 52.000015
+offset_bottom = -46.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_adt6v")
+slot_type = "torso"
+allowed_categories = Array[String]([])
+
+[node name="Back" type="Control" parent="Equipment/TabContainer"]
+visible = false
+layout_mode = 2
+metadata/_tab_index = 1
+
+[node name="back_body" type="TextureRect" parent="Equipment/TabContainer/Back"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+texture = ExtResource("2_fddp0")
+expand_mode = 3
+stretch_mode = 5
+
+[node name="back" parent="Equipment/TabContainer/Back" instance=ExtResource("1_n82b3")]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -47.999985
+offset_top = -146.0
+offset_right = 52.000076
+offset_bottom = -46.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_adt6v")
+slot_type = "back"
+allowed_categories = Array[String]([])
+
+[node name="Loadout" type="Control" parent="Equipment/TabContainer"]
+layout_mode = 2
+metadata/_tab_index = 2
+
+[node name="primary" parent="Equipment/TabContainer/Loadout" instance=ExtResource("1_n82b3")]
+custom_minimum_size = Vector2(150, 100)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -72.000015
+offset_top = -224.0
+offset_right = 77.999985
+offset_bottom = -124.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_adt6v")
+slot_type = "primary"
+allowed_categories = Array[String]([])
+
+[node name="secondary" parent="Equipment/TabContainer/Loadout" instance=ExtResource("1_n82b3")]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -112.000015
+offset_top = -107.0
+offset_right = -11.999954
+offset_bottom = -7.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_adt6v")
+slot_type = "secondary"
+allowed_categories = Array[String]([])
+
+[node name="utility" parent="Equipment/TabContainer/Loadout" instance=ExtResource("1_n82b3")]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 13.999985
+offset_top = -107.0
+offset_right = 114.000046
+offset_bottom = -7.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_adt6v")
+slot_type = "utility"
+allowed_categories = Array[String]([])

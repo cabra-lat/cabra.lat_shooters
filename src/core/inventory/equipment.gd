@@ -1,5 +1,5 @@
-# res://src/core/inventory/player_body.gd
-class_name PlayerBody
+# res://src/core/inventory/equipment.gd
+class_name Equipment
 extends Resource
 
 # Body zones with slot types
@@ -15,13 +15,13 @@ var slots: Dictionary = {
 
 func _init():
   # Configure slots
-  slots["head"].slot_type = EquipmentSlot.SlotType.HEAD
-  slots["torso"].slot_type = EquipmentSlot.SlotType.TORSO
-  slots["arms"].slot_type = EquipmentSlot.SlotType.ARMS
-  slots["legs"].slot_type = EquipmentSlot.SlotType.LEGS
-  slots["primary"].slot_type = EquipmentSlot.SlotType.PRIMARY_WEAPON
-  slots["secondary"].slot_type = EquipmentSlot.SlotType.SECONDARY_WEAPON
-  slots["back"].slot_type = EquipmentSlot.SlotType.BACK
+  slots["head"].slot_type = EquipmentSlot.Type.HEAD
+  slots["torso"].slot_type = EquipmentSlot.Type.TORSO
+  slots["arms"].slot_type = EquipmentSlot.Type.ARMS
+  slots["legs"].slot_type = EquipmentSlot.Type.LEGS
+  slots["primary"].slot_type = EquipmentSlot.Type.PRIMARY_WEAPON
+  slots["secondary"].slot_type = EquipmentSlot.Type.SECONDARY_WEAPON
+  slots["back"].slot_type = EquipmentSlot.Type.BACK
 
   # Weapon slots: only 1 item
   slots["primary"].max_items = 1

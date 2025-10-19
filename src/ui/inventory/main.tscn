@@ -1,9 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://c12klxocgrga0"]
+[gd_scene load_steps=4 format=3 uid="uid://c12klxocgrga0"]
 
 [ext_resource type="Script" uid="uid://bqlt0o5wwk2u3" path="res://addons/cabra.lat_shooters/src/ui/inventory/main.gd" id="1_6temw"]
 [ext_resource type="PackedScene" uid="uid://c083lnjbgx1of" path="res://addons/cabra.lat_shooters/src/ui/inventory/world_drop_zone.tscn" id="2_3seow"]
-[ext_resource type="PackedScene" uid="uid://b4nocuvgaea0x" path="res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn" id="2_26t5g"]
-[ext_resource type="Texture2D" uid="uid://bu52pdeq0jup2" path="res://addons/cabra.lat_shooters/assets/ui/inventory/player_body.png" id="4_3seow"]
+[ext_resource type="PackedScene" uid="uid://14435ab6smgu" path="res://addons/cabra.lat_shooters/src/ui/inventory/equipment.tscn" id="3_3seow"]
 
 [node name="InventoryUi" type="Control"]
 layout_mode = 3
@@ -44,77 +43,36 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 alignment = 1
 
-[node name="ScrollContainer" type="ScrollContainer" parent="InventoryUi/HB"]
-custom_minimum_size = Vector2(400, 0)
+[node name="LS" type="ScrollContainer" parent="InventoryUi/HB"]
 layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="VB" type="VBoxContainer" parent="InventoryUi/HB/ScrollContainer"]
+[node name="VB" type="VBoxContainer" parent="InventoryUi/HB/LS"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 2
 
-[node name="ContainerUI" parent="InventoryUi/HB/ScrollContainer/VB" instance_placeholder="res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"]
+[node name="ContainerUI" parent="InventoryUi/HB/LS/VB" instance_placeholder="res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="ContainerUI2" parent="InventoryUi/HB/ScrollContainer/VB" instance_placeholder="res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"]
+[node name="ContainerUI2" parent="InventoryUi/HB/LS/VB" instance_placeholder="res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="EquipmentPanel" type="FoldableContainer" parent="InventoryUi/HB"]
+[node name="RS" type="ScrollContainer" parent="InventoryUi/HB"]
 layout_mode = 2
 size_flags_horizontal = 3
-title = "Equipment"
 
-[node name="TextureRect" type="TextureRect" parent="InventoryUi/HB/EquipmentPanel"]
+[node name="VB" type="VBoxContainer" parent="InventoryUi/HB/RS"]
 layout_mode = 2
-texture = ExtResource("4_3seow")
-expand_mode = 3
-stretch_mode = 5
+size_flags_horizontal = 3
+size_flags_vertical = 2
 
-[node name="Equipment" type="Panel" parent="InventoryUi/HB/EquipmentPanel"]
+[node name="Equipment" parent="InventoryUi/HB/RS/VB" instance=ExtResource("3_3seow")]
 layout_mode = 2
-
-[node name="helmet" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
-layout_mode = 1
-offset_left = 169.0
-offset_top = 44.0
-offset_right = 219.0
-offset_bottom = 94.0
-
-[node name="vest" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 1
-offset_left = 83.0
-offset_top = 130.0
-offset_right = 183.0
-offset_bottom = 230.0
-
-[node name="back" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 1
-offset_left = 214.0
-offset_top = 130.0
-offset_right = 314.0
-offset_bottom = 230.0
-
-[node name="secondary" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 1
-offset_left = 219.0
-offset_top = 280.0
-offset_right = 319.0
-offset_bottom = 380.0
-
-[node name="primary" parent="InventoryUi/HB/EquipmentPanel/Equipment" instance=ExtResource("2_26t5g")]
-custom_minimum_size = Vector2(150, 100)
-layout_mode = 1
-offset_left = 60.0
-offset_top = 280.0
-offset_right = 210.0
-offset_bottom = 380.0
 
 [node name="CloseButton" type="Button" parent="."]
 unique_name_in_owner = true

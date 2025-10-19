@@ -39,9 +39,20 @@ func pick_up(player: PlayerController) -> bool:
     return false
   if not player:
     return false
-  var equipped = player.player_body.get_equipped("back")
+  var equipped = player.equipment.get_equipped("back")
   var first_equipped = equipped[0] if len(equipped) > 0 else null
   var backpack = first_equipped.content as Backpack if first_equipped else null
+
+  if not backpack:
+    # If no backpack available, try to find another container
+    backpack = player.find_accessible_container()
+    if not backpack:
+      return false
+
+  # Ensure item has valid position before transfer
+  if inventory_item.position.x < 0 or inventory_item.position.y < 0:
+    inventory_item.position = Vector2i.ZERO
+
   var success = backpack and InventorySystem.transfer_item(null, backpack, self.inventory_item)
   if success:
     item_picked_up.emit(self, player)
@@ -49,7 +60,7 @@ func pick_up(player: PlayerController) -> bool:
   return success
 
 func drop_from_player(player: PlayerController, item: InventoryItem) -> void:
-  inventory_item = item.duplicate(true)
+  inventory_item = item
   _update_visuals()
   item_dropped.emit(self)
   is_pickable = true

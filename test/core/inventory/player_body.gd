@@ -1,11 +1,11 @@
-# res://test/core/inventory/player_body.gd
+# res://test/core/inventory/equipment.gd
 @tool
 class_name TestPlayerBody extends EditorScript
 
 func _run():
-  print("🧪 Testing PlayerBody...")
+  print("🧪 Testing EquipmentSlot...")
 
-  var body = PlayerBody.new()
+  var body = EquipmentSlot.new()
 
   # Equip primary weapon
   var weapon = Weapon.new()
@@ -39,7 +39,7 @@ func _run():
   var total_mass = body.get_total_mass()
   check(total_mass > 0, "Total mass calculated")
 
-  print("✅ PlayerBody tests passed!")
+  print("✅ EquipmentSlot tests passed!")
 
 func check(condition: bool, message: String):
   if not condition:

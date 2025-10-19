@@ -1,4 +1,4 @@
-# res://src/core/inventory/inventory_item.gd
+# src/core/inventory/item.gd
 class_name InventoryItem
 extends Item
 

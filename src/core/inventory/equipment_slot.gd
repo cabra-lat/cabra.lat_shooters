@@ -2,7 +2,7 @@
 class_name EquipmentSlot
 extends InventoryContainer
 
-enum SlotType {
+enum Type {
   HEAD,
   TORSO,
   ARMS,
@@ -12,7 +12,7 @@ enum SlotType {
   BACK
 }
 
-@export var slot_type: SlotType
+@export var slot_type: Type
 @export var max_items: int = 1  # 1 for weapons, >1 for layered clothing
 
 func can_add_item(item: InventoryItem) -> bool:
@@ -30,19 +30,19 @@ func can_add_item(item: InventoryItem) -> bool:
   # Add compatibility logic here
   var compatible = false
   match slot_type:
-    SlotType.HEAD:
+    Type.HEAD:
       compatible = true  # Allow any head item for now
-    SlotType.TORSO:
+    Type.TORSO:
       compatible = true  # Allow any torso item for now
-    SlotType.ARMS:
+    Type.ARMS:
       compatible = true  # Allow any arms item for now
-    SlotType.LEGS:
+    Type.LEGS:
       compatible = true  # Allow any legs item for now
-    SlotType.PRIMARY_WEAPON:
+    Type.PRIMARY_WEAPON:
       compatible = item.content is Weapon
-    SlotType.SECONDARY_WEAPON:
+    Type.SECONDARY_WEAPON:
       compatible = item.content is Weapon
-    SlotType.BACK:
+    Type.BACK:
       compatible = item.content is Backpack
 
   print("  -> %s: %s" % ["COMPATIBLE" if compatible else "INCOMPATIBLE", item.content.name if item.content else "Unknown"])

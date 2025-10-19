@@ -1,5 +1,6 @@
 # src/core/inventory/container.gd
-class_name InventoryContainer extends Item
+class_name InventoryContainer
+extends Item
 
 @export var grid_width: int = 5
 @export var grid_height: int = 5

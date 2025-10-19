@@ -18,12 +18,12 @@ var can_connect_signals: bool = false
     #
     #weapon_ak47.change_magazine(magazine_ak47)
     #var item = InventorySystem.create_inventory_item(weapon_ak47)
-    #player.player_body.equip(item, "primary")
+    #player.equipment.equip(item, "primary")
 
 func _ready():
     # Equip to player body
     var weapon_item = InventorySystem.create_inventory_item(weapon)
-    $Player.player_body.equip(weapon_item, "primary")
+    $Player.equipment.equip(weapon_item, "primary")
 
     var magazine = AmmoFeed.new()
     magazine.compatible_calibers.append(ammo.caliber)
@@ -38,7 +38,7 @@ func _ready():
 
     var backpack_item = InventorySystem.create_inventory_item(backpack)
     backpack_item.dimensions = Vector2i(2,2)
-    $Player.player_body.equip(backpack_item, "back")
+    $Player.equipment.equip(backpack_item, "back")
 
     # Create world item
     var world_item = %WorldItem

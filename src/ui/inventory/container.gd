@@ -1,7 +1,7 @@
-class_name ContainerUI
-extends PanelContainer
+# src/ui/inventory/container.gd
+class_name InventoryContainerUI
+extends BaseInventoryUI
 
-signal slot_dropped(data: Dictionary, target_slot: InventorySlotUI)
 signal container_closed()
 
 @onready var foldable_panel: FoldableContainer = $Panel
@@ -9,106 +9,139 @@ signal container_closed()
 @onready var items_container: Control = $Panel/ItemsContainer
 @onready var close_button: Button = %CloseButton
 
-var current_container: InventoryContainer = null
-var slot_size: int = 50
-var item_displays: Array[InventoryItemUI] = []
-var slot_displays: Array[InventorySlotUI] = []
-var debug_label: Label
-var error_label: Label
-
 # Drop preview
 var drop_preview: ColorRect
-var dragged_item: InventoryItem = null
-var current_hovered_slot: InventorySlotUI = null  # NEW: Track hovered slot
+var current_hovered_slot: InventorySlotUI = null
+var dragged_item: InventoryItem = null  # Track currently dragged item
 
 func _ready():
+    super._ready()
     close_button.pressed.connect(_on_close_button_pressed)
     _create_drop_preview()
 
-func _create_drop_preview():
-    # Create drop preview overlay
-    drop_preview = ColorRect.new()
-    drop_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    drop_preview.visible = false
-    drop_preview.z_index = -1  # NEW: Put it behind items (items are z_index=1)
-    grid_background.add_child(drop_preview)  # NEW: Add to grid background, not items container
-
 func open_container(container: InventoryContainer):
-    current_container = container
-    foldable_panel.title = container.name
-    _setup_grid()
-    _update_ui()
+    setup_inventory(container)
     show()
 
-func _setup_grid():
-    # Clear existing slots and items
+func setup_inventory(container: Resource):
+    if not container is InventoryContainer:
+        push_error("InventoryContainerUI requires an InventoryContainer resource")
+        return
+
+    current_inventory_source = container
+    foldable_panel.title = container.name
+    _setup_slots()
+    _update_ui()
+
+func _setup_slots():
+    _clear_existing_slots()
+    _setup_grid_size()
+    _create_grid_slots()
+
+func _clear_existing_slots():
     for child in grid_background.get_children():
-        if child != drop_preview:  # NEW: Don't remove drop preview
+        if child != drop_preview:
             grid_background.remove_child(child)
             child.queue_free()
-
-    for child in items_container.get_children():
-        items_container.remove_child(child)
-        child.queue_free()
-
-    item_displays.clear()
     slot_displays.clear()
 
-    # Set container size
-    var grid_size = Vector2(
-        current_container.grid_width * slot_size,
-        current_container.grid_height * slot_size
-    )
+func _setup_grid_size():
+    var container = current_inventory_source as InventoryContainer
+    if not container:
+        return
 
+    var grid_size = Vector2(
+        container.grid_width * slot_size,
+        container.grid_height * slot_size
+    )
     grid_background.size = grid_size
     items_container.size = grid_size
 
-    #grid_background.custom_minimum_size = grid_size
-    #items_container.custom_minimum_size = grid_size
+func _create_grid_slots():
+    var container = current_inventory_source as InventoryContainer
+    if not container:
+        return
 
-    print("Setting up container grid: %dx%d, slot_size: %d" % [current_container.grid_width, current_container.grid_height, slot_size])
-    print("Grid background size: %s" % grid_size)
-
-    # Create grid slots
-    for y in range(current_container.grid_height):
-        for x in range(current_container.grid_width):
+    for y in range(container.grid_height):
+        for x in range(container.grid_width):
             var slot: InventorySlotUI = preload("res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn").instantiate()
-            slot.grid_position = Vector2i(x, y)
-            slot.name = "Slot[%d,%d]" % [x, y]
-            slot.size = Vector2(slot_size, slot_size)
-            slot.position = Vector2(x * slot_size, y * slot_size)
-
-            # Set container reference directly
-            slot.set_container_ui(self)
-
-            # Connect drag signals
-            slot.drag_started.connect(_on_drag_started)
-            slot.drag_ended.connect(_on_drag_ended)
-
-            slot.mouse_entered.connect(_on_slot_mouse_entered.bind(slot))
-            slot.mouse_exited.connect(_on_slot_mouse_exited.bind(slot))
-            slot.slot_dropped.connect(_on_slot_dropped)
+            _setup_grid_slot(slot, Vector2i(x, y))
             grid_background.add_child(slot)
             slot_displays.append(slot)
 
-    print("Total slots created: %d" % slot_displays.size())
+func _setup_grid_slot(slot: InventorySlotUI, position: Vector2i):
+    slot.grid_position = position
+    slot.name = "Slot[%d,%d]" % [position.x, position.y]
+    slot.size = Vector2(slot_size, slot_size)
+    slot.position = Vector2(position.x * slot_size, position.y * slot_size)
+    slot.setup(self)
 
-# NEW: Handle slot mouse enter during drag
+    # Connect signals
+    if not slot.drag_started.is_connected(_on_drag_started):
+        slot.drag_started.connect(_on_drag_started)
+    if not slot.drag_ended.is_connected(_on_drag_ended):
+        slot.drag_ended.connect(_on_drag_ended)
+    if not slot.mouse_entered.is_connected(_on_slot_mouse_entered.bind(slot)):
+        slot.mouse_entered.connect(_on_slot_mouse_entered.bind(slot))
+    if not slot.mouse_exited.is_connected(_on_slot_mouse_exited.bind(slot)):
+        slot.mouse_exited.connect(_on_slot_mouse_exited.bind(slot))
+    if not slot.slot_dropped.is_connected(_on_slot_dropped):
+        slot.slot_dropped.connect(_on_slot_dropped)
+
+func _get_display_items() -> Array[InventoryItem]:
+    var container = current_inventory_source as InventoryContainer
+    return container.items if container else []
+
+func _add_item_display_to_scene(display: InventoryItemUI):
+    items_container.add_child(display)
+    display.z_index = 1
+
+func _position_item_display(display: InventoryItemUI, item: InventoryItem):
+    display.position = Vector2(item.position.x * slot_size, item.position.y * slot_size)
+
+func _update_slot_states():
+    # Clear all slots first
+    for slot in slot_displays:
+        slot.set_occupied(false)
+
+    # Mark occupied slots from items
+    for item in _get_display_items():
+        for y in range(item.dimensions.y):
+            for x in range(item.dimensions.x):
+                var slot_pos = Vector2i(item.position.x + x, item.position.y + y)
+                var slot = get_slot_at_position(slot_pos)
+                if slot:
+                    slot.set_occupied(true)
+
+# Drop preview methods
+func _create_drop_preview():
+    drop_preview = ColorRect.new()
+    drop_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    drop_preview.visible = false
+    drop_preview.z_index = -1
+    grid_background.add_child(drop_preview)
+
+func show_drop_preview(position: Vector2i, dimensions: Vector2i, color: Color):
+    if current_hovered_slot:
+        drop_preview.position = Vector2(position.x * slot_size, position.y * slot_size)
+        drop_preview.size = Vector2(dimensions.x * slot_size, dimensions.y * slot_size)
+        drop_preview.color = color
+        drop_preview.visible = true
+
+func hide_drop_preview():
+    drop_preview.visible = false
+
 func _on_slot_mouse_entered(slot: InventorySlotUI):
     current_hovered_slot = slot
-    # Visual feedback for drag operations
     if slot.is_occupied:
         slot.modulate = Color(1.0, 0.5, 0.5, 0.522)
     else:
         slot.modulate = Color(0.5, 1.0, 0.5, 0.553)
 
-# NEW: Handle slot mouse exit during drag
 func _on_slot_mouse_exited(slot: InventorySlotUI):
     if current_hovered_slot == slot:
         current_hovered_slot = null
-        # Hide drop preview when leaving slot
         hide_drop_preview()
-    # Reset visual feedback
     slot.modulate = Color(1, 1, 1, 1)
 
 # Handle drag start - hide the original item
@@ -116,83 +149,16 @@ func _on_drag_started(item: InventoryItem):
     dragged_item = item
     for display in item_displays:
         if display.inventory_item == item:
-            display.visible = false  # NEW: Completely hide instead of dimming
+            display.visible = false
             break
 
 # Handle drag end - restore all items
 func _on_drag_ended():
     dragged_item = null
     for display in item_displays:
-        display.visible = true  # NEW: Make visible again
+        display.visible = true
     hide_drop_preview()
     current_hovered_slot = null
-
-# Show drop preview spanning multiple slots
-func show_drop_preview(position: Vector2i, dimensions: Vector2i, color: Color):
-    # Only show if we're actually hovering a slot in this container
-    if current_hovered_slot:
-        drop_preview.position = Vector2(position.x * slot_size, position.y * slot_size)
-        drop_preview.size = Vector2(dimensions.x * slot_size, dimensions.y * slot_size)
-        drop_preview.color = color
-        drop_preview.visible = true
-
-# Hide drop preview
-func hide_drop_preview():
-    drop_preview.visible = false
-
-func _update_ui():
-    if not current_container:
-        return
-
-    call_deferred("_deferred_update_ui")
-
-func _deferred_update_ui():
-    # Clear all slots
-    for slot in slot_displays:
-        slot.clear()
-        slot.set_occupied(false)
-
-    # Remove old item displays
-    for display in item_displays:
-        if is_instance_valid(display):
-            items_container.remove_child(display)
-            display.queue_free()
-    item_displays.clear()
-
-    # Create item displays for each item
-    for item in current_container.items:
-        _create_item_display(item)
-
-func _create_item_display(item: InventoryItem):
-    var display = InventoryItemUI.new()
-    display.slot_size = slot_size
-    display.setup(item, self)
-    items_container.add_child(display)
-    display.z_index = 1  # Items appear above grid/slots
-    item_displays.append(display)
-
-    # Position the item correctly
-    display.position = Vector2(item.position.x * slot_size, item.position.y * slot_size)
-
-    print("Created item display: %s at %s (dimensions: %s)" % [item.content.name if item.content else "Unknown", item.position, item.dimensions])
-
-    # Mark occupied slots
-    for y in range(item.dimensions.y):
-        for x in range(item.dimensions.x):
-            var slot_pos = Vector2i(item.position.x + x, item.position.y + y)
-            var slot = _get_slot_at_position(slot_pos)
-            if slot:
-                slot.set_occupied(true)
-
-func _get_slot_at_position(position: Vector2i) -> InventorySlotUI:
-    for slot in slot_displays:
-        if slot.grid_position == position:
-            return slot
-    return null
-
-func _on_slot_dropped(data: Dictionary, target_slot: InventorySlotUI):
-    print("ContainerUI: Slot dropped: %s -> %s" % [data["item"].content.name if data["item"].content else "Unknown", target_slot.grid_position])
-    slot_dropped.emit(data, target_slot)
 
 func _on_close_button_pressed():
     container_closed.emit()

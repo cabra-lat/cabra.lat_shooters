@@ -4,12 +4,11 @@
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_m0whj"]
 bg_color = Color(0, 0, 0, 0.34901962)
-border_width_left = 5
-border_width_top = 5
-border_width_right = 5
-border_width_bottom = 5
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.47918278, 0.47918284, 0.47918254, 1)
-border_blend = true
 
 [node name="InventorySlotUI" type="Panel"]
 custom_minimum_size = Vector2(50, 50)
@@ -26,7 +25,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "Slot"
 horizontal_alignment = 1
 vertical_alignment = 1
 
