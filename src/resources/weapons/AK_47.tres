@@ -6,10 +6,10 @@
 
 [resource]
 script = ExtResource("1_3wd1v")
-view_model = ExtResource("2_4t2h6")
 attach_points = 31
 firemodes = 6
 feed_type = 1
 base_accuracy = 1.0
 name = "AK-47"
 icon = ExtResource("1_ps5x8")
+view_model = ExtResource("2_4t2h6")

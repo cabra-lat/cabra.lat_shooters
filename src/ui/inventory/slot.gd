@@ -2,6 +2,8 @@
 class_name InventorySlotUI
 extends Panel
 
+const SLOT_SIZE_PX = Vector2(50, 50)
+
 signal slot_dropped(data: Dictionary, target_slot: InventorySlotUI)
 signal drag_started(item: InventoryItem)
 signal drag_ended()
@@ -21,7 +23,7 @@ var debug_label: Label
 var is_equipment_slot: bool = false
 
 func _ready():
-    custom_minimum_size = Vector2(50, 50)
+    custom_minimum_size = SLOT_SIZE_PX
     size_flags_horizontal = Control.SIZE_FILL
     size_flags_vertical = Control.SIZE_FILL
     mouse_filter = Control.MOUSE_FILTER_STOP
@@ -49,7 +51,7 @@ func clear():
 
 func _reset_icon_size():
     if icon:
-        icon.custom_minimum_size = Vector2(50, 50)
+        icon.custom_minimum_size = SLOT_SIZE_PX
 
 func set_occupied(occupied: bool):
     is_occupied = occupied
@@ -122,25 +124,16 @@ func _notification(what):
 
 func _create_drag_preview(item: InventoryItem) -> Control:
     var preview = TextureRect.new()
-    preview.texture = item.content.icon if item.content and item.content.icon else \
-        preload("../../../assets/ui/inventory/placeholder.png")
-    preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+    preview.texture = item.content.icon
+    preview.expand_mode = TextureRect.EXPAND_FIT_HEIGHT_PROPORTIONAL
     preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-
-    # Scale preview to match item dimensions
-    var max_preview_size = 100
-    var preview_size_base = Vector2(50, 50) * Vector2(item.dimensions)
-    var preview_scale = min(1.0, max_preview_size / max(preview_size_base.x, preview_size_base.y))
-    var preview_size = preview_size_base * preview_scale
-
-    preview.custom_minimum_size = preview_size
-    preview.size = preview_size
-    preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    preview.size =  SLOT_SIZE_PX * Vector2(item.dimensions)
 
     var control = Control.new()
     control.add_child(preview)
-    control.size = preview_size
-    preview.position = -0.25 * preview_size
+    control.custom_minimum_size = preview.size
+    control.size = preview.size
+    preview.position = -0.25 * preview.size
 
     return control
 

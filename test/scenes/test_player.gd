@@ -6,7 +6,6 @@ var can_connect_signals: bool = false
 # DEV/DEBUG
 @onready var ammo: Ammo = preload("../../src/resources/ammo/7_62_39mm_PS_GOST_BR4.tres")
 @onready var weapon: Weapon = preload("../../src/resources/weapons/AK_47.tres")
-@onready var mag: AmmoFeed = AmmoFeed.new()
 @onready var player: PlayerController = $Player
 # END DEV/DEBUG
 
@@ -26,25 +25,30 @@ func _ready():
     var weapon_item = InventorySystem.create_inventory_item(weapon)
     $Player.player_body.equip(weapon_item, "primary")
 
+    var magazine = AmmoFeed.new()
+    magazine.compatible_calibers.append(ammo.caliber)
+    magazine.type = AmmoFeed.Type.EXTERNAL
+    magazine.icon = preload("../../assets/ui/inventory/icon_stock_mag.png")
+    var magazine_item = InventorySystem.create_inventory_item(magazine)
+    magazine_item.dimensions = Vector2i(1,2)
+
     var backpack = Backpack.new()
     backpack.icon = preload("../../assets/ui/inventory/backpack.png")
+    backpack.add_item(magazine_item)
+
     var backpack_item = InventorySystem.create_inventory_item(backpack)
     backpack_item.dimensions = Vector2i(2,2)
     $Player.player_body.equip(backpack_item, "back")
 
     # Create world item
     var world_item = %WorldItem
-    var item = InventorySystem.create_inventory_item(ammo, 5)
+    var item = InventorySystem.create_inventory_item(ammo, 30)
     world_item.inventory_item = item
     world_item._ready()
 
     var signals = $Player.get_signal_list()
     for sig in signals:
         $Player.connect(sig.name, Callable(self, "_on_" + sig.name))
-
-func _on_player_inserted_ammofeed(player: PlayerController):
-    if player.weapon:
-        player.weapon.change_magazine(mag)
 
 func _on_trigger_locked():
     $HUD.show_popup("[can't pull the trigger]")

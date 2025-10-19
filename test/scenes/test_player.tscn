@@ -3,24 +3,23 @@
 [ext_resource type="Script" uid="uid://dn0782newa14v" path="res://addons/cabra.lat_shooters/test/scenes/test_player.gd" id="1_cnysa"]
 [ext_resource type="PackedScene" uid="uid://ly33hk8t667t" path="res://addons/cabra.lat_shooters/src/player/scenes/player.tscn" id="2_yghno"]
 [ext_resource type="PackedScene" uid="uid://bxlbq0drdtji4" path="res://addons/cabra.lat_shooters/src/scenes/HUD.tscn" id="3_aiq23"]
+[ext_resource type="Shader" uid="uid://dlkqwf514snn8" path="res://shaders/psx/psx_unlit.gdshader" id="3_tqsn0"]
 [ext_resource type="Texture2D" uid="uid://rwr14fl7ogi4" path="res://addons/cabra.lat_shooters/assets/skybox.jpg" id="3_yghno"]
+[ext_resource type="Texture2D" uid="uid://hohddlwbcwl5" path="res://textures/Gem/Gem_22-128x128.png" id="4_4lym8"]
 [ext_resource type="PackedScene" uid="uid://b0ejn6xouvmht" path="res://src/scenes/box.tscn" id="4_6vvmu"]
 [ext_resource type="PackedScene" uid="uid://4fpsqv2ujg4p" path="res://addons/cabra.lat_shooters/src/gameplay/world_item.tscn" id="6_cnysa"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_lx1hn"]
 size = Vector3(40, 1, 10)
 
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_egtcd"]
-frequency = 0.0674
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_n5vox"]
-noise = SubResource("FastNoiseLite_egtcd")
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_egtcd"]
-albedo_color = Color(0.439423, 0.338421, 0, 1)
-normal_enabled = true
-normal_scale = 0.4
-normal_texture = SubResource("NoiseTexture2D_n5vox")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4jlxp"]
+render_priority = 0
+shader = ExtResource("3_tqsn0")
+shader_parameter/modulate_color = Color(1, 1, 1, 1)
+shader_parameter/albedoTex = ExtResource("4_4lym8")
+shader_parameter/uv_scale = Vector2(10, 1)
+shader_parameter/uv_offset = Vector2(0, 0)
+shader_parameter/uv_pan_velocity = Vector2(0, 0)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uk0x"]
 size = Vector3(40, 1, 10)
@@ -28,11 +27,11 @@ size = Vector3(40, 1, 10)
 [sub_resource type="BoxShape3D" id="BoxShape3D_cnysa"]
 size = Vector3(400, 1, 100)
 
-[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_aiq23"]
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_tqsn0"]
 panorama = ExtResource("3_yghno")
 
 [sub_resource type="Sky" id="Sky_6vvmu"]
-sky_material = SubResource("PanoramaSkyMaterial_aiq23")
+sky_material = SubResource("PanoramaSkyMaterial_tqsn0")
 
 [sub_resource type="Environment" id="Environment_m5uds"]
 background_mode = 2
@@ -54,7 +53,7 @@ collision_mask = 0
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00212133, 0, -0.00437784)
 mesh = SubResource("BoxMesh_lx1hn")
-surface_material_override/0 = SubResource("StandardMaterial3D_egtcd")
+surface_material_override/0 = SubResource("ShaderMaterial_4jlxp")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room"]
 shape = SubResource("BoxShape3D_5uk0x")
@@ -69,7 +68,7 @@ shape = SubResource("BoxShape3D_5uk0x")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room2"]
 mesh = SubResource("BoxMesh_lx1hn")
-surface_material_override/0 = SubResource("StandardMaterial3D_egtcd")
+surface_material_override/0 = SubResource("ShaderMaterial_4jlxp")
 
 [node name="room3" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -11.679918, 16.026487)
@@ -81,7 +80,7 @@ shape = SubResource("BoxShape3D_5uk0x")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room3"]
 mesh = SubResource("BoxMesh_lx1hn")
-surface_material_override/0 = SubResource("StandardMaterial3D_egtcd")
+surface_material_override/0 = SubResource("ShaderMaterial_4jlxp")
 
 [node name="room4" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -29.594725, 29.43588)
@@ -93,7 +92,7 @@ shape = SubResource("BoxShape3D_5uk0x")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room4"]
 mesh = SubResource("BoxMesh_lx1hn")
-surface_material_override/0 = SubResource("StandardMaterial3D_egtcd")
+surface_material_override/0 = SubResource("ShaderMaterial_4jlxp")
 
 [node name="CollisionShape3D2" type="CollisionShape3D" parent="Level/room4"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.0170326, -25.427063)

@@ -198,8 +198,7 @@ func _update_equipment_slot(slot: InventorySlotUI, slot_name: String):
     slot.clear()
     var equipped = player_controller.player_body.get_equipped(slot_name)
     if not equipped.is_empty():
-        slot.icon.texture = equipped[0].content.icon if equipped[0].content and equipped[0].content.icon else \
-            preload("../../../assets/ui/inventory/placeholder.png")
+        slot.icon.texture = equipped[0].content.icon
         slot.associated_item = equipped[0]
         slot.source_container = player_controller.player_body
         print("Equipment slot %s: %s" % [slot_name, equipped[0].content.name if equipped[0].content else "Unknown"])
