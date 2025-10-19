@@ -1,8 +1,8 @@
 class_name EquipmentSlotUI
 extends InventorySlotUI
 
-@onready var slot_name: String = self.name
-@onready var display_name: String = self.name.capitalize()
+@export var slot_name: String = self.name
+@export var display_name: String = self.name.capitalize()
 @export var allowed_item_types: Array[String] = []
 @export var allowed_categories: Array[String] = []
 

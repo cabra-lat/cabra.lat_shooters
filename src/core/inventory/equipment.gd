@@ -5,10 +5,16 @@ extends Resource
 var slots: Dictionary = {}
 
 func _init():
-    if equipment_config:
-        _initialize_slots()
+    # Create default config if none provided
+    if not equipment_config:
+        equipment_config = EquipmentConfig.new()
+    _initialize_slots()
 
 func _initialize_slots():
+    if not equipment_config:
+        push_error("Equipment: No equipment config available")
+        return
+
     for slot_definition in equipment_config.slot_definitions:
         var slot = EquipmentSlot.new()
         slot.slot_name = slot_definition.slot_name
@@ -17,10 +23,16 @@ func _initialize_slots():
 
 func equip(item: InventoryItem, slot_name: String) -> bool:
     if not slots.has(slot_name):
+        push_error("Equipment slot '%s' not found" % slot_name)
         return false
 
     var slot_definition = equipment_config.get_slot_definition(slot_name)
-    if not slot_definition or not slot_definition.is_item_compatible(item):
+    if not slot_definition:
+        push_error("No slot definition found for '%s'" % slot_name)
+        return false
+
+    if not slot_definition.is_item_compatible(item):
+        push_error("Item not compatible with slot '%s'" % slot_name)
         return false
 
     return slots[slot_name].add_item(item)

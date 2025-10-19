@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://cnylofiu02bub"]
+
+[ext_resource type="PackedScene" uid="uid://b4nocuvgaea0x" path="res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn" id="1_xs703"]
+[ext_resource type="Script" uid="uid://dfds0mlc4myq4" path="res://addons/cabra.lat_shooters/src/ui/inventory/equipment_slot.gd" id="2_cm57x"]
+
+[node name="EquipmentSlotUI" instance=ExtResource("1_xs703")]
+script = ExtResource("2_cm57x")
+slot_name = null
+display_name = null
+allowed_item_types = Array[String]([])
+allowed_categories = Array[String]([])

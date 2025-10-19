@@ -11,6 +11,7 @@ func _ready():
     super._ready()
     is_equipment_slot = (grid_position == Vector2i(-1, -1))
     if is_equipment_slot:
+        icon = TextureRect.new()
         icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
         icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
         icon.custom_minimum_size = size

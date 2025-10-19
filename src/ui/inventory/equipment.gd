@@ -13,23 +13,40 @@ var layer_ui_map: Dictionary = {}  # layer_name -> Control
 
 func _ready():
     super._ready()
-    equipment_config = EquipmentConfig.new()
-    _initialize_layers()
-    _setup_slots()
+    # Don't create empty config here - wait for player setup
+    _setup_common_connections()
+
+func setup_player(player: PlayerController):
+    player_controller = player
+    if player and player.equipment:
+        # Use the player's equipment config
+        equipment_config = player.equipment.equipment_config
+        current_inventory_source = player.equipment
+        _initialize_layers()
+        _setup_slots()
+        _update_ui()
 
 func _initialize_layers():
     if not equipment_config:
+        push_error("EquipmentUI: No equipment config available")
         return
 
     # Sort layers by order
     var sorted_layers = equipment_config.layer_definitions.duplicate()
     sorted_layers.sort_custom(func(a, b): return a.layer_order < b.layer_order)
 
+    # Clear existing tabs
+    for child in tab_container.get_children():
+        tab_container.remove_child(child)
+        child.queue_free()
+    layer_ui_map.clear()
+
     # Create tabs for each layer
     for layer_def in sorted_layers:
         var layer_ui = _create_layer_ui(layer_def)
         tab_container.add_child(layer_ui)
         layer_ui_map[layer_def.layer_name] = layer_ui
+        tab_container.set_tab_title(tab_container.get_tab_count() - 1, layer_def.display_name)
 
 func _create_layer_ui(layer_def: EquipmentLayerDefinition) -> Control:
     var layer_container = ScrollContainer.new()
@@ -37,21 +54,18 @@ func _create_layer_ui(layer_def: EquipmentLayerDefinition) -> Control:
 
     var grid_container = GridContainer.new()
     grid_container.columns = 3
+    grid_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    grid_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
     layer_container.add_child(grid_container)
 
     return layer_container
-
-func setup_player(player: PlayerController):
-    player_controller = player
-    if player and player.equipment:
-        current_inventory_source = player.equipment
-        _update_ui()
 
 func _setup_slots():
     slot_displays = []
     slot_ui_map = {}
 
     if not equipment_config:
+        push_error("EquipmentUI: No equipment config available for slot setup")
         return
 
     # Create slots based on configuration
@@ -67,7 +81,7 @@ func _setup_slots():
                 layer_ui.get_child(0).add_child(slot_ui)
 
 func _create_equipment_slot(slot_def: EquipmentSlotDefinition) -> EquipmentSlotUI:
-    var slot_scene = EquipmentSlotUI.new()
+    var slot_scene = load("res://addons/cabra.lat_shooters/src/ui/inventory/equipment_slot.tscn")
     var slot_ui = slot_scene.instantiate() as EquipmentSlotUI
 
     slot_ui.slot_name = slot_def.slot_name

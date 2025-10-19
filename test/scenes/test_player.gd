@@ -27,27 +27,106 @@ func _ready():
         print("Test scene initialized")
 
 func _setup_player_equipment():
-    var success = false
+    # First, ensure player has equipment with proper config
+    if not player.equipment:
+        player.equipment = Equipment.new()
+        player.equipment.equipment_config = _create_equipment_config()
+
     # Equip primary weapon
     var weapon_item = Inventory.create_inventory_item(test_weapon)
-    success = player.equipment.equip(weapon_item, "primary")
-    if not success: push_error("Could not equip primary")
+    weapon_item.dimensions = Vector2i(3, 2)  # Set dimensions before adding
+    var equipped = player.equipment.equip(weapon_item, "primary")
+    if not equipped:
+        push_error("Could not equip primary")
+        return
 
     # Create and equip magazine
     var magazine = _create_test_magazine()
     var magazine_item = Inventory.create_inventory_item(magazine)
+    magazine_item.dimensions = Vector2i(1, 2)  # Set dimensions before adding
 
     # Create backpack and add magazine
     var backpack = _create_test_backpack()
-    success = backpack.add_item(magazine_item)
-    if not success: push_error("Could not add magazine to backpack")
-
     var backpack_item = Inventory.create_inventory_item(backpack)
-    success = player.equipment.equip(backpack_item, "back")
-    if not success: push_error("Could not equip backpack")
+    backpack_item.dimensions = Vector2i(2, 3)  # Set dimensions before equipping
+
+    # Add magazine to backpack first
+    var magazine_added = backpack.add_item(magazine_item)
+    if not magazine_added:
+        push_error("Could not add magazine to backpack")
+        # Try to find why it failed
+        print("Backpack free space: ", backpack.get_free_space())
+        print("Magazine dimensions: ", magazine_item.dimensions)
+        print("Backpack grid: ", backpack.grid_width, "x", backpack.grid_height)
+        return
+
+    # Now equip backpack
+    var backpack_equipped = player.equipment.equip(backpack_item, "back")
+    if not backpack_equipped:
+        push_error("Could not equip backpack")
+        return
 
     if test_config and test_config.debug_mode:
         print("Player equipment setup complete")
+
+func _create_equipment_config() -> EquipmentConfig:
+    var config = EquipmentConfig.new()
+
+    # Define basic slot definitions
+    var primary_slot = EquipmentSlotDefinition.new()
+    primary_slot.slot_name = "primary"
+    primary_slot.display_name = "Primary Weapon"
+    primary_slot.allowed_item_types = ["weapon"]
+    primary_slot.allowed_categories = ["primary"]
+    primary_slot.max_items = 1
+    primary_slot.layer = "gear"
+    primary_slot.slot_size = "large"
+
+    var back_slot = EquipmentSlotDefinition.new()
+    back_slot.slot_name = "back"
+    back_slot.display_name = "Backpack"
+    back_slot.allowed_item_types = ["backpack"]
+    back_slot.allowed_categories = ["back", "storage"]
+    back_slot.max_items = 1
+    back_slot.layer = "storage"
+    back_slot.slot_size = "medium"
+
+    var torso_slot = EquipmentSlotDefinition.new()
+    torso_slot.slot_name = "torso"
+    torso_slot.display_name = "Torso Armor"
+    torso_slot.allowed_item_types = ["armor"]
+    torso_slot.allowed_categories = ["torso"]
+    torso_slot.max_items = 1
+    torso_slot.layer = "armor"
+    torso_slot.slot_size = "medium"
+
+    config.slot_definitions = [primary_slot, back_slot, torso_slot]
+
+    # Define layers
+    var gear_layer = EquipmentLayerDefinition.new()
+    gear_layer.layer_name = "gear"
+    gear_layer.display_name = "Gear"
+    gear_layer.layer_order = 0
+    gear_layer.slots = ["primary", "secondary"]
+    gear_layer.visible_by_default = true
+
+    var storage_layer = EquipmentLayerDefinition.new()
+    storage_layer.layer_name = "storage"
+    storage_layer.display_name = "Storage"
+    storage_layer.layer_order = 1
+    storage_layer.slots = ["back"]
+    storage_layer.visible_by_default = true
+
+    var armor_layer = EquipmentLayerDefinition.new()
+    armor_layer.layer_name = "armor"
+    armor_layer.display_name = "Armor"
+    armor_layer.layer_order = 2
+    armor_layer.slots = ["torso", "head", "arms", "legs"]
+    armor_layer.visible_by_default = true
+
+    config.layer_definitions = [gear_layer, storage_layer, armor_layer]
+
+    return config
 
 func _create_test_magazine() -> AmmoFeed:
     var magazine = AmmoFeed.new()

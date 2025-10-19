@@ -43,15 +43,15 @@ func _get_item_type(content: Resource) -> String:
     return "misc"
 
 func _get_item_categories(content: Resource) -> Array[String]:
-    var categories = []
+    var categories: Array[String] = []
 
     if content is Weapon:
         categories.append("weapon")
         var weapon = content as Weapon
-        if weapon.weapon_type == "primary":
-            categories.append("primary")
-        elif weapon.weapon_type == "secondary":
-            categories.append("secondary")
+        #if weapon.weapon_type == "primary":
+        categories.append("primary")
+        #elif weapon.weapon_type == "secondary":
+        #    categories.append("secondary")
     elif content is Armor:
         categories.append("armor")
         var armor = content as Armor
