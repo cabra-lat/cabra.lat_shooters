@@ -1,4 +1,4 @@
-# res://test/core/health/wound.gd
+# test/core/health/wound.gd
 @tool
 class_name TestWound extends EditorScript
 

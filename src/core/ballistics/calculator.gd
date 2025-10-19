@@ -1,4 +1,4 @@
-# res://src/core/ballistics/ballistics_calculator.gd
+# src/core/ballistics/ballistics_calculator.gd
 class_name BallisticsCalculator
 extends Resource
 

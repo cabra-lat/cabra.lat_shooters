@@ -1,4 +1,4 @@
-# res://src/core/ammo/ammo_feed.gd
+# src/core/ammo/ammo_feed.gd
 class_name AmmoFeed
 extends Reservoir
 

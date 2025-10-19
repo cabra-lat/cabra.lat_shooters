@@ -1,4 +1,4 @@
-# res://test/core/armor/ballistic_material.gd
+# test/core/armor/ballistic_material.gd
 @tool
 class_name TestBallisticMaterial extends EditorScript
 

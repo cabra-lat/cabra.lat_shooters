@@ -1,4 +1,4 @@
-# res://test/gameplay/world_item.gd
+# test/gameplay/world_item.gd
 @tool
 class_name TestWorldItem extends EditorScript
 
@@ -8,7 +8,7 @@ func _run():
   # Create world item
   var world_item = WorldItem.new()
   var ammo = Ammo.create_test_ammo()
-  var inventory_item = InventorySystem.create_inventory_item(ammo, 5)
+  var inventory_item = Inventory.create_inventory_item(ammo, 5)
   world_item.inventory_item = inventory_item
 
   # Create player mock
@@ -24,7 +24,7 @@ func _run():
 func _create_mock_player() -> PlayerController:
   var player = PlayerController.new()
   player.backpack = Backpack.new()
-  player.inventory_system = InventorySystem.new()
+  player.inventory_system = Inventory.new()
   return player
 
 func check(condition: bool, message: String):

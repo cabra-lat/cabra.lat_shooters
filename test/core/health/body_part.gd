@@ -1,4 +1,4 @@
-# res://test/core/health/body_part.gd
+# test/core/health/body_part.gd
 @tool
 class_name TestBodyPart extends EditorScript
 

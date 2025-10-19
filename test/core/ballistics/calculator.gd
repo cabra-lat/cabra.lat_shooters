@@ -1,4 +1,4 @@
-# res://test/core/ballistics/ballistics_calculator.gd
+# test/core/ballistics/ballistics_calculator.gd
 @tool
 class_name TestBallisticsCalculator extends EditorScript
 

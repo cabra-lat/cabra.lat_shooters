@@ -1,4 +1,4 @@
-# res://src/core/item.gd
+# src/core/item.gd
 class_name Item
 extends Resource
 

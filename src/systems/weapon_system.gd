@@ -1,4 +1,4 @@
-# res://src/systems/weapon_system.gd
+# src/systems/weapon_system.gd
 class_name WeaponSystem
 extends Resource
 

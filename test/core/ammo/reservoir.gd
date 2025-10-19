@@ -1,4 +1,4 @@
-# res://test/core/ammo/reservoir.gd
+# test/core/ammo/reservoir.gd
 @tool
 class_name TestReservoir extends EditorScript
 

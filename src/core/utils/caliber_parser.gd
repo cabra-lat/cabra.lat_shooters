@@ -1,4 +1,4 @@
-# res://src/core/utils/caliber_parser.gd
+# src/core/utils/caliber_parser.gd
 class_name CaliberParser
 
 static func parse(cal: String) -> Dictionary:

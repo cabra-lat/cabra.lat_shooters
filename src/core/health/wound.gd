@@ -1,4 +1,4 @@
-# res://src/core/health/wound.gd
+# src/core/health/wound.gd
 class_name Wound
 extends Resource
 

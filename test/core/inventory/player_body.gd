@@ -1,4 +1,4 @@
-# res://test/core/inventory/equipment.gd
+# test/core/inventory/equipment.gd
 @tool
 class_name TestPlayerBody extends EditorScript
 

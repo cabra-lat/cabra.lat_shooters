@@ -1,4 +1,4 @@
-# res://src/core/ammo/ammo.gd
+# src/core/ammo/ammo.gd
 class_name Ammo
 extends Item
 

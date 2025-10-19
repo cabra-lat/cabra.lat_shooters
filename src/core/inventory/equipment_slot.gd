@@ -1,4 +1,4 @@
-# res://src/core/inventory/equipment_slot.gd (UPDATED)
+# src/core/inventory/equipment_slot.gd (UPDATED)
 class_name EquipmentSlot
 extends InventoryContainer
 

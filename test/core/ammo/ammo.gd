@@ -1,4 +1,4 @@
-# res://test/core/ammo/ammo.gd
+# test/core/ammo/ammo.gd
 @tool
 class_name TestAmmo extends EditorScript
 

@@ -1,4 +1,4 @@
-# res://test/core/utils/utils.gd
+# test/core/utils/utils.gd
 @tool
 class_name TestUtils extends EditorScript
 

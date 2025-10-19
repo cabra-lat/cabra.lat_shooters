@@ -22,7 +22,7 @@ func _run():
     TestInventoryGrid,
     TestInventoryItem,
     TestPlayerBody,
-    TestInventorySystem
+    TestInventory
   ]:
     test.new()._run()
   print("🧪 TEST ENDED: %s" % Time.get_datetime_string_from_system())

@@ -1,4 +1,4 @@
-# res://test/core/inventory/inventory_grid.gd
+# test/core/inventory/inventory_grid.gd
 @tool
 class_name TestInventoryGrid extends EditorScript
 

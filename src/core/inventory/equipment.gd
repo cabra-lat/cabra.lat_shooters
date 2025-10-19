@@ -1,70 +1,55 @@
-# res://src/core/inventory/equipment.gd
 class_name Equipment
 extends Resource
 
-# Body zones with slot types
-var slots: Dictionary = {
-  "head": EquipmentSlot.new(),
-  "torso": EquipmentSlot.new(),
-  "arms": EquipmentSlot.new(),
-  "legs": EquipmentSlot.new(),
-  "primary": EquipmentSlot.new(),
-  "secondary": EquipmentSlot.new(),
-  "back": EquipmentSlot.new()
-}
+@export var equipment_config: EquipmentConfig
+var slots: Dictionary = {}
 
 func _init():
-  # Configure slots
-  slots["head"].slot_type = EquipmentSlot.Type.HEAD
-  slots["torso"].slot_type = EquipmentSlot.Type.TORSO
-  slots["arms"].slot_type = EquipmentSlot.Type.ARMS
-  slots["legs"].slot_type = EquipmentSlot.Type.LEGS
-  slots["primary"].slot_type = EquipmentSlot.Type.PRIMARY_WEAPON
-  slots["secondary"].slot_type = EquipmentSlot.Type.SECONDARY_WEAPON
-  slots["back"].slot_type = EquipmentSlot.Type.BACK
+    if equipment_config:
+        _initialize_slots()
 
-  # Weapon slots: only 1 item
-  slots["primary"].max_items = 1
-  slots["secondary"].max_items = 1
-  slots["back"].max_items = 1
-
-  # Clothing/armor slots: allow layering (optional)
-  slots["torso"].max_items = 3  # base layer + clothing + armor
-  slots["head"].max_items = 2   # cap + helmet
+func _initialize_slots():
+    for slot_definition in equipment_config.slot_definitions:
+        var slot = EquipmentSlot.new()
+        slot.slot_name = slot_definition.slot_name
+        slot.max_items = slot_definition.max_items
+        slots[slot_definition.slot_name] = slot
 
 func equip(item: InventoryItem, slot_name: String) -> bool:
-  if not slots.has(slot_name):
-    return false
-  return slots[slot_name].add_item(item)
+    if not slots.has(slot_name):
+        return false
+
+    var slot_definition = equipment_config.get_slot_definition(slot_name)
+    if not slot_definition or not slot_definition.is_item_compatible(item):
+        return false
+
+    return slots[slot_name].add_item(item)
 
 func unequip(item: InventoryItem, slot_name: String) -> bool:
-  if not slots.has(slot_name):
-    return false
-  return slots[slot_name].remove_item(item)  # Must return true if removed
+    if not slots.has(slot_name):
+        return false
+    return slots[slot_name].remove_item(item)
 
 func get_equipped(slot_name: String) -> Array[InventoryItem]:
-  if slots.has(slot_name):
-    return slots[slot_name].items
-  return []
+    if slots.has(slot_name):
+        return slots[slot_name].items
+    return []
+
+func get_slot_by_item(item: InventoryItem) -> String:
+    for slot_name in slots:
+        if item in slots[slot_name].items:
+            return slot_name
+    return ""
 
 func get_total_mass() -> float:
-  var total = 0.0
-  for slot in slots.values():
-    total += slot.get_total_mass()
-  return total
+    var total = 0.0
+    for slot in slots.values():
+        total += slot.get_total_mass()
+    return total
 
-# Temperature system hooks (future)
-func get_insulation_rating() -> float:
-  var rating = 0.0
-  for slot in ["torso", "legs", "head"]:
-    for item in slots[slot].items:
-      if item.content.has_method("get_insulation"):
-        rating += item.content.get_insulation()
-  return rating
-
-# Encumbrance hooks
-func get_movement_penalty() -> float:
-  var penalty = 0.0
-  for slot in slots.values():
-    penalty += slot.get_total_mass() * 0.01
-  return min(penalty, 0.5)  # Max 50% penalty
+# Get all equipped items
+func get_all_equipped_items() -> Array[InventoryItem]:
+    var items: Array[InventoryItem] = []
+    for slot in slots.values():
+        items.append_array(slot.items)
+    return items

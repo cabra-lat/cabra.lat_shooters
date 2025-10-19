@@ -1,4 +1,4 @@
-# res://test/core/armor/armor.gd
+# test/core/armor/armor.gd
 @tool
 class_name TestArmor extends EditorScript
 

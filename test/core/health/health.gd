@@ -1,4 +1,4 @@
-# res://test/core/health/health.gd
+# test/core/health/health.gd
 @tool
 class_name TestHealth extends EditorScript
 

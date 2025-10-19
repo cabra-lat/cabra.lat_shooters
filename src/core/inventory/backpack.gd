@@ -1,4 +1,4 @@
-# res://src/core/inventory/backpack.gd (UPDATED)
+# src/core/inventory/backpack.gd (UPDATED)
 class_name Backpack
 extends InventoryContainer
 

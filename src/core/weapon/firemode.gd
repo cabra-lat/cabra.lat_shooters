@@ -1,4 +1,4 @@
-# res://src/core/weapon/firemode.gd
+# src/core/weapon/firemode.gd
 class_name Firemode
 
 # Bit flags for fire modes — use bitwise AND (`&`) to check availability

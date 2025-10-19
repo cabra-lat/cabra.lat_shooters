@@ -14,12 +14,6 @@ func _ready():
         icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
         icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
         icon.custom_minimum_size = size
-        icon.size = size
-
-func setup(parent: BaseInventoryUI):
-    super.setup(parent)
-    if parent is InventoryContainerUI:
-        container_ui = parent as InventoryContainerUI
 
 func _create_drag_data() -> Dictionary:
     var dragged_item = null

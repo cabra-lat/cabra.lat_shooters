@@ -1,4 +1,4 @@
-# res://src/core/ballistics/ballistics_impact.gd
+# src/core/ballistics/ballistics_impact.gd
 class_name BallisticsImpact
 extends Resource
 

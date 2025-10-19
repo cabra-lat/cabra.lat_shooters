@@ -1,4 +1,4 @@
-# res://src/core/utils/utils.gd
+# src/core/utils/utils.gd
 class_name Utils
 
 static func bullet_energy(mass_g: float, speed_m_s: float) -> float:

@@ -1,4 +1,4 @@
-# res://test/core/inventory/container.gd
+# test/core/inventory/container.gd
 @tool
 class_name TestInventoryContainer extends EditorScript
 

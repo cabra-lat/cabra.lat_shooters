@@ -1,4 +1,4 @@
-# res://src/gameplay/player_controller.gd
+# src/gameplay/player_controller.gd
 class_name PlayerController extends CharacterBody3D
 
 # ─── STATES (unchanged) ────────────────────────────

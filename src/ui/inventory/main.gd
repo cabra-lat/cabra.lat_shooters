@@ -2,7 +2,7 @@
 class_name InventoryUI
 extends Control
 
-@onready var equipment_ui:    EquipmentUI   = $InventoryUi/HB/RS/VB/Equipment
+@onready var equipment_ui: EquipmentUI = $InventoryUi/HB/RS/VB/Equipment
 @onready var world_drop_zone: WorldDropZone = $WorldDropZone
 @onready var containers_vbox: VBoxContainer = $InventoryUi/HB/LS/VB
 @onready var close_button: Button = %CloseButton
@@ -12,12 +12,19 @@ var open_containers: Array[InventoryContainerUI] = []
 var current_drag_data: Dictionary = {}
 
 func _ready():
+    theme = InventoryTheme.get_theme()
+    _apply_theme()
+
     if equipment_ui:
         equipment_ui.equipment_slot_dropped.connect(_on_equipment_slot_dropped)
         equipment_ui.equipment_updated.connect(_refresh_open_containers)
     close_button.pressed.connect(_on_close_button_pressed)
     if world_drop_zone:
         world_drop_zone.item_dropped.connect(_on_world_drop)
+
+func _apply_theme():
+    # Apply theme to main inventory UI
+    pass
 
 func _on_equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI):
     print("Main UI: Equipment slot drop received")
@@ -48,7 +55,7 @@ func _handle_container_drop(data: Dictionary, target_slot: InventorySlotUI):
         var pos = target_slot.grid_position
         if pos != Vector2i(-1, -1):
             print("Attempting to transfer to container %s at position %s" % [container.name, pos])
-            if InventorySystem.transfer_item_to_position(data["source"], container, data["item"], pos):
+            if Inventory.transfer_item_to_position(data["source"], container, data["item"], pos):
                 print("Transfer successful")
                 _refresh_open_containers()
             else:

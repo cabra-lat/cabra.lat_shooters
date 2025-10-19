@@ -1,4 +1,4 @@
-# res://src/core/attachment/attachment.gd
+# src/core/attachment/attachment.gd
 class_name Attachment
 extends Item
 

@@ -1,18 +1,23 @@
-# src/ui/inventory/base.gd
 class_name BaseInventoryUI
 extends PanelContainer
 
 signal slot_dropped(data: Dictionary, target_slot: InventorySlotUI)
 signal drag_started(item: InventoryItem)
 signal drag_ended()
+signal inventory_updated()
 
-var slot_size: int = 50
 var item_displays: Array[InventoryItemUI] = []
 var slot_displays: Array[InventorySlotUI] = []
 var current_inventory_source: Resource = null
 
 func _ready():
+    theme = InventoryTheme.get_theme()
     _setup_common_connections()
+    _apply_theme()
+
+func _apply_theme():
+    # Base theming - can be overridden by subclasses
+    pass
 
 func _setup_common_connections():
     # Common signal connections will be set up by subclasses
@@ -31,6 +36,7 @@ func _update_ui():
     _clear_item_displays()
     _create_item_displays()
     _update_slot_states()
+    inventory_updated.emit()
 
 func _clear_item_displays():
     for display in item_displays:
@@ -50,7 +56,6 @@ func _get_display_items() -> Array[InventoryItem]:
 
 func _create_item_display(item: InventoryItem):
     var display = InventoryItemUI.new()
-    display.slot_size = slot_size
     display.setup(item, self)
     _add_item_display_to_scene(display)
     item_displays.append(display)
@@ -84,3 +89,19 @@ func get_slot_at_position(position: Vector2i) -> InventorySlotUI:
         if slot.grid_position == position:
             return slot
     return null
+
+func create_item_ui(item: InventoryItem) -> InventoryItemUI:
+    var item_ui = InventoryItemUI.new()
+    item_ui.setup(item, self)
+    return item_ui
+
+func get_item_ui_at_position(position: Vector2) -> InventoryItemUI:
+    for item_ui in item_displays:
+        if item_ui.get_global_rect().has_point(position):
+            return item_ui
+    return null
+
+func highlight_items_under_cursor(cursor_position: Vector2):
+    for item_ui in item_displays:
+        var is_under_cursor = item_ui.get_global_rect().has_point(cursor_position)
+        item_ui.set_highlighted(is_under_cursor)

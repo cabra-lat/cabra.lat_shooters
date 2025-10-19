@@ -1,31 +1,45 @@
-# src/ui/inventory/equipment.gd
 class_name EquipmentUI
 extends BaseInventoryUI
 
 signal equipment_updated()
 signal equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI)
 
-@onready var slots_container: Control = $Equipment/TabContainer
+@onready var tab_container: TabContainer = $Equipment/TabContainer
 
 var player_controller: PlayerController
-var slots: Dictionary = {}  # Keyed by slot name
+var equipment_config: EquipmentConfig
+var slot_ui_map: Dictionary = {}  # slot_name -> EquipmentSlotUI
+var layer_ui_map: Dictionary = {}  # layer_name -> Control
 
 func _ready():
     super._ready()
-    _initialize_slots_dict()
+    equipment_config = EquipmentConfig.new()
+    _initialize_layers()
     _setup_slots()
 
-func _initialize_slots_dict():
-    slots["helmet"] = slots_container.get_node("Front/helmet") as EquipmentSlotUI
-    slots["vest"] = slots_container.get_node("Front/vest") as EquipmentSlotUI
-    slots["back"] = slots_container.get_node("Back/back") as EquipmentSlotUI
-    slots["primary"] = slots_container.get_node("Loadout/primary") as EquipmentSlotUI
-    slots["secondary"] = slots_container.get_node("Loadout/secondary") as EquipmentSlotUI
+func _initialize_layers():
+    if not equipment_config:
+        return
 
-    # Set slot types
-    for slot_name in slots:
-        if slots[slot_name]:
-            slots[slot_name].slot_type = slot_name
+    # Sort layers by order
+    var sorted_layers = equipment_config.layer_definitions.duplicate()
+    sorted_layers.sort_custom(func(a, b): return a.layer_order < b.layer_order)
+
+    # Create tabs for each layer
+    for layer_def in sorted_layers:
+        var layer_ui = _create_layer_ui(layer_def)
+        tab_container.add_child(layer_ui)
+        layer_ui_map[layer_def.layer_name] = layer_ui
+
+func _create_layer_ui(layer_def: EquipmentLayerDefinition) -> Control:
+    var layer_container = ScrollContainer.new()
+    layer_container.name = layer_def.layer_name.capitalize()
+
+    var grid_container = GridContainer.new()
+    grid_container.columns = 3
+    layer_container.add_child(grid_container)
+
+    return layer_container
 
 func setup_player(player: PlayerController):
     player_controller = player
@@ -34,33 +48,56 @@ func setup_player(player: PlayerController):
         _update_ui()
 
 func _setup_slots():
-    # Equipment slots are pre-defined in the scene
     slot_displays = []
-    for slot_name in slots:
-        if slots[slot_name]:
-            slot_displays.append(slots[slot_name])
-            slots[slot_name].setup(self)
+    slot_ui_map = {}
 
-            # Connect signals
-            if not slots[slot_name].slot_dropped.is_connected(_on_equipment_slot_dropped):
-                slots[slot_name].slot_dropped.connect(_on_equipment_slot_dropped)
-            if not slots[slot_name].drag_started.is_connected(_on_drag_started):
-                slots[slot_name].drag_started.connect(_on_drag_started)
-            if not slots[slot_name].drag_ended.is_connected(_on_drag_ended):
-                slots[slot_name].drag_ended.connect(_on_drag_ended)
+    if not equipment_config:
+        return
+
+    # Create slots based on configuration
+    for slot_def in equipment_config.slot_definitions:
+        var slot_ui = _create_equipment_slot(slot_def)
+        if slot_ui:
+            slot_ui_map[slot_def.slot_name] = slot_ui
+            slot_displays.append(slot_ui)
+
+            # Add to appropriate layer
+            var layer_ui = layer_ui_map.get(slot_def.layer)
+            if layer_ui and layer_ui.get_child(0) is GridContainer:
+                layer_ui.get_child(0).add_child(slot_ui)
+
+func _create_equipment_slot(slot_def: EquipmentSlotDefinition) -> EquipmentSlotUI:
+    var slot_scene = EquipmentSlotUI.new()
+    var slot_ui = slot_scene.instantiate() as EquipmentSlotUI
+
+    slot_ui.slot_name = slot_def.slot_name
+    slot_ui.display_name = slot_def.display_name
+    slot_ui.allowed_item_types = slot_def.allowed_item_types
+    slot_ui.allowed_categories = slot_def.allowed_categories
+
+    # Set size based on configuration
+    var size_key = slot_def.slot_size
+    if theme.equipment_slot_sizes.has(size_key):
+        slot_ui.custom_minimum_size = theme.equipment_slot_sizes[size_key]
+
+    # Connect signals
+    if not slot_ui.slot_dropped.is_connected(_on_equipment_slot_dropped):
+        slot_ui.slot_dropped.connect(_on_equipment_slot_dropped)
+    if not slot_ui.drag_started.is_connected(_on_drag_started):
+        slot_ui.drag_started.connect(_on_drag_started)
+    if not slot_ui.drag_ended.is_connected(_on_drag_ended):
+        slot_ui.drag_ended.connect(_on_drag_ended)
+
+    return slot_ui
 
 func _get_display_items() -> Array[InventoryItem]:
     var items: Array[InventoryItem] = []
     if player_controller and player_controller.equipment:
-        for slot_name in slots:
-            var equipped = player_controller.equipment.get_equipped(slot_name)
-            if not equipped.is_empty():
-                items.append(equipped[0])
+        items = player_controller.equipment.get_all_equipped_items()
     return items
 
 func _add_item_display_to_scene(display: InventoryItemUI):
-    # Equipment doesn't use floating item displays - items are shown in slot icons
-    # Just queue_free since we don't need it
+    # Equipment doesn't use floating item displays
     display.queue_free()
 
 func _position_item_display(display: InventoryItemUI, item: InventoryItem):
@@ -68,9 +105,9 @@ func _position_item_display(display: InventoryItemUI, item: InventoryItem):
     pass
 
 func _update_slot_states():
-    # Update slot icons and associated items
-    for slot_name in slots:
-        _update_equipment_slot(slots[slot_name], slot_name)
+    # Update all equipment slots
+    for slot_name in slot_ui_map:
+        _update_equipment_slot(slot_ui_map[slot_name], slot_name)
 
 func _update_equipment_slot(slot: EquipmentSlotUI, slot_name: String):
     if not slot:
@@ -80,39 +117,29 @@ func _update_equipment_slot(slot: EquipmentSlotUI, slot_name: String):
     if player_controller and player_controller.equipment:
         var equipped = player_controller.equipment.get_equipped(slot_name)
         if not equipped.is_empty():
-            slot.icon.texture = equipped[0].content.icon
-            slot.associated_item = equipped[0]
+            var item = equipped[0]
+            slot.icon.texture = item.content.icon
+            slot.associated_item = item
             slot.source_container = player_controller.equipment
             slot.icon.visible = true
 
+            # Set rarity if applicable
+            if item.content.has_method("get_rarity"):
+                slot.set_rarity(item.content.get_rarity())
+
 func _on_equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI):
-    print("EquipmentUI: Slot dropped: %s -> %s" % [
-        data["item"].content.name if data["item"].content else "Unknown",
-        target_slot.slot_type
-    ])
     equipment_slot_dropped.emit(data, target_slot)
 
 func handle_equipment_drop(data: Dictionary, target_slot: EquipmentSlotUI) -> bool:
-    var slot_name = target_slot.slot_type
+    var slot_name = target_slot.slot_name
     var item = data["item"]
     var source = data["source"]
-
-    print("Equipment drop attempt: %s -> %s" % [
-        item.content.name if item.content else "Unknown",
-        slot_name
-    ])
 
     var success = false
 
     if target_slot._is_item_compatible(item):
-        print("Attempting to equip item in %s" % slot_name)
-        if InventorySystem.transfer_item(source, player_controller.equipment, item):
-            print("Item equipped successfully")
+        if Inventory.transfer_item(source, player_controller.equipment, item, slot_name):
             success = true
-        else:
-            print("Failed to equip item")
-    else:
-        print("Item not compatible with equipment slot")
 
     if success:
         _update_ui()

@@ -1,4 +1,4 @@
-# res://test/core/ammo/ammo_feed.gd
+# test/core/ammo/ammo_feed.gd
 @tool
 class_name TestAmmoFeed extends EditorScript
 

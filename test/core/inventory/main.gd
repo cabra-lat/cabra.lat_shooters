@@ -1,9 +1,9 @@
-# res://test/systems/inventory_system.gd
+# test/core/inventory/main.gd
 @tool
-class_name TestInventorySystem extends EditorScript
+class_name TestInventory extends EditorScript
 
 func _run():
-  print("🧪 Testing InventorySystem...")
+  print("🧪 Testing Inventory...")
 
   # Test 1: Transfer ammo between backpacks
   _test_backpack_to_backpack()
@@ -17,7 +17,7 @@ func _run():
   # Test 4: Incompatible ammo rejection
   _test_incompatible_ammo()
 
-  print("✅ InventorySystem tests passed!")
+  print("✅ Inventory tests passed!")
 
 # Test transferring items between generic containers
 func _test_backpack_to_backpack():
@@ -26,11 +26,11 @@ func _test_backpack_to_backpack():
 
   # Create ammo item
   var ammo = Ammo.create_test_ammo()
-  var item = InventorySystem.create_inventory_item(ammo, 10)
+  var item = Inventory.create_inventory_item(ammo, 10)
   source_backpack.add_item(item)
 
   # Transfer
-  var success = InventorySystem.transfer_item(source_backpack, target_backpack, item)
+  var success = Inventory.transfer_item(source_backpack, target_backpack, item)
   check(success, "Should transfer ammo between backpacks")
   check(target_backpack.items.size() == 1, "Target should have 1 item")
   check(source_backpack.items.is_empty(), "Source should be empty")
@@ -41,7 +41,7 @@ func _test_ammo_to_magazine():
 
   # Create compatible ammo
   var ammo = Ammo.create_test_ammo()  # 9mm
-  var item = InventorySystem.create_inventory_item(ammo, 5)
+  var item = Inventory.create_inventory_item(ammo, 5)
   backpack.add_item(item)
 
   var magazine = AmmoFeed.new()
@@ -49,7 +49,7 @@ func _test_ammo_to_magazine():
   magazine.type = AmmoFeed.Type.EXTERNAL
 
   # Transfer
-  var success = InventorySystem.transfer_item(backpack, magazine, item)
+  var success = Inventory.transfer_item(backpack, magazine, item)
   print("Magazine contents after transfer: ", magazine.contents.size())
   check(success, "Should transfer compatible ammo to magazine")
   check(magazine.capacity == 5, "Magazine should contain 5 rounds")
@@ -62,11 +62,11 @@ func _test_equip_weapon():
   # Create weapon
   var weapon = Weapon.new()
   weapon.name = "M4A1"
-  var item = InventorySystem.create_inventory_item(weapon)
+  var item = Inventory.create_inventory_item(weapon)
   backpack.add_item(item)
 
   # Equip
-  var success = InventorySystem.transfer_item(backpack, equipment, item)
+  var success = Inventory.transfer_item(backpack, equipment, item)
   check(success, "Should equip weapon to primary slot")
   check(equipment.get_equipped("primary").size() == 1, "Primary slot should have weapon")
   check(backpack.items.is_empty(), "Backpack should be empty")
@@ -80,11 +80,11 @@ func _test_incompatible_ammo():
 
   # Create 9mm ammo (incompatible with AK)
   var nine_mm = Ammo.create_test_ammo()  # 9mm
-  var item = InventorySystem.create_inventory_item(nine_mm, 1)
+  var item = Inventory.create_inventory_item(nine_mm, 1)
   backpack.add_item(item)
 
   # Attempt transfer
-  var success = InventorySystem.transfer_item(backpack, ak_magazine, item)
+  var success = Inventory.transfer_item(backpack, ak_magazine, item)
   check(not success, "Should reject incompatible ammo")
   check(backpack.items.size() == 1, "Backpack should still have item")
   check(ak_magazine.is_empty(), "Magazine should be empty")

@@ -1,4 +1,4 @@
-# res://src/core/weapon/weapon.gd
+# src/core/weapon/weapon.gd
 class_name Weapon
 extends Item
 

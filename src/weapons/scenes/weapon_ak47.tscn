@@ -107,13 +107,11 @@ skeleton = NodePath("")
 
 [node name="GUN" type="MeshInstance3D" parent="model"]
 transform = Transform3D(1, -8.74228e-08, 8.74228e-08, -8.74228e-08, -1, 1.50996e-07, 8.74228e-08, -1.50996e-07, -1, 0, 0, 0)
-visible = false
 mesh = ExtResource("3_3qb1m")
 skeleton = NodePath("")
 
 [node name="TRIGGER" type="MeshInstance3D" parent="model"]
 transform = Transform3D(1, -8.74228e-08, 8.74228e-08, -8.74228e-08, -1, 1.50996e-07, 8.74228e-08, -1.50996e-07, -1, 0, -0.0662064, 0.28152)
-visible = false
 mesh = SubResource("ArrayMesh_w2bv8")
 skeleton = NodePath("")
 surface_material_override/0 = SubResource("ShaderMaterial_3qb1m")

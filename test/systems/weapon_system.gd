@@ -1,4 +1,4 @@
-# res://test/systems/weapon_system.gd
+# test/systems/weapon_system.gd
 @tool
 class_name TestWeaponSystem extends EditorScript
 

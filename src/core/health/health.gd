@@ -1,4 +1,4 @@
-# res://src/core/health/health.gd
+# src/core/health/health.gd
 class_name Health
 extends Resource
 

@@ -1,4 +1,4 @@
-# res://test/core/ballistics/ballistics_impact.gd
+# test/core/ballistics/ballistics_impact.gd
 @tool
 class_name TestBallisticsImpact extends EditorScript
 

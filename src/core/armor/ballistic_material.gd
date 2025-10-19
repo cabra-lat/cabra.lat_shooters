@@ -1,4 +1,4 @@
-# res://src/core/armor/ballistic_material.gd
+# src/core/armor/ballistic_material.gd
 class_name BallisticMaterial
 extends Resource
 

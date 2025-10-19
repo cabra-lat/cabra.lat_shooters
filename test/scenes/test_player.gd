@@ -1,100 +1,197 @@
-# res://test/scenes/test_player.gd
+class_name TestPlayerScene
 extends Node
 
-var can_connect_signals: bool = false
+# Configuration
+var test_config: TestSceneConfig
 
-# DEV/DEBUG
-@onready var ammo: Ammo = preload("../../src/resources/ammo/7_62_39mm_PS_GOST_BR4.tres")
-@onready var weapon: Weapon = preload("../../src/resources/weapons/AK_47.tres")
+# Debug/Test resources
+@onready var test_ammo: Ammo = preload("res://addons/cabra.lat_shooters/src/resources/ammo/7_62_39mm_PS_GOST_BR4.tres")
+@onready var test_weapon: Weapon = preload("res://addons/cabra.lat_shooters/src/resources/weapons/AK_47.tres")
+@onready var test_backpack_icon: Texture2D = preload("res://addons/cabra.lat_shooters/assets/ui/inventory/backpack.png")
+@onready var test_magazine_icon: Texture2D = preload("res://addons/cabra.lat_shooters/assets/ui/inventory/icon_stock_mag.png")
+
+# Scene references
 @onready var player: PlayerController = $Player
-# END DEV/DEBUG
-
-#func _ready():
-    #magazine_ak47.compatible_calibers = [ "7.62x39mm" ]
-    #magazine_ak47.type = AmmoFeed.Type.EXTERNAL
-    ## Fill debug magazine
-    #for i in range(magazine_ak47.max_capacity):
-        #magazine_ak47.insert(ammo_762x39mm)
-    #
-    #weapon_ak47.change_magazine(magazine_ak47)
-    #var item = InventorySystem.create_inventory_item(weapon_ak47)
-    #player.equipment.equip(item, "primary")
+@onready var hud: Control = $HUD
+@onready var world_item: WorldItem = %WorldItem
 
 func _ready():
-    # Equip to player body
-    var weapon_item = InventorySystem.create_inventory_item(weapon)
-    $Player.equipment.equip(weapon_item, "primary")
+    # Load test configuration
+    test_config = TestSceneConfig.new()
 
+    _setup_player_equipment()
+    _setup_world_item()
+    _connect_player_signals()
+
+    if test_config and test_config.debug_mode:
+        print("Test scene initialized")
+
+func _setup_player_equipment():
+    var success = false
+    # Equip primary weapon
+    var weapon_item = Inventory.create_inventory_item(test_weapon)
+    success = player.equipment.equip(weapon_item, "primary")
+    if not success: push_error("Could not equip primary")
+
+    # Create and equip magazine
+    var magazine = _create_test_magazine()
+    var magazine_item = Inventory.create_inventory_item(magazine)
+
+    # Create backpack and add magazine
+    var backpack = _create_test_backpack()
+    success = backpack.add_item(magazine_item)
+    if not success: push_error("Could not add magazine to backpack")
+
+    var backpack_item = Inventory.create_inventory_item(backpack)
+    success = player.equipment.equip(backpack_item, "back")
+    if not success: push_error("Could not equip backpack")
+
+    if test_config and test_config.debug_mode:
+        print("Player equipment setup complete")
+
+func _create_test_magazine() -> AmmoFeed:
     var magazine = AmmoFeed.new()
-    magazine.compatible_calibers.append(ammo.caliber)
+    magazine.name = "AK-47 Magazine"
+    magazine.compatible_calibers.append(test_ammo.caliber)
     magazine.type = AmmoFeed.Type.EXTERNAL
-    magazine.icon = preload("../../assets/ui/inventory/icon_stock_mag.png")
-    var magazine_item = InventorySystem.create_inventory_item(magazine)
-    magazine_item.dimensions = Vector2i(1,2)
+    magazine.icon = test_magazine_icon
+    magazine.max_capacity = 30
 
+    # Fill magazine with test ammo
+    for i in range(magazine.max_capacity):
+        magazine.insert(test_ammo)
+
+    return magazine
+
+func _create_test_backpack() -> Backpack:
     var backpack = Backpack.new()
-    backpack.icon = preload("../../assets/ui/inventory/backpack.png")
-    backpack.add_item(magazine_item)
+    backpack.name = "Test Backpack"
+    backpack.icon = test_backpack_icon
+    return backpack
 
-    var backpack_item = InventorySystem.create_inventory_item(backpack)
-    backpack_item.dimensions = Vector2i(2,2)
-    $Player.equipment.equip(backpack_item, "back")
+func _setup_world_item():
+    if world_item:
+        var ammo_item = Inventory.create_inventory_item(test_ammo, 30)
+        world_item.inventory_item = ammo_item
 
-    # Create world item
-    var world_item = %WorldItem
-    var item = InventorySystem.create_inventory_item(ammo, 30)
-    world_item.inventory_item = item
-    world_item._ready()
+        # Apply test config settings
+        if test_config:
+            world_item.auto_rotate = test_config.world_item_auto_rotate
+            world_item.rotation_speed = test_config.world_item_rotation_speed
+            world_item.pickup_radius = test_config.world_item_pickup_radius
 
-    var signals = $Player.get_signal_list()
-    for sig in signals:
-        $Player.connect(sig.name, Callable(self, "_on_" + sig.name))
+        if test_config and test_config.debug_mode:
+            print("World item setup complete")
 
-func _on_trigger_locked():
-    $HUD.show_popup("[can't pull the trigger]")
+func _connect_player_signals():
+    if not player:
+        return
 
-func _on_cartridge_fired(ejected):
+    # Connect all player signals to our handlers
+    var signals_to_connect = [
+        "trigger_locked", "cartridge_fired", "trigger_released",
+        "firemode_changed", "ammofeed_empty", "ammofeed_missing",
+        "ammofeed_changed", "ammofeed_incompatible", "player_debug",
+        "player_landed"
+    ]
+
+    for signal_name in signals_to_connect:
+        if player.has_signal(signal_name):
+            var error = player.connect(signal_name, Callable(self, "_on_player_" + signal_name))
+            if error != OK and test_config and test_config.debug_mode:
+                print("Failed to connect signal: ", signal_name)
+
+# ─── PLAYER SIGNAL HANDLERS ────────────────────────
+func _on_player_trigger_locked():
+    hud.show_popup("[can't pull the trigger]")
+
+func _on_player_cartridge_fired(ejected):
     var string = ""
-    for chambered in ejected:
-        string += "Pow! (%d) %s\n" % [ \
-        player.weapon.ammofeed.max_capacity \
-        - player.weapon.ammofeed.remaining, \
-        chambered.caliber ]
-    $HUD.show_popup(string)
+    if player.weapon and player.weapon.ammofeed:
+        for chambered in ejected:
+            string += "Pow! (%d) %s\n" % [
+                player.weapon.ammofeed.max_capacity - player.weapon.ammofeed.remaining,
+                chambered.caliber
+            ]
+    else:
+        string = "Weapon not properly equipped"
 
-func _on_trigger_released():
-    $HUD.show_popup("Released trigger")
+    hud.show_popup(string)
 
-func _on_firemode_changed(new):
-    $HUD.show_popup("changed firemode: %s" % new)
+func _on_player_trigger_released():
+    hud.show_popup("Released trigger")
 
-func _on_ammofeed_empty():
-    $HUD.show_popup("Click!")
+func _on_player_firemode_changed(new):
+    hud.show_popup("Changed firemode: %s" % new)
 
-func _on_ammofeed_missing():
-    $HUD.show_popup('Click!')
+func _on_player_ammofeed_empty():
+    hud.show_popup("Click!")
 
-func _on_ammofeed_changed(old, new):
-    $HUD.show_popup("changed mag %d/%d to %d/%d"
-         % [old.remaining  if old else 0,
-            old.max_capacity if old else 0,
-            new.remaining,
-            new.max_capacity])
+func _on_player_ammofeed_missing():
+    hud.show_popup('Click!')
 
-func _on_ammofeed_incompatible():
-    $HUD.show_popup("- This doesn't fit here")
+func _on_player_ammofeed_changed(old, new):
+    var old_remaining = old.remaining if old else 0
+    var old_capacity = old.max_capacity if old else 0
+    var new_remaining = new.remaining if new else 0
+    var new_capacity = new.max_capacity if new else 0
 
-func _on_player_debug(player: PlayerController, text: String) -> void:
-    $HUD.update_debug(text)
+    hud.show_popup("Changed mag %d/%d to %d/%d" % [
+        old_remaining, old_capacity, new_remaining, new_capacity
+    ])
 
-func _on_player_landed(player: PlayerController, max_velocity: float, delta: float) -> void:
-    var letal_g = player.config.letal_acceleration
+func _on_player_ammofeed_incompatible():
+    hud.show_popup("- This doesn't fit here")
+
+func _on_player_player_debug(_player: PlayerController, text: String) -> void:
+    hud.update_debug(text)
+
+func _on_player_player_landed(_player: PlayerController, max_velocity: float, delta: float) -> void:
+    var lethal_g = player.config.letal_acceleration
     var a = abs(max_velocity - player.velocity.length()) / (2.0 * delta)
     var g = a / player.config.gravity
-    var letality_ratio = g / letal_g
-    if letality_ratio > 1:
-        $HUD.show_popup("Letal fall damage (%.2f g)" % g)
-    elif letality_ratio > .5:
-        $HUD.show_popup("Minor fall damage (%.2f g)" % g)
+    var lethality_ratio = g / lethal_g
+
+    var message = ""
+    if lethality_ratio > 1:
+        message = "Lethal fall damage (%.2f g)" % g
+    elif lethality_ratio > 0.5:
+        message = "Minor fall damage (%.2f g)" % g
     else:
-        $HUD.show_popup("Safely landed     (%.2f g)" % g)
+        message = "Safely landed (%.2f g)" % g
+
+    hud.show_popup(message)
+
+# ─── INPUT HANDLING ────────────────────────────────
+func _input(event):
+    if event.is_action_pressed("interact") and world_item and world_item.is_highlighted:
+        if world_item.pick_up(player):
+            if test_config and test_config.debug_mode:
+                print("World item picked up via interaction")
+
+    # Debug controls
+    if test_config and test_config.enable_debug_controls:
+        _handle_debug_input(event)
+
+func _handle_debug_input(event):
+    if event.is_action_pressed("debug_spawn_item"):
+        _spawn_debug_item()
+    elif event.is_action_pressed("debug_clear_items"):
+        _clear_debug_items()
+
+func _spawn_debug_item():
+    var new_world_item = world_item.duplicate()
+    var spawn_pos = player.global_position + -player.global_transform.basis.z * 2.0
+    new_world_item.global_position = spawn_pos
+    add_child(new_world_item)
+
+    if test_config and test_config.debug_mode:
+        print("Spawned debug world item")
+
+func _clear_debug_items():
+    for child in get_children():
+        if child is WorldItem and child != world_item:
+            child.queue_free()
+
+    if test_config and test_config.debug_mode:
+        print("Cleared debug world items")

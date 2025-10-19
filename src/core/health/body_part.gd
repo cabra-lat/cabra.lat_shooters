@@ -1,4 +1,4 @@
-# res://src/core/health/body_part.gd
+# src/core/health/body_part.gd
 class_name BodyPart
 extends Resource
 

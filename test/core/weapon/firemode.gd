@@ -1,4 +1,4 @@
-# res://test/core/weapon/firemode.gd
+# test/core/weapon/firemode.gd
 @tool
 class_name TestFiremode extends EditorScript
 

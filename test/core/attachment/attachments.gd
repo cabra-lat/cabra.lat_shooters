@@ -1,4 +1,4 @@
-# res://test/core/attachment/attachment.gd
+# test/core/attachment/attachment.gd
 @tool
 class_name TestAttachment extends EditorScript
 

@@ -1,4 +1,4 @@
-# res://test/core/inventory/backpack.gd
+# test/core/inventory/backpack.gd
 @tool
 class_name TestBackpack extends EditorScript
 

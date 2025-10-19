@@ -1,4 +1,4 @@
-# res://test/core/utils/caliber_parser.gd
+# test/core/utils/caliber_parser.gd
 @tool
 class_name TestUtilsCaliberParser extends EditorScript
 

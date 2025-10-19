@@ -1,4 +1,4 @@
-# res://src/core/ammo/reservoir.gd
+# src/core/ammo/reservoir.gd
 class_name Reservoir
 extends Item
 

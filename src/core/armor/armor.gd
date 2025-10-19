@@ -1,4 +1,4 @@
-# res://src/core/armor/armor.gd
+# src/core/armor/armor.gd
 class_name Armor
 extends Item
 
