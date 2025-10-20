@@ -1,7 +1,7 @@
 class_name EquipmentSlotUI
 extends InventorySlotUI
 
-@export var slot_name: String = self.name
+@onready var slot_name: String = self.name
 @export var display_name: String = self.name.capitalize()
 @export var allowed_item_types: Array[String] = []
 @export var allowed_categories: Array[String] = []
@@ -51,7 +51,7 @@ func _get_item_type(content: Resource) -> String:
     return "misc"
 
 func _get_item_categories(content: Resource) -> Array[String]:
-    var categories = []
+    var categories: Array[String] = []
 
     if content is Weapon:
         categories.append("weapon")

@@ -30,6 +30,7 @@ enum AttachmentPoint {
 
 # ─── METADATA ──────────────────────────────────────
 @export_multiline var description: String = "This Weapon is the default one."
+@export var weapon_type: String = "assault_rifle"
 @export var fire_sound: AudioStream
 @export var feed_sound: AudioStream
 @export var empty_sound: AudioStream

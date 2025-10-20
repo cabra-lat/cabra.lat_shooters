@@ -29,10 +29,9 @@ title = "Equipment"
 [node name="TabContainer" type="TabContainer" parent="Equipment"]
 layout_mode = 2
 tab_alignment = 1
-current_tab = 2
+current_tab = 0
 
 [node name="Armor" parent="Equipment/TabContainer" instance=ExtResource("2_adt6v")]
-visible = false
 custom_minimum_size = Vector2(399.99976, 720)
 layout_mode = 2
 size_flags_horizontal = 1
@@ -47,15 +46,12 @@ size_flags_vertical = 1
 metadata/_tab_index = 1
 
 [node name="Storage" parent="Equipment/TabContainer" instance=ExtResource("2_adt6v")]
+visible = false
 custom_minimum_size = Vector2(399.99976, 720)
 layout_mode = 2
 size_flags_horizontal = 1
 size_flags_vertical = 1
 metadata/_tab_index = 2
-
-[node name="torso" parent="Equipment/TabContainer/Storage" index="5"]
-allowed_item_types = Array[String](["bacjoack"])
-allowed_categories = Array[String](["torso"])
 
 [node name="Gear" type="Control" parent="Equipment/TabContainer"]
 visible = false
@@ -77,6 +73,7 @@ offset_bottom = -124.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("3_adt6v")
+display_name = null
 allowed_item_types = Array[String](["weapon"])
 allowed_categories = Array[String](["primary"])
 
@@ -95,6 +92,7 @@ offset_bottom = -7.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("3_adt6v")
+display_name = null
 allowed_item_types = Array[String]([])
 allowed_categories = Array[String]([])
 
@@ -113,7 +111,6 @@ offset_bottom = -7.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("3_adt6v")
+display_name = null
 allowed_item_types = Array[String]([])
 allowed_categories = Array[String]([])
-
-[editable path="Equipment/TabContainer/Storage"]

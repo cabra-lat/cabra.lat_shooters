@@ -1,2 +1,2 @@
 class_name EquipmentLayerUI
-extends AspectRatioContainer
+extends Control

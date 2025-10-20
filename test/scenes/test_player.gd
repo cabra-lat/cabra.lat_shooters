@@ -27,47 +27,150 @@ func _ready():
         print("Test scene initialized")
 
 func _setup_player_equipment():
-    # First, ensure player has equipment with proper config
-    if not player.equipment:
-        player.equipment = Equipment.new()
-        player.equipment.equipment_config = _create_equipment_config()
+    print("=== COMPREHENSIVE EQUIPMENT DEBUG ===")
 
-    # Equip primary weapon
-    var weapon_item = Inventory.create_inventory_item(test_weapon)
-    weapon_item.dimensions = Vector2i(3, 2)  # Set dimensions before adding
-    var equipped = player.equipment.equip(weapon_item, "primary")
-    if not equipped:
-        push_error("Could not equip primary")
+    # 1. Check player and equipment existence
+    if not player:
+        push_error("Player controller is null")
         return
 
-    # Create and equip magazine
-    var magazine = _create_test_magazine()
-    var magazine_item = Inventory.create_inventory_item(magazine)
-    magazine_item.dimensions = Vector2i(1, 2)  # Set dimensions before adding
+    if not player.equipment:
+        push_error("Player equipment is null")
+        return
 
-    # Create backpack and add magazine
+    print("1. Player equipment exists: ", player.equipment != null)
+
+    # 2. Check equipment slots
+    print("2. Equipment slots: ", player.equipment.slots.keys())
+
+    # 3. Check if 'primary' slot exists
+    var has_primary_slot = player.equipment.slots.has("primary")
+    print("3. Has 'primary' slot: ", has_primary_slot)
+
+    if not has_primary_slot:
+        push_error("Primary slot not found in equipment")
+        print("Available slots: ", player.equipment.slots.keys())
+        return
+
+    # 4. Check equipment config
+    var equipment_config = player.equipment.equipment_config
+    print("4. Equipment config exists: ", equipment_config != null)
+
+    if equipment_config:
+        print("5. Slot definitions count: ", equipment_config.slot_definitions.size())
+
+        # 5. Check primary slot definition
+        var primary_def = equipment_config.get_slot_definition("primary")
+        print("6. Primary slot definition exists: ", primary_def != null)
+
+        if primary_def:
+            print("7. Primary slot definition:")
+            print("   - Slot name: ", primary_def.slot_name)
+            print("   - Display name: ", primary_def.display_name)
+            print("   - Allowed types: ", primary_def.allowed_item_types)
+            print("   - Allowed categories: ", primary_def.allowed_categories)
+            print("   - Max items: ", primary_def.max_items)
+            print("   - Layer: ", primary_def.layer)
+
+    # 6. Create test weapon and check its properties
+    var weapon = test_weapon
+    var weapon_item = Inventory.create_inventory_item(weapon)
+
+    print("8. Test weapon created:")
+    print("   - Weapon name: ", weapon.name)
+    print("   - Weapon type: ", weapon.weapon_type if "weapon_type" in weapon else "NO WEAPON_TYPE PROPERTY")
+    print("   - Weapon class: ", weapon.get_class())
+    print("   - Weapon mass: ", weapon.mass)
+
+    # 7. Check inventory item
+    print("9. Inventory item:")
+    print("   - Item content: ", weapon_item.content != null)
+    print("   - Item dimensions: ", weapon_item.dimensions)
+    print("   - Item stack count: ", weapon_item.stack_count)
+
+    # 8. Test direct slot access
+    var primary_slot = player.equipment.slots["primary"]
+    print("10. Primary slot details:")
+    print("   - Slot class: ", primary_slot.get_class())
+    print("   - Slot items: ", primary_slot.items.size())
+    print("   - Slot max items: ", primary_slot.max_items)
+
+    # 9. Test can_add_item directly on the slot
+    var can_add = primary_slot.can_add_item(weapon_item)
+    print("11. Primary slot can_add_item: ", can_add)
+
+    if not can_add:
+        print("12. Slot can_add_item failed - checking why:")
+        print("   - Items size: ", primary_slot.items.size())
+        print("   - Max items: ", primary_slot.max_items)
+
+        # Check if it's a compatibility issue
+        if primary_slot is EquipmentSlot:
+            var equipment_slot = primary_slot as EquipmentSlot
+            print("   - Slot type: ", equipment_slot.slot_type)
+            print("   - Slot name: ", equipment_slot.slot_name)
+
+    # 10. Test the actual equip method with detailed debugging
+    print("13. Attempting to equip weapon...")
+    var success = player.equipment.equip(weapon_item, "primary")
+    print("14. Equip result: ", success)
+
+    if not success:
+        push_error("Could not equip primary - see detailed debug above")
+    else:
+        print("SUCCESS: Weapon equipped to primary slot!")
+        print("Primary slot now has: ", primary_slot.items.size(), " items")
+
+    # After equipping the weapon, equip a backpack
+    print("15. Attempting to equip backpack...")
     var backpack = _create_test_backpack()
     var backpack_item = Inventory.create_inventory_item(backpack)
-    backpack_item.dimensions = Vector2i(2, 3)  # Set dimensions before equipping
 
-    # Add magazine to backpack first
-    var magazine_added = backpack.add_item(magazine_item)
-    if not magazine_added:
-        push_error("Could not add magazine to backpack")
-        # Try to find why it failed
-        print("Backpack free space: ", backpack.get_free_space())
-        print("Magazine dimensions: ", magazine_item.dimensions)
-        print("Backpack grid: ", backpack.grid_width, "x", backpack.grid_height)
-        return
+    # Check if back slot exists
+    var has_back_slot = player.equipment.slots.has("back")
+    print("16. Has 'back' slot: ", has_back_slot)
 
-    # Now equip backpack
-    var backpack_equipped = player.equipment.equip(backpack_item, "back")
-    if not backpack_equipped:
-        push_error("Could not equip backpack")
-        return
+    if has_back_slot:
+        var back_slot = player.equipment.slots["back"]
+        print("17. Back slot details:")
+        print("   - Slot type: ", back_slot.slot_type)
+        print("   - Slot items: ", back_slot.items.size())
+        print("   - Slot max items: ", back_slot.max_items)
 
-    if test_config and test_config.debug_mode:
-        print("Player equipment setup complete")
+        var backpack_success = player.equipment.equip(backpack_item, "back")
+        print("18. Backpack equip result: ", backpack_success)
+
+        if backpack_success:
+            print("SUCCESS: Backpack equipped!")
+            print("Back slot now has: ", back_slot.items.size(), " items")
+
+            # Test adding items to the backpack
+            _test_backpack_storage(backpack)
+        else:
+            push_error("Could not equip backpack")
+    else:
+        push_error("No 'back' slot found for backpack")
+        print("Available slots: ", player.equipment.slots.keys())
+
+    print("=== END COMPREHENSIVE DEBUG ===")
+
+# Enhanced test weapon creation
+func _create_test_weapon() -> Weapon:
+    var weapon = Weapon.new()
+    weapon.name = "Test Assault Rifle"
+
+    # Set weapon_type property directly
+    weapon.set("weapon_type", "assault_rifle")
+    weapon.mass = 3.5
+
+    # Debug weapon properties
+    print("Weapon properties:")
+    for property in weapon.get_property_list():
+        var name = property["name"]
+        if name == "weapon_type" or name == "weaponType" or "weapon" in name.to_lower():
+            print("   - ", name, ": ", weapon.get(name))
+
+    return weapon
 
 func _create_equipment_config() -> EquipmentConfig:
     var config = EquipmentConfig.new()
@@ -146,7 +249,55 @@ func _create_test_backpack() -> Backpack:
     var backpack = Backpack.new()
     backpack.name = "Test Backpack"
     backpack.icon = test_backpack_icon
+    backpack.grid_width = 6
+    backpack.grid_height = 10
+    backpack.max_weight = 25.0
+
+    # Make sure the backpack is properly initialized
+    if not backpack.grid:
+        backpack.grid = InventoryGrid.new()
+        backpack.grid.width = backpack.grid_width
+        backpack.grid.height = backpack.grid_height
+        backpack.grid._reset_grid()
+
+    # Add some test items to the backpack
+    _add_test_items_to_backpack(backpack)
+
     return backpack
+
+func _add_test_items_to_backpack(backpack: Backpack):
+    # Add some ammo to the backpack
+    var ammo_item1 = Inventory.create_inventory_item(test_ammo, 30)
+    if backpack.add_item(ammo_item1, Vector2i(0, 0)):
+        print("Added ammo to backpack at position (0, 0)")
+
+    # Add another ammo stack
+    var ammo_item2 = Inventory.create_inventory_item(test_ammo, 20)
+    if backpack.add_item(ammo_item2, Vector2i(1, 0)):
+        print("Added ammo to backpack at position (1, 0)")
+
+    # Add a magazine
+    var magazine = _create_test_magazine()
+    var magazine_item = Inventory.create_inventory_item(magazine)
+    if backpack.add_item(magazine_item, Vector2i(3, 0)):
+        print("Added magazine to backpack at position (3, 0)")
+
+func _test_backpack_storage(backpack: Backpack):
+    print("=== BACKPACK STORAGE TEST ===")
+    print("Backpack name: ", backpack.name)
+    print("Backpack dimensions: ", backpack.grid_width, "x", backpack.grid_height)
+    print("Backpack max weight: ", backpack.max_weight)
+    print("Backpack current weight: ", backpack.total_weight)
+    print("Backpack items count: ", backpack.items.size())
+    print("Backpack used space: ", backpack.get_used_space())
+    print("Backpack free space: ", backpack.get_free_space())
+
+    # List all items in backpack
+    for i in range(backpack.items.size()):
+        var item = backpack.items[i]
+        print("Item ", i, ": ", item.content.name, " at position ", item.position)
+
+    print("=== END BACKPACK TEST ===")
 
 func _setup_world_item():
     if world_item:
@@ -244,13 +395,27 @@ func _on_player_player_landed(_player: PlayerController, max_velocity: float, de
 # ─── INPUT HANDLING ────────────────────────────────
 func _input(event):
     if event.is_action_pressed("interact") and world_item and world_item.is_highlighted:
+        print("=== ITEM PICKUP ATTEMPT ===")
+        print("World item: ", world_item.inventory_item.content.name if world_item.inventory_item and world_item.inventory_item.content else "No item")
+        print("World item position: ", world_item.global_position)
+        print("Player position: ", player.global_position)
+        print("Distance: ", world_item.global_position.distance_to(player.global_position))
+
         if world_item.pick_up(player):
             if test_config and test_config.debug_mode:
                 print("World item picked up via interaction")
+        else:
+            print("Pickup failed - possible reasons:")
+            print("  - No suitable container found")
+            print("  - Item not compatible with any container")
+            print("  - Containers are full")
+
+        print("=== END PICKUP DEBUG ===")
 
     # Debug controls
     if test_config and test_config.enable_debug_controls:
         _handle_debug_input(event)
+
 
 func _handle_debug_input(event):
     if event.is_action_pressed("debug_spawn_item"):

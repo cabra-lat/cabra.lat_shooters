@@ -12,20 +12,27 @@ extends Resource
 
 func is_item_compatible(item: InventoryItem) -> bool:
     if not item or not item.content:
+        print("EquipmentSlotDefinition: Item or item content is null")
         return false
 
     # Check item type
     var item_type = _get_item_type(item.content)
     if allowed_item_types.size() > 0 and not allowed_item_types.has(item_type):
+        print("EquipmentSlotDefinition: Item type '%s' not in allowed types: %s" % [item_type, allowed_item_types])
         return false
 
     # Check categories
     if allowed_categories.size() > 0:
         var item_categories = _get_item_categories(item.content)
+        var has_valid_category = false
         for category in allowed_categories:
             if item_categories.has(category):
-                return true
-        return false
+                has_valid_category = true
+                break
+
+        if not has_valid_category:
+            print("EquipmentSlotDefinition: Item categories %s don't match allowed categories: %s" % [item_categories, allowed_categories])
+            return false
 
     return true
 
@@ -36,8 +43,6 @@ func _get_item_type(content: Resource) -> String:
         return "armor"
     elif content is Backpack:
         return "backpack"
-    #elif content is Medical:
-    #    return "medical"
     elif content is Ammo:
         return "ammo"
     return "misc"
@@ -48,14 +53,18 @@ func _get_item_categories(content: Resource) -> Array[String]:
     if content is Weapon:
         categories.append("weapon")
         var weapon = content as Weapon
-        #if weapon.weapon_type == "primary":
-        categories.append("primary")
-        #elif weapon.weapon_type == "secondary":
-        #    categories.append("secondary")
+        if weapon.weapon_type:
+            categories.append(weapon.weapon_type)
+            # Also add weapon_type as a primary/secondary category
+            if weapon.weapon_type == "assault_rifle" or weapon.weapon_type == "sniper_rifle" or weapon.weapon_type == "shotgun":
+                categories.append("primary")
+            elif weapon.weapon_type == "pistol" or weapon.weapon_type == "smg":
+                categories.append("secondary")
     elif content is Armor:
         categories.append("armor")
         var armor = content as Armor
-        categories.append(armor.armor_slot)
+        if armor.armor_slot:
+            categories.append(armor.armor_slot)
     elif content is Backpack:
         categories.append("backpack")
         categories.append("storage")
