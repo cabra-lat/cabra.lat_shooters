@@ -14,7 +14,7 @@ var firerate_timer: Timer
             var new_vm = value.view_model.instantiate()
             add_child(new_vm)
         data = value
-        
+
 
 func _ready():
     firerate_timer = Timer.new()

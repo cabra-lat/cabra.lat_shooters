@@ -29,6 +29,7 @@ func _ready():
     magazine.compatible_calibers.append(ammo.caliber)
     magazine.type = AmmoFeed.Type.EXTERNAL
     magazine.icon = preload("../../assets/ui/inventory/icon_stock_mag.png")
+    magazine.view_model = preload("../../src/weapons/scenes/magazine_ak47.tscn")
     var magazine_item = InventorySystem.create_inventory_item(magazine)
     magazine_item.dimensions = Vector2i(1,2)
 

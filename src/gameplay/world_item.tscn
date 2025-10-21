@@ -13,3 +13,8 @@ unique_name_in_owner = true
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D"]
 unique_name_in_owner = true
+
+[node name="HighlightArea" type="Area3D" parent="."]
+unique_name_in_owner = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="HighlightArea"]

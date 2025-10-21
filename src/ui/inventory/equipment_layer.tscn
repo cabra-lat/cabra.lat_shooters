@@ -1,0 +1,473 @@
+[gd_scene load_steps=5 format=3 uid="uid://t7bjle6s5jok"]
+
+[ext_resource type="Texture2D" uid="uid://bu52pdeq0jup2" path="res://addons/cabra.lat_shooters/assets/ui/inventory/player_body.png" id="1_gekcn"]
+[ext_resource type="Script" path="res://addons/cabra.lat_shooters/src/ui/inventory/equipment_layer.gd" id="1_ut0fj"]
+[ext_resource type="PackedScene" uid="uid://b4nocuvgaea0x" path="res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn" id="2_ut0fj"]
+[ext_resource type="Script" uid="uid://dfds0mlc4myq4" path="res://addons/cabra.lat_shooters/src/ui/inventory/equipment_slot.gd" id="3_6yhiu"]
+
+[node name="EquipmentLayer" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+scale = Vector2(0.95, 0.95)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_ut0fj")
+metadata/_tab_index = 0
+
+[node name="background" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(400, 700)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -286.0
+offset_right = 200.00073
+offset_bottom = 414.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_gekcn")
+expand_mode = 4
+stretch_mode = 5
+
+[node name="head" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -23.999634
+offset_top = -328.0
+offset_right = 24.000366
+offset_bottom = -280.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="eyes" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -95.99963
+offset_top = -296.0
+offset_right = -45.999634
+offset_bottom = -246.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="mouth" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 46.000366
+offset_top = -296.0
+offset_right = 96.00037
+offset_bottom = -246.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="left_ear" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 46.000366
+offset_top = -232.0
+offset_right = 96.00037
+offset_bottom = -182.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="right_ear" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -95.99963
+offset_top = -232.0
+offset_right = -45.999634
+offset_bottom = -182.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="torso" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -49.999634
+offset_top = -160.0
+offset_right = 46.000366
+offset_bottom = -64.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="lower_torso" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -49.999634
+offset_top = -64.0
+offset_right = 46.000366
+offset_bottom = 32.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="hips" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -49.999634
+offset_top = 36.0
+offset_right = 46.000366
+offset_bottom = 84.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="left_lower_arm" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 64.00037
+offset_top = -32.0
+offset_right = 114.00037
+offset_bottom = 68.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="left_upper_arm" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 56.000366
+offset_top = -152.0
+offset_right = 106.00037
+offset_bottom = -52.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="left_hand" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 96.00037
+offset_top = 68.0
+offset_right = 146.00037
+offset_bottom = 118.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="left_lower_leg" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 8.000366
+offset_top = 240.0
+offset_right = 58.000366
+offset_bottom = 340.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="left_knee" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 8.000366
+offset_top = 189.0
+offset_right = 58.000366
+offset_bottom = 239.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="left_upper_leg" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 8.000366
+offset_top = 86.0
+offset_right = 58.000366
+offset_bottom = 186.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="left_foot" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 0.00036621094
+offset_top = 344.0
+offset_right = 48.000366
+offset_bottom = 392.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="right_lower_arm" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -119.99963
+offset_top = -32.0
+offset_right = -69.99963
+offset_bottom = 68.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="right_upper_arm" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -111.99963
+offset_top = -136.0
+offset_right = -61.999634
+offset_bottom = -36.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="right_hand" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -135.99963
+offset_top = 80.0
+offset_right = -85.99963
+offset_bottom = 130.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="right_upper_leg" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -61.999634
+offset_top = 86.0
+offset_right = -11.999634
+offset_bottom = 186.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="right_knee" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -61.999634
+offset_top = 189.0
+offset_right = -11.999634
+offset_bottom = 239.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="right_lower_leg" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -61.999634
+offset_top = 240.0
+offset_right = -11.999634
+offset_bottom = 340.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
+
+[node name="right_foot" parent="." instance=ExtResource("2_ut0fj")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -49.999634
+offset_top = 344.0
+offset_right = -1.9996338
+offset_bottom = 392.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("3_6yhiu")
+slot_type = ""
+allowed_categories = Array[String]([])
