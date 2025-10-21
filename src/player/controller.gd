@@ -102,11 +102,10 @@ func _input(event):
   if not inventory_ui.visible and event is InputEventMouseMotion:
     rotation_degrees.y -= event.relative.x * config.mouse_sensitivity / 10
     head.rotation_degrees.x = clamp(head.rotation_degrees.x - event.relative.y * config.mouse_sensitivity / 10, -90, 90)
-  if not inventory_ui.visible:
-    if  Input.is_action_just_pressed("open_inventory"):
-      inventory_ui.open_inventory(self)
-      Input.set_mouse_mode(Input.MOUSE_MODE_CONFINED)
-  elif Input.is_action_pressed("open_inventory"):
+  if not inventory_ui.visible and Input.is_action_just_pressed("open_inventory"):
+    inventory_ui.open_inventory(self)
+    Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+  elif Input.is_action_just_pressed("open_inventory"):
     inventory_ui.hide()
     Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 

@@ -52,24 +52,23 @@ func _setup_collision():
         area.get_child(0).shape.size = size
 
 func _setup_area():
-    if area:
-        area.monitoring = true
-        area.monitorable = true
+    area.monitoring = true
+    area.monitorable = true
 
-        # Set area size from config or default
-        var area_shape = SphereShape3D.new()
-        area_shape.radius = pickup_radius
-        area.get_child(0).shape = area_shape
+    # Set area size from config or default
+    var area_shape = SphereShape3D.new()
+    area_shape.radius = pickup_radius
+    area.get_child(0).shape = area_shape
 
-        # Connect signals
-        if not area.body_entered.is_connected(_on_body_entered):
-            area.body_entered.connect(_on_body_entered)
-        if not area.body_exited.is_connected(_on_body_exited):
-            area.body_exited.connect(_on_body_exited)
+    # Connect signals
+    if not area.body_entered.is_connected(_on_body_entered):
+        area.body_entered.connect(_on_body_entered)
+    if not area.body_exited.is_connected(_on_body_exited):
+        area.body_exited.connect(_on_body_exited)
 
 func _setup_highlight():
     var highlight_shape = SphereShape3D.new()
-    highlight_shape.radius = 0.4
+    highlight_shape.radius = 1.0
     highlight_area.get_child(0).shape = highlight_shape
 
     if not highlight_area.body_entered.is_connected(_on_highlight_body_entered):

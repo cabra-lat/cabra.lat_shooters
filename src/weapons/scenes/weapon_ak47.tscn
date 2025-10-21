@@ -56,7 +56,7 @@ shader_parameter/modulate_color = Color(1, 1, 1, 1)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0749081, -0.349598)
 
 [node name="MAG" parent="model" instance=ExtResource("1_3tbhq")]
-transform = Transform3D(1.325, 0, 0, 0, -1.08404244e-07, 2.48, 0, -2.48, -1.08404244e-07, 0, -0.0614931, 0.21670793)
+transform = Transform3D(1.325, 0, 0, 0, -1.08404244e-07, 2.48, 0, -2.48, -1.08404244e-07, 0, -0.0614931, 0.23261303)
 
 [node name="GUN" type="MeshInstance3D" parent="model"]
 transform = Transform3D(1, -8.74228e-08, 8.74228e-08, -8.74228e-08, -1, 1.50996e-07, 8.74228e-08, -1.50996e-07, -1, 0, 0, 0)
@@ -64,7 +64,7 @@ mesh = ExtResource("3_3qb1m")
 skeleton = NodePath("")
 
 [node name="TRIGGER" type="MeshInstance3D" parent="model"]
-transform = Transform3D(1, -8.74228e-08, 8.74228e-08, -8.74228e-08, -1, 1.50996e-07, 8.74228e-08, -1.50996e-07, -1, 0, -0.0662064, 0.28152)
+transform = Transform3D(1, -8.74228e-08, 8.74228e-08, -8.74228e-08, -1, 1.50996e-07, 8.74228e-08, -1.50996e-07, -1, 0, -0.0662064, 0.29742512)
 mesh = SubResource("ArrayMesh_w2bv8")
 skeleton = NodePath("")
 surface_material_override/0 = SubResource("ShaderMaterial_3qb1m")
