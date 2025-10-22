@@ -2,12 +2,14 @@
 class_name PlayerController extends CharacterBody3D
 
 # ─── STATES (unchanged) ────────────────────────────
+const IDLE = "Idle"
 const STOPPED = "Stopped"
 const JUMPING = "Jumping"
 const PRONING = "Proning"
 const CROUCHING = "Crouching"
 const BARE_HANDED = "BareHanded"
-const FIRING = "Firing"
+const TRIGGER_PULLED = "TriggerPulled"
+const TRIGGER_RELEASED = "TriggerReleased"
 const AIMING = "Aiming"
 const FOCUSING = "HoldingBreath"
 const CHANGING_MODE = "ChangingMode"
@@ -19,6 +21,8 @@ const RELOADING = "Reloading"
 const SPRINTING = "Sprinting"
 const WALKING = "Walking"
 
+var debug_text: String = ""
+
 # ─── SIGNALS (unchanged) ───────────────────────────
 signal moved(player: PlayerController, delta: float)
 signal leaned(player: PlayerController, direction: int)
@@ -29,8 +33,8 @@ signal focused(player: PlayerController, reverse: bool)
 signal jumped(player: PlayerController)
 signal landed(player: PlayerController, max_velocity: float, delta: float)
 signal reloaded(player: PlayerController)
-signal equipped(player: PlayerController)
-signal unequiped(player: PlayerController)
+signal equipped(player: PlayerController, what: Item)
+signal unequiped(player: PlayerController, what: Item)
 signal insert_ammofeed(player: PlayerController)
 signal check_ammofeed(player: PlayerController, ammofeed: AmmoFeed)
 signal debug(player: PlayerController, text: String)
@@ -44,6 +48,7 @@ signal debug(player: PlayerController, text: String)
 @onready var crouching: StateMachine = %Crouching
 @onready var leaning:   StateMachine = %Leaning
 @onready var aiming:    StateMachine = %Aiming
+@onready var firing:    StateMachine = %Firing
 @onready var collision: CollisionShape3D = %CollisionShape3D
 @onready var head: Node3D = %Head
 @onready var camera: Camera3D = %Camera3D
@@ -83,7 +88,7 @@ func _ready():
     equipment = Equipment.new()
 
   # Connect state machine signals
-  for logic in [moving, crouching, aiming, leaning]:
+  for logic in [moving, crouching, aiming, leaning, firing]:
     logic.connect("state_entered", Callable(self, "_on_state_entered_" + logic.name.to_lower()))
     logic.connect("state_changed", Callable(self, "_on_state_changed_" + logic.name.to_lower()))
     logic.connect("state_exited",  Callable(self, "_on_state_exited_" + logic.name.to_lower()))
@@ -104,11 +109,21 @@ func _input(event):
   elif Input.is_action_just_pressed("open_inventory"):
     inventory_ui.hide()
     Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+  current_direction = Vector3.ZERO
+  if Input.is_action_pressed("forward"): current_direction += Vector3.FORWARD
+  if Input.is_action_pressed("back"): current_direction += Vector3.BACK
+  if Input.is_action_pressed("left"): current_direction += Vector3.LEFT
+  if Input.is_action_pressed("right"): current_direction += Vector3.RIGHT
+  current_direction = current_direction.normalized().rotated(Vector3.UP, rotation.y)
+  handle_conditions()
 
 # ─── STATE HANDLERS ────────────────────────────────
 func _on_state_entered_crouching(state: String):
   match state:
     CROUCHING:
+      current_speed         = config.crouch_speed
+      current_head_bobbing  = config.crouch_bobbing
+      current_camera_height = config.crouch_height
       crouched.emit(self)
     PRONING:
       current_speed         = config.prone_speed
@@ -134,10 +149,10 @@ func _on_state_entered_aiming(state: String):
     BARE_HANDED:
       if not current_weapon: return
       var item = WorldItem.spawn(self, current_weapon)
+      equipment.unequip(item.inventory_item, "primary")
+      unequiped.emit(self, current_weapon)
       weapon_node.hide()
       current_weapon = null
-      equipment.unequip(item.inventory_item, "primary")
-      unequiped.emit(self)
     FOCUSING:
       current_speed        = config.prone_speed
       current_head_bobbing = config.NO_BOBBING
@@ -146,6 +161,35 @@ func _on_state_entered_aiming(state: String):
         focused.emit(self)
         focus_timer.timeout.connect(func(): Input.action_release("focus"))
         focus_timer.start()
+
+func _on_state_exited_aiming(state: String):
+  match state:
+    BARE_HANDED:
+      var primary = equipment.get_equipped("primary")
+      if not primary.is_empty():
+        current_weapon = primary[0].extra as Weapon
+        weapon_node.data = current_weapon
+        weapon_node.show()
+        equipped.emit(self, current_weapon)
+    FOCUSING:
+      focused.emit(self, true)
+      focus_timer.stop()
+
+func _on_state_changed_aiming(new_state: String, old_state: String):
+  match [ old_state, new_state ]:
+    [ AIMING, IDLE ]:
+      aimed.emit(self, true)
+
+func _on_state_entered_firing(state: String):
+  moving.set_condition("+sprint", false)
+  moving.set_condition("-sprint", true)
+  match state:
+    TRIGGER_PULLED:
+        if not current_weapon: return
+        WeaponSystem.pull_trigger(current_weapon)
+    TRIGGER_RELEASED:
+        if not current_weapon: return
+        WeaponSystem.release_trigger(current_weapon)
     CHANGING_MODE:
       if firemode_timer.is_stopped() and current_weapon:
         firemode_timer.timeout.connect(func(): Input.action_release("firemode"))
@@ -158,22 +202,8 @@ func _on_state_entered_aiming(state: String):
           reload_timer.start()
         reloaded.emit(self)
 
-func _on_state_exited_aiming(state: String):
+func _on_state_exited_firing(state: String):
   match state:
-    AIMING:
-      aimed.emit(self, true)
-    BARE_HANDED:
-      var primary = equipment.get_equipped("primary")
-      if not primary.is_empty():
-        print(primary.map(func(a): a.name))
-        current_weapon = primary[0].extra as Weapon
-        print("current weapon: ", current_weapon.name)
-        weapon_node.data = current_weapon
-        weapon_node.show()
-        equipped.emit(self)
-    FOCUSING:
-      focused.emit(self, true)
-      focus_timer.stop()
     CHANGING_MODE:
       if current_weapon:
         if firemode_timer.time_left == 0:
@@ -181,9 +211,6 @@ func _on_state_exited_aiming(state: String):
         else:
           WeaponSystem.cycle_firemode(current_weapon)
       firemode_timer.stop()
-    FALLING:
-      landed.emit(self, max_velocity, get_process_delta_time())
-      max_velocity = 0
     RELOADING:
       if current_weapon:
         if reload_timer.time_left == 0:
@@ -192,8 +219,12 @@ func _on_state_exited_aiming(state: String):
           check_ammofeed.emit(self, current_weapon.ammofeed)
       reload_timer.stop()
 
+
 func _on_state_entered_moving(state: String):
   match state:
+    JUMPING:
+      velocity.y += config.default_jump_impulse
+      jumped.emit(self)
     STOPPED:
       current_speed        = config.default_speed
       current_head_bobbing = config.default_bobing
@@ -205,11 +236,13 @@ func _on_state_entered_moving(state: String):
     SPRINTING:
       current_speed        = config.sprint_speed
       current_head_bobbing = config.sprint_bobbing
+
+func _on_state_exited_moving(state: String):
+  match state:
     FALLING:
-      max_velocity = max(max_velocity, velocity.length())
-    JUMPING:
-      velocity.y += config.default_jump_impulse
-      jumped.emit(self)
+      landed.emit(self, max_velocity, get_process_delta_time())
+      velocity.y = 0
+      max_velocity = 0
 
 func _on_state_entered_leaning(state: String):
   match state:
@@ -224,34 +257,25 @@ func _on_state_entered_leaning(state: String):
     NOT_LEANING:
       leaned.emit(self, 0)
 
-# ─── MAIN LOOP ─────────────────────────────────────
-    ## Disable sprint during weapon actions
-  #if state in CONFIG_STATES + FIRING_STATES + AIM_STATES:
-    #moving_logic.set_condition("+sprint", false)
-    #moving_logic.set_condition("-sprint", true)
+func _unhandled_input(event: InputEvent) -> void:
+  debug.emit(self, debug_text)
 
-var cooldown = 0.0
 func _physics_process(delta):
-  # Get input
-  current_direction = Vector3.ZERO
-  if Input.is_action_pressed("forward"): current_direction += Vector3.FORWARD
-  if Input.is_action_pressed("back"): current_direction += Vector3.BACK
-  if Input.is_action_pressed("left"): current_direction += Vector3.LEFT
-  if Input.is_action_pressed("right"): current_direction += Vector3.RIGHT
-  if current_direction.length() > 0.01:
-    current_direction = current_direction.normalized().rotated(Vector3.UP, rotation.y)
+    # Moving logic
+  moving.set_condition("on_ground", is_on_floor())
+  moving.set_condition("on_air", not is_on_floor())
 
-
-  # Update state
-  handle_conditions()
+  debug_text = "FPS: %d\n" % Engine.get_frames_per_second()
+  debug_text += "[Firing state: %s]\n" % firing.get_current_state()
+  debug_text += "[Aiming state: %s]\n" % aiming.get_current_state()
+  debug_text += "[Leaninig state: %s]\n" % leaning.get_current_state()
+  debug_text += "[Crouching state: %s]\n" % crouching.get_current_state()
+  debug_text += "[Moving state: %s]\n" % moving.get_current_state()
 
   # Apply gravity
-  if is_on_floor():
-    velocity.y = 0
-  else:
+  if moving.state == FALLING:
     velocity.y -= config.gravity * delta
-
-  handle_process(delta)
+    max_velocity = max(max_velocity, velocity.length())
 
   # Apply movement
   velocity.x = current_direction.x * current_speed
@@ -262,23 +286,20 @@ func _physics_process(delta):
   velocity.x *= 1 - exp(-current_damping * delta)
   velocity.z *= 1 - exp(-current_damping * delta)
 
-  # Apply push force
-  for index in get_slide_collision_count():
-    var collision = get_slide_collision(index)
-    var collider = collision.get_collider()
-    if collider and collider.is_in_group("bodies"):
-      collider.apply_central_impulse(-collision.normal * config.gentle_push)
+  ## Apply push force
+  #for index in get_slide_collision_count():
+    #var collision = get_slide_collision(index)
+    #var collider = collision.get_collider()
+    #if collider and collider.is_in_group("bodies"):
+      #collider.apply_central_impulse(-collision.normal * config.gentle_push)
 
 # ─── HELPERS ───────────────────────────────────────
 func handle_conditions():
-    # Moving logic
-  moving.set_condition("on_ground", is_on_floor())
-  moving.set_condition("on_air", not is_on_floor())
   moving.set_condition("+move", abs(current_direction.length()) > 0)
   moving.set_condition("-move", abs(current_direction.length()) == 0)
   moving.set_condition("+jump", Input.is_action_just_pressed("jump"))
   moving.set_condition("+sprint", Input.is_action_pressed("sprint"))
-  moving.set_condition("-sprint", Input.is_action_just_released("sprint"))
+  moving.set_condition("-sprint", not Input.is_action_pressed("sprint"))
 
   # Lean logic
   leaning.set_condition("lean_right", Input.is_action_just_pressed("lean_right"))
@@ -291,26 +312,18 @@ func handle_conditions():
   crouching.set_condition("+prone", Input.is_action_just_pressed("prone") or Input.is_action_just_pressed("prone_toggle"))
   crouching.set_condition("-prone", Input.is_action_just_released("prone") or Input.is_action_just_pressed("prone_toggle"))
 
-    # Firing logic
-  aiming.set_condition("+focus", Input.is_action_just_pressed("focus"))
-  aiming.set_condition("-focus", Input.is_action_just_released("focus"))
-  aiming.set_condition("+aim", Input.is_action_just_pressed("aim"))
-  aiming.set_condition("-aim", Input.is_action_just_released("aim"))
-  aiming.set_condition("+reload", Input.is_action_just_pressed("reload"))
-  aiming.set_condition("-reload", Input.is_action_just_released("reload"))
-  aiming.set_condition("+firemode", Input.is_action_just_pressed("firemode"))
-  aiming.set_condition("-firemode", Input.is_action_just_released("firemode"))
-
+  # Aiming logic
+  aiming.set_condition("+focus", Input.is_action_pressed("focus"))
+  aiming.set_condition("-focus", not  Input.is_action_pressed("focus"))
+  aiming.set_condition("+aim", Input.is_action_pressed("aim"))
+  aiming.set_condition("-aim", not Input.is_action_pressed("aim"))
   aiming.set_condition("+equip", Input.is_action_just_pressed("weapon_slot1") and equipment.is_equipped("primary"))
   aiming.set_condition("-equip", Input.is_action_just_pressed("weapon_drop"))
 
-  #aiming.set_condition("+fire", Input.is_action_just_pressed("fire"))
-  #aiming.set_condition("-fire", Input.is_action_just_released("fire"))
-
-func handle_process(delta):
-  var debug_text = "FPS: %d\n" % Engine.get_frames_per_second()
-  debug_text += "[Firing machine]\nstate: %s\n" % aiming.get_current_state()
-  debug_text += "[Leaninig machine]\nstate: %s\n" % leaning.get_current_state()
-  debug_text += "[Crouching machine]\nstate: %s\n" % crouching.get_current_state()
-  debug_text += "[Moving machine] %s\n" % moving.get_current_state()
-  debug.emit(self, debug_text)
+  # Firing logic
+  firing.set_condition("+reload", Input.is_action_just_pressed("reload"))
+  firing.set_condition("-reload", Input.is_action_just_released("reload"))
+  firing.set_condition("+firemode", Input.is_action_just_pressed("firemode"))
+  firing.set_condition("-firemode", Input.is_action_just_released("firemode"))
+  firing.set_condition("+fire", Input.is_action_just_pressed("fire"))
+  firing.set_condition("-fire", Input.is_action_just_released("fire"))

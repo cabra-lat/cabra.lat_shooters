@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://ly33hk8t667t"]
+[gd_scene load_steps=15 format=3 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
 [ext_resource type="Script" uid="uid://c18se5foxdv01" path="res://addons/cabra.lat_shooters/src/weapons/weapon_node.gd" id="2_hwib0"]
@@ -6,17 +6,15 @@
 [ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="4_a20rg"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/resources/moving_logic.tres" id="4_gsogp"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="5_4275n"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cr8hjyxyw6huw" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="6_y0q3g"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://b670t66ds4lnh" path="res://addons/cabra.lat_shooters/src/player/resources/leaning_logic.tres" id="7_a20rg"]
 [ext_resource type="PackedScene" uid="uid://8x85dbyhhwva" path="res://addons/cabra.lat_cursors/cursor_3d.tscn" id="7_nqh7h"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cqkqs2q5t0o2s" path="res://addons/cabra.lat_shooters/src/player/resources/aiming_logic.tres" id="8_a20rg"]
 [ext_resource type="PackedScene" uid="uid://c6mfjk8v5pslc" path="res://addons/cabra.lat_interactions/interactor.tscn" id="8_g5121"]
 [ext_resource type="PackedScene" uid="uid://c12klxocgrga0" path="res://addons/cabra.lat_shooters/src/ui/inventory/main.tscn" id="9_hwib0"]
 
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_hwib0"]
-custom_solver_bias = 0.058
-margin = 0.13
-radius = 0.4033203
-height = 1.7
+[sub_resource type="BoxShape3D" id="BoxShape3D_4275n"]
+size = Vector3(0.8, 1.7, 0.8)
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_le7o6"]
 
@@ -29,7 +27,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
-shape = SubResource("CapsuleShape3D_hwib0")
+shape = SubResource("BoxShape3D_4275n")
 
 [node name="Head" type="Marker3D" parent="."]
 unique_name_in_owner = true
@@ -105,13 +103,23 @@ tree_root = ExtResource("8_a20rg")
 anim_player = NodePath("..")
 parameters/conditions/+aim = false
 parameters/conditions/+equip = false
-parameters/conditions/+firemode = false
 parameters/conditions/+focus = false
-parameters/conditions/+reload = false
 parameters/conditions/-aim = false
 parameters/conditions/-equip = false
-parameters/conditions/-firemode = false
 parameters/conditions/-focus = false
+script = ExtResource("4_a20rg")
+metadata/_custom_type_script = "uid://x8rsaq0qwxag"
+
+[node name="Firing" type="AnimationTree" parent="StateMachine"]
+unique_name_in_owner = true
+root_node = NodePath("%Firing/../..")
+tree_root = ExtResource("6_y0q3g")
+anim_player = NodePath("..")
+parameters/conditions/+fire = false
+parameters/conditions/+firemode = false
+parameters/conditions/+reload = false
+parameters/conditions/-fire = false
+parameters/conditions/-firemode = false
 parameters/conditions/-reload = false
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
@@ -148,6 +156,7 @@ visible = false
 [connection signal="check_ammofeed" from="." to="StateMachine" method="_on_player_check_ammofeed"]
 [connection signal="crouched" from="." to="StateMachine" method="_on_player_crouched"]
 [connection signal="equipped" from="." to="StateMachine" method="_on_player_equipped"]
+[connection signal="focused" from="." to="StateMachine" method="_on_player_focused"]
 [connection signal="insert_ammofeed" from="." to="StateMachine" method="_on_player_insert_ammofeed"]
 [connection signal="jumped" from="." to="StateMachine" method="_on_player_jumped"]
 [connection signal="landed" from="." to="StateMachine" method="_on_player_landed"]

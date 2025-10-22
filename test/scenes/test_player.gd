@@ -44,10 +44,6 @@ func _ready():
     # Create world item
     var world_item = WorldItem.spawn($Player, ammo, 30)
 
-    var signals = $Player.get_signal_list()
-    for sig in signals:
-        $Player.connect(sig.name, Callable(self, "_on_" + sig.name))
-
 func _on_trigger_locked():
     $HUD.show_popup("[can't pull the trigger]")
 

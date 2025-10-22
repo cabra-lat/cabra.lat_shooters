@@ -35,9 +35,9 @@ advance_condition = &"lean_left"
 
 [resource]
 states/LeaningLeft/node = SubResource("AnimationNodeStateMachine_gsogp")
-states/LeaningLeft/position = Vector2(509, 247)
+states/LeaningLeft/position = Vector2(477, 201)
 states/LeaningRight/node = SubResource("AnimationNodeStateMachine_a20rg")
-states/LeaningRight/position = Vector2(509, -36)
+states/LeaningRight/position = Vector2(477, -3)
 states/NotLeaning/node = SubResource("AnimationNodeStateMachine_4275n")
 states/NotLeaning/position = Vector2(341, 100)
 transitions = ["Start", "NotLeaning", SubResource("AnimationNodeStateMachineTransition_y0q3g"), "NotLeaning", "LeaningRight", SubResource("AnimationNodeStateMachineTransition_nqh7h"), "LeaningRight", "NotLeaning", SubResource("AnimationNodeStateMachineTransition_g5121"), "LeaningRight", "LeaningLeft", SubResource("AnimationNodeStateMachineTransition_asuj2"), "LeaningLeft", "LeaningRight", SubResource("AnimationNodeStateMachineTransition_em7ri"), "LeaningLeft", "NotLeaning", SubResource("AnimationNodeStateMachineTransition_ctskf"), "NotLeaning", "LeaningLeft", SubResource("AnimationNodeStateMachineTransition_2vu2g")]

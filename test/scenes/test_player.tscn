@@ -1,10 +1,9 @@
-[gd_scene load_steps=14 format=3 uid="uid://pc011sk80jnn"]
+[gd_scene load_steps=13 format=3 uid="uid://pc011sk80jnn"]
 
 [ext_resource type="Script" uid="uid://dn0782newa14v" path="res://addons/cabra.lat_shooters/test/scenes/test_player.gd" id="1_cnysa"]
 [ext_resource type="PackedScene" uid="uid://ly33hk8t667t" path="res://addons/cabra.lat_shooters/src/player/scenes/player.tscn" id="2_yghno"]
 [ext_resource type="PackedScene" uid="uid://bxlbq0drdtji4" path="res://addons/cabra.lat_shooters/src/scenes/HUD.tscn" id="3_aiq23"]
 [ext_resource type="Texture2D" uid="uid://rwr14fl7ogi4" path="res://addons/cabra.lat_shooters/assets/skybox.jpg" id="3_yghno"]
-[ext_resource type="PackedScene" uid="uid://b0ejn6xouvmht" path="res://src/scenes/box.tscn" id="4_6vvmu"]
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_cnysa"]
 
@@ -94,10 +93,6 @@ environment = SubResource("Environment_m5uds")
 
 [node name="Player" parent="." instance=ExtResource("2_yghno")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
-
-[node name="box" parent="." instance=ExtResource("4_6vvmu")]
-transform = Transform3D(0.9096353, -0.3463026, 0.22943006, 0.4154078, 0.7583129, -0.5023923, 0, 0.5523008, 0.8336449, 0, 5.9419456, 13.660682)
-script = null
 
 [connection signal="debug" from="Player" to="." method="_on_player_debug"]
 [connection signal="equipped" from="Player" to="." method="_on_player_equipped"]

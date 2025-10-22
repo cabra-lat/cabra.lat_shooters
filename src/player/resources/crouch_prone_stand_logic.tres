@@ -39,13 +39,13 @@ advance_condition = &"+crouch"
 
 [resource]
 states/Crouching/node = SubResource("2")
-states/Crouching/position = Vector2(322, 98.84799)
+states/Crouching/position = Vector2(294, 140.84799)
 states/End/position = Vector2(780, 232)
 states/Proning/node = SubResource("5")
-states/Proning/position = Vector2(328, 404)
+states/Proning/position = Vector2(294, 353)
 states/Standing/node = SubResource("3")
 states/Standing/position = Vector2(146, 248)
 states/Start/position = Vector2(5.6667004, 248)
 transitions = ["Standing", "Crouching", SubResource("6"), "Crouching", "Proning", SubResource("7"), "Standing", "Proning", SubResource("9"), "Proning", "Standing", SubResource("10"), "Crouching", "Standing", SubResource("11"), "Start", "Standing", SubResource("AnimationNodeStateMachineTransition_qyqoc"), "Proning", "Crouching", SubResource("8")]
-graph_offset = Vector2(-68, 101.121994)
+graph_offset = Vector2(-92, 64.121994)
 script = SubResource("1")
