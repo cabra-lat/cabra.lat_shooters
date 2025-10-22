@@ -24,17 +24,18 @@ const WALKING = "Walking"
 var debug_text: String = ""
 
 # ─── SIGNALS (unchanged) ───────────────────────────
-signal moved(player: PlayerController, delta: float)
-signal leaned(player: PlayerController, direction: int)
-signal proned(player: PlayerController, reverse: bool)
+signal moved(player: PlayerController,     delta: float)
+signal leaned(player: PlayerController,  direction: int)
+signal proned(player: PlayerController,   reverse: bool)
 signal crouched(player: PlayerController, reverse: bool)
-signal aimed(player: PlayerController, reverse: bool)
-signal focused(player: PlayerController, reverse: bool)
+signal aimed(player: PlayerController,    reverse: bool)
+signal focused(player: PlayerController,  reverse: bool)
 signal jumped(player: PlayerController)
 signal landed(player: PlayerController, max_velocity: float, delta: float)
 signal reloaded(player: PlayerController)
 signal equipped(player: PlayerController, what: Item)
 signal unequiped(player: PlayerController, what: Item)
+signal weapon_action(player: PlayerController, weapon: Weapon, state: String)
 signal insert_ammofeed(player: PlayerController)
 signal check_ammofeed(player: PlayerController, ammofeed: AmmoFeed)
 signal debug(player: PlayerController, text: String)
@@ -59,9 +60,6 @@ signal debug(player: PlayerController, text: String)
 @onready var reload_timer: Timer = %ReloadTimer
 @onready var firemode_timer: Timer = %FiremodeTimer
 @onready var inventory_ui: InventoryUI = %InventoryUi
-
-# ─── STATE TRACKING ────────────────────────────────
-var _base_posture: String = "Idle"
 
 var max_velocity: float = 0.0
 var current_weapon: Weapon = null
@@ -109,6 +107,9 @@ func _input(event):
   elif Input.is_action_just_pressed("open_inventory"):
     inventory_ui.hide()
     Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+  if inventory_ui.visible: return
+
   current_direction = Vector3.ZERO
   if Input.is_action_pressed("forward"): current_direction += Vector3.FORWARD
   if Input.is_action_pressed("back"): current_direction += Vector3.BACK
@@ -116,20 +117,14 @@ func _input(event):
   if Input.is_action_pressed("right"): current_direction += Vector3.RIGHT
   current_direction = current_direction.normalized().rotated(Vector3.UP, rotation.y)
   handle_conditions()
+  debug.emit(self, debug_text)
 
 # ─── STATE HANDLERS ────────────────────────────────
 func _on_state_entered_crouching(state: String):
   match state:
     CROUCHING:
-      current_speed         = config.crouch_speed
-      current_head_bobbing  = config.crouch_bobbing
-      current_camera_height = config.crouch_height
       crouched.emit(self)
     PRONING:
-      current_speed         = config.prone_speed
-      current_head_bobbing  = config.prone_bobbing
-      current_camera_height = config.prone_height
-      moving.set_condition("+jump", false)
       proned.emit(self)
 
 func _on_state_exited_crouching(state: String):
@@ -142,9 +137,6 @@ func _on_state_exited_crouching(state: String):
 func _on_state_entered_aiming(state: String):
   match state:
     AIMING:
-      current_speed        = config.crouch_speed
-      current_head_bobbing = config.NO_BOBBING
-      current_camera_fov   = config.aim_fov
       aimed.emit(self)
     BARE_HANDED:
       if not current_weapon: return
@@ -154,9 +146,6 @@ func _on_state_entered_aiming(state: String):
       weapon_node.hide()
       current_weapon = null
     FOCUSING:
-      current_speed        = config.prone_speed
-      current_head_bobbing = config.NO_BOBBING
-      current_camera_fov   = config.aim_focused_fov
       if focus_timer.is_stopped():
         focused.emit(self)
         focus_timer.timeout.connect(func(): Input.action_release("focus"))
@@ -181,26 +170,24 @@ func _on_state_changed_aiming(new_state: String, old_state: String):
       aimed.emit(self, true)
 
 func _on_state_entered_firing(state: String):
+  if not current_weapon: return
   moving.set_condition("+sprint", false)
   moving.set_condition("-sprint", true)
   match state:
     TRIGGER_PULLED:
-        if not current_weapon: return
-        WeaponSystem.pull_trigger(current_weapon)
+      weapon_action.emit(self, current_weapon, state)
     TRIGGER_RELEASED:
-        if not current_weapon: return
-        WeaponSystem.release_trigger(current_weapon)
+      weapon_action.emit(self, current_weapon, state)
     CHANGING_MODE:
-      if firemode_timer.is_stopped() and current_weapon:
+      if firemode_timer.is_stopped():
         firemode_timer.timeout.connect(func(): Input.action_release("firemode"))
         firemode_timer.start()
     RELOADING:
-      if current_weapon:
-        reload_timer.wait_time = current_weapon.reload_time
-        if reload_timer.is_stopped():
-          reload_timer.timeout.connect(func(): Input.action_release("reload"))
-          reload_timer.start()
-        reloaded.emit(self)
+      reload_timer.wait_time = current_weapon.reload_time
+      if reload_timer.is_stopped():
+        reload_timer.timeout.connect(func(): Input.action_release("reload"))
+        reload_timer.start()
+      reloaded.emit(self)
 
 func _on_state_exited_firing(state: String):
   match state:
@@ -225,17 +212,6 @@ func _on_state_entered_moving(state: String):
     JUMPING:
       velocity.y += config.default_jump_impulse
       jumped.emit(self)
-    STOPPED:
-      current_speed        = config.default_speed
-      current_head_bobbing = config.default_bobing
-      current_lean_angle   = config.lean_angle_idle
-    WALKING:
-      current_speed        = config.walk_speed
-      current_head_bobbing = config.walk_bobbing
-      current_lean_angle   = config.lean_angle_walk
-    SPRINTING:
-      current_speed        = config.sprint_speed
-      current_head_bobbing = config.sprint_bobbing
 
 func _on_state_exited_moving(state: String):
   match state:
@@ -257,9 +233,6 @@ func _on_state_entered_leaning(state: String):
     NOT_LEANING:
       leaned.emit(self, 0)
 
-func _unhandled_input(event: InputEvent) -> void:
-  debug.emit(self, debug_text)
-
 func _physics_process(delta):
     # Moving logic
   moving.set_condition("on_ground", is_on_floor())
@@ -273,9 +246,43 @@ func _physics_process(delta):
   debug_text += "[Moving state: %s]\n" % moving.get_current_state()
 
   # Apply gravity
-  if moving.state == FALLING:
-    velocity.y -= config.gravity * delta
-    max_velocity = max(max_velocity, velocity.length())
+  match moving.state:
+    FALLING:
+      velocity.y -= config.gravity * delta
+      max_velocity = max(max_velocity, velocity.length())
+    STOPPED:
+      current_speed        = config.default_speed
+      current_head_bobbing = config.default_bobing
+      current_lean_angle   = config.lean_angle_idle
+    WALKING:
+      current_speed        = config.walk_speed
+      current_head_bobbing = config.walk_bobbing
+      current_lean_angle   = config.lean_angle_walk
+    SPRINTING:
+      current_speed        = config.sprint_speed
+      current_head_bobbing = config.sprint_bobbing
+      current_lean_angle   = 0
+
+  match crouching.state:
+    CROUCHING:
+      current_speed         = config.crouch_speed
+      current_head_bobbing  = config.crouch_bobbing
+      current_camera_height = config.crouch_height
+    PRONING:
+      current_speed         = config.prone_speed
+      current_head_bobbing  = config.prone_bobbing
+      current_camera_height = config.prone_height
+      moving.set_condition("+jump", false)
+
+  match aiming.state:
+    AIMING:
+      current_speed        = config.crouch_speed
+      current_head_bobbing = config.NO_BOBBING
+      current_camera_fov   = config.aim_fov
+    FOCUSING:
+      current_speed        = config.prone_speed
+      current_head_bobbing = config.NO_BOBBING
+      current_camera_fov   = config.aim_focused_fov
 
   # Apply movement
   velocity.x = current_direction.x * current_speed
@@ -295,6 +302,8 @@ func _physics_process(delta):
 
 # ─── HELPERS ───────────────────────────────────────
 func handle_conditions():
+  firing.set_condition("+fire", Input.is_action_pressed("fire"))
+  firing.set_condition("-fire", not Input.is_action_pressed("fire"))
   moving.set_condition("+move", abs(current_direction.length()) > 0)
   moving.set_condition("-move", abs(current_direction.length()) == 0)
   moving.set_condition("+jump", Input.is_action_just_pressed("jump"))
@@ -325,5 +334,3 @@ func handle_conditions():
   firing.set_condition("-reload", Input.is_action_just_released("reload"))
   firing.set_condition("+firemode", Input.is_action_just_pressed("firemode"))
   firing.set_condition("-firemode", Input.is_action_just_released("firemode"))
-  firing.set_condition("+fire", Input.is_action_just_pressed("fire"))
-  firing.set_condition("-fire", Input.is_action_just_released("fire"))

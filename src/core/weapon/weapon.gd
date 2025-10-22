@@ -51,6 +51,8 @@ var firemodes: int = Firemode.SEMI
 @export var base_accuracy: float = 2.0
 @export var base_recoil_vertical: float = 1.0
 @export var base_recoil_horizontal: float = 0.5
+@export var base_recoil_tilt = 1.5
+@export var base_recoil_kick = 0.04
 
 # ─── STATE ─────────────────────────────────────────
 var firemode: int = Firemode.SAFE
@@ -66,6 +68,8 @@ var accuracy: float: get = get_current_accuracy
 var reload_time: float: get = get_reload_time
 var recoil_vertical: float: get = get_current_recoil_vertical
 var recoil_horizontal: float: get = get_current_recoil_horizontal
+var recoil_tilt: float: get = get_current_recoil_tilt
+var recoil_kick: float: get = get_current_recoil_kick
 var can_fire: bool: get = _can_fire
 var cycle_time: float:
   get: return (60.0 / firerate)
@@ -171,6 +175,18 @@ func get_current_recoil_vertical() -> float:
 
 func get_current_recoil_horizontal() -> float:
   var rec = base_recoil_horizontal
+  for att in attachments.values():
+    rec *= att.recoil_modifier
+  return rec
+
+func get_current_recoil_kick() -> float:
+  var rec = base_recoil_kick
+  for att in attachments.values():
+    rec *= att.recoil_modifier
+  return rec
+
+func get_current_recoil_tilt() -> float:
+  var rec = base_recoil_tilt
   for att in attachments.values():
     rec *= att.recoil_modifier
   return rec

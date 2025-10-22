@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_3wd1v")
 attach_points = 31
-firemodes = 6
+firemodes = 7
 feed_type = 1
 base_accuracy = 1.0
 name = "AK-47"

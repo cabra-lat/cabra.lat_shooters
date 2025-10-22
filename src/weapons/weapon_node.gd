@@ -6,39 +6,40 @@ const VIEWMODEL_NAME = "Viewmodel"
 var firerate_timer: Timer
 
 @export var data: Weapon:
-    get: return data
-    set(value):
-        var old_vm = get_node_or_null(VIEWMODEL_NAME)
-        if old_vm: old_vm.queue_free()
-        if value and value.view_model:
-            var new_vm = value.view_model.instantiate()
-            add_child(new_vm)
-        data = value
+  get: return data
+  set(value):
+    var old_vm = get_node_or_null(VIEWMODEL_NAME)
+    if old_vm: old_vm.queue_free()
+    if value and value.view_model:
+      var new_vm = value.view_model.instantiate()
+      add_child(new_vm)
+    data = value
 
 
 func _ready():
-    firerate_timer = Timer.new()
-    firerate_timer.one_shot = true
-    firerate_timer.connect("timeout", Callable(self,"_on_firerate_timeout"))
-    add_child(firerate_timer)
+  firerate_timer = Timer.new()
+  firerate_timer.one_shot = true
+  firerate_timer.connect("timeout", Callable(self,"_on_firerate_timeout"))
+  add_child(firerate_timer)
 
 func _on_firerate_timeout():
-    WeaponSystem.pull_trigger(data)
-    if data.is_automatic():
-        firerate_timer.start()
-
-# ─── WEAPON CONTROL ───────────────────────────────
-
-func pull_trigger():
-    # Only start timer if weapon is ready to fire
-    if not firerate_timer.is_stopped():
-        return
-    if not data: return
-    firerate_timer.wait_time = 60.0 / data.firerate
+  if data.is_automatic():
     WeaponSystem.pull_trigger(data)
     firerate_timer.start()
 
+# ─── WEAPON CONTROL ───────────────────────────────
+
+func pull_trigger(callback: Callable = func(): return null):
+  # Only start timer if weapon is ready to fire
+  if not firerate_timer.is_stopped():
+    return
+  if not data: return
+  firerate_timer.wait_time = 60.0 / data.firerate
+  firerate_timer.timeout.connect(callback)
+  WeaponSystem.pull_trigger(data)
+  firerate_timer.start()
+
 func release_trigger():
-    firerate_timer.stop()
-    if not data: return
-    data.release_trigger()
+  firerate_timer.stop()
+  if not data: return
+  data.release_trigger()

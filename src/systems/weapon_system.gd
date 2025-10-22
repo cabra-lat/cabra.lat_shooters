@@ -3,6 +3,7 @@ class_name WeaponSystem
 extends Resource
 
 static func pull_trigger(weapon: Weapon) -> bool:
+  if not weapon: return false
   if not _can_fire(weapon):
     _handle_fire_failure(weapon)
     return false
@@ -37,18 +38,21 @@ static func pull_trigger(weapon: Weapon) -> bool:
   return true
 
 static func release_trigger(weapon: Weapon) -> void:
+  if not weapon: return
   if weapon.firemode == Firemode.BURST:
     weapon.burst_counter = weapon.burst_count
   weapon.semi_control = false
   weapon.trigger_released.emit(weapon)
 
 static func cycle_weapon(weapon: Weapon) -> void:
+  if not weapon: return
   if not weapon.is_cycled and weapon.ammofeed and not weapon.ammofeed.is_empty():
     weapon.chambered_round = weapon.ammofeed.eject()
     weapon.is_cycled = true
     weapon.cartridge_inserted.emit(weapon, weapon.chambered_round)
 
 static func insert_cartridge(weapon: Weapon, new_cartridge: Ammo) -> void:
+  if not weapon: return
   if weapon.feed_type != AmmoFeed.Type.INTERNAL:
     weapon.ammofeed_incompatible.emit(weapon, new_cartridge)
     return

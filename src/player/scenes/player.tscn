@@ -134,6 +134,7 @@ one_shot = true
 
 [node name="FiremodeTimer" type="Timer" parent="."]
 unique_name_in_owner = true
+wait_time = 0.4
 one_shot = true
 
 [node name="Cursor3D" parent="." instance=ExtResource("7_nqh7h")]
@@ -165,6 +166,7 @@ visible = false
 [connection signal="proned" from="." to="StateMachine" method="_on_player_proned"]
 [connection signal="reloaded" from="." to="StateMachine" method="_on_player_reloaded"]
 [connection signal="unequiped" from="." to="StateMachine" method="_on_player_unequiped"]
+[connection signal="weapon_action" from="." to="StateMachine" method="_on_player_weapon_action"]
 [connection signal="timeout" from="FocusTimer" to="." method="_on_focus_timeout"]
 [connection signal="timeout" from="ReloadTimer" to="." method="_on_reload_timeout"]
 [connection signal="timeout" from="FiremodeTimer" to="." method="_on_firemode_timeout"]

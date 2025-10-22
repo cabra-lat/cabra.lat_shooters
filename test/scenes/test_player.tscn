@@ -88,6 +88,21 @@ mesh = SubResource("BoxMesh_lx1hn")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.0170326, -25.427063)
 shape = SubResource("BoxShape3D_cnysa")
 
+[node name="room5" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -30.62354, 30.608252)
+collision_layer = 7
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room5"]
+shape = SubResource("BoxShape3D_5uk0x")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room5"]
+mesh = SubResource("BoxMesh_lx1hn")
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="Level/room5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.0170326, -25.427063)
+shape = SubResource("BoxShape3D_cnysa")
+
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_m5uds")
 
