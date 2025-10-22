@@ -53,11 +53,15 @@ func apply_recoil(player: PlayerController, weapon: Weapon) -> void:
 
     # Quick camera kick up
   var kick_up = deg_to_rad(weapon.recoil_vertical)
-  tween.tween_property(player.head, "rotation:x", player.head.rotation.x + kick_up, 0.05)
+  tween.tween_property(player.head, "rotation:x", player.head.rotation.x + kick_up * 0.5, 0.05)
+  tween.tween_property(player.hand, "rotation:x", player.hand.rotation.x + kick_up, 0.05)
+  tween.tween_property(player.hand, "rotation:x", 0.0, 0.15).set_delay(0.05)
 
     # Slight random horizontal movement
   var kick_horizontal = deg_to_rad(randf_range(-weapon.recoil_horizontal, weapon.recoil_horizontal))
-  tween.tween_property(player.head, "rotation:y", player.head.rotation.y + kick_horizontal, 0.05)
+  tween.tween_property(player.head, "rotation:y", player.head.rotation.y + kick_horizontal * 0.5, 0.05)
+  tween.tween_property(player.hand, "rotation:y", player.hand.rotation.y + kick_horizontal, 0.05)
+  tween.tween_property(player.hand, "rotation:y", 0.0, 0.15).set_delay(0.05)
 
     # Weapon visual kick
   tween.tween_property(player.weapon_node, "position:z", 0.1, 0.05)
