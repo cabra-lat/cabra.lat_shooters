@@ -1,15 +1,31 @@
-[gd_scene load_steps=13 format=3 uid="uid://pc011sk80jnn"]
+[gd_scene load_steps=18 format=3 uid="uid://pc011sk80jnn"]
 
 [ext_resource type="Script" uid="uid://dn0782newa14v" path="res://addons/cabra.lat_shooters/test/scenes/test_player.gd" id="1_cnysa"]
 [ext_resource type="PackedScene" uid="uid://ly33hk8t667t" path="res://addons/cabra.lat_shooters/src/player/scenes/player.tscn" id="2_yghno"]
 [ext_resource type="PackedScene" uid="uid://bxlbq0drdtji4" path="res://addons/cabra.lat_shooters/src/scenes/HUD.tscn" id="3_aiq23"]
 [ext_resource type="Texture2D" uid="uid://rwr14fl7ogi4" path="res://addons/cabra.lat_shooters/assets/skybox.jpg" id="3_yghno"]
 
-[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_cnysa"]
+[sub_resource type="Gradient" id="Gradient_fam23"]
+interpolation_mode = 1
+offsets = PackedFloat32Array(0, 0.8, 0.9)
+colors = PackedColorArray(0.8047426, 0.80474263, 0.8047426, 1, 0.45452422, 0.45452428, 0.45452422, 1, 1, 1, 1, 1)
+metadata/_snap_enabled = true
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_1jipf"]
+gradient = SubResource("Gradient_fam23")
+fill = 2
+fill_from = Vector2(0.508547, 0.48290598)
+fill_to = Vector2(1, 1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vsj1y"]
-albedo_texture = SubResource("PlaceholderTexture2D_cnysa")
+albedo_texture = SubResource("GradientTexture2D_1jipf")
+metallic = 0.14
+metallic_specular = 0.62
+roughness = 0.06
+uv1_scale = Vector3(1.175, 1.175, 1.175)
 uv1_triplanar = true
+uv1_world_triplanar = true
+grow_amount = 10.6
 
 [sub_resource type="BoxMesh" id="BoxMesh_lx1hn"]
 material = SubResource("StandardMaterial3D_vsj1y")
@@ -18,8 +34,23 @@ size = Vector3(40, 1, 10)
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uk0x"]
 size = Vector3(40, 1, 10)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_cnysa"]
-size = Vector3(400, 1, 100)
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_fam23"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_fam23"]
+frequency = 1.0
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_1jipf"]
+noise = SubResource("FastNoiseLite_fam23")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cnysa"]
+albedo_texture = SubResource("NoiseTexture2D_1jipf")
+metallic = 0.06
+roughness = 0.09
+uv1_scale = Vector3(400, 400, 400)
+
+[sub_resource type="BoxMesh" id="BoxMesh_fam23"]
+material = SubResource("StandardMaterial3D_cnysa")
+size = Vector3(400, 1, 400)
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_tqsn0"]
 panorama = ExtResource("3_yghno")
@@ -39,69 +70,106 @@ script = ExtResource("1_cnysa")
 
 [node name="Level" type="Node3D" parent="."]
 
-[node name="room" type="StaticBody3D" parent="Level"]
+[node name="Platform" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, 0, 0.00437784)
 collision_layer = 7
 collision_mask = 0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Platform"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00212133, 0, -0.00437784)
 mesh = SubResource("BoxMesh_lx1hn")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform"]
 shape = SubResource("BoxShape3D_5uk0x")
 
-[node name="room2" type="StaticBody3D" parent="Level"]
+[node name="Platform2" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -2.9469411, 8.511776)
 collision_layer = 7
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room2"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform2"]
 shape = SubResource("BoxShape3D_5uk0x")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room2"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Platform2"]
 mesh = SubResource("BoxMesh_lx1hn")
 
-[node name="room3" type="StaticBody3D" parent="Level"]
+[node name="Platform3" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -11.679918, 16.026487)
 collision_layer = 7
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room3"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform3"]
 shape = SubResource("BoxShape3D_5uk0x")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room3"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Platform3"]
 mesh = SubResource("BoxMesh_lx1hn")
 
-[node name="room4" type="StaticBody3D" parent="Level"]
+[node name="Platform4" type="StaticBody3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -29.594725, 29.43588)
 collision_layer = 7
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room4"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform4"]
 shape = SubResource("BoxShape3D_5uk0x")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room4"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Platform4"]
 mesh = SubResource("BoxMesh_lx1hn")
 
-[node name="CollisionShape3D2" type="CollisionShape3D" parent="Level/room4"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.0170326, -25.427063)
-shape = SubResource("BoxShape3D_cnysa")
-
-[node name="room5" type="StaticBody3D" parent="Level"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -30.62354, 30.608252)
+[node name="Platform5" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 0.98549396, 0.1697107, 0, -0.1697107, 0.98549396, -0.00212133, -30.434336, 19.59503)
 collision_layer = 7
 collision_mask = 0
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/room5"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform5"]
 shape = SubResource("BoxShape3D_5uk0x")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/room5"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Platform5"]
 mesh = SubResource("BoxMesh_lx1hn")
 
-[node name="CollisionShape3D2" type="CollisionShape3D" parent="Level/room5"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.0170326, -25.427063)
-shape = SubResource("BoxShape3D_cnysa")
+[node name="Platform6" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, -0.7971837, 0.6037369, 0, -0.6037369, -0.7971837, -0.00212133, -28.308765, 8.02249)
+collision_layer = 7
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform6"]
+shape = SubResource("BoxShape3D_5uk0x")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Platform6"]
+mesh = SubResource("BoxMesh_lx1hn")
+
+[node name="Platform7" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, -0.74816877, -0.66350836, 0, 0.66350836, -0.74816877, -0.00212133, -18.125801, -0.619668)
+collision_layer = 7
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform7"]
+shape = SubResource("BoxShape3D_5uk0x")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Platform7"]
+mesh = SubResource("BoxMesh_lx1hn")
+
+[node name="Platform8" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 0.626699, -0.77926135, 0, 0.77926135, 0.626699, -0.00212133, -7.572612, -11.908952)
+collision_layer = 7
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform8"]
+shape = SubResource("BoxShape3D_5uk0x")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Platform8"]
+mesh = SubResource("BoxMesh_lx1hn")
+
+[node name="WorldGround" type="StaticBody3D" parent="Level"]
+collision_layer = 7
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/WorldGround"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -31.1081, 0)
+shape = SubResource("WorldBoundaryShape3D_fam23")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/WorldGround"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00212133, -31.611757, 4.0088177)
+mesh = SubResource("BoxMesh_fam23")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_m5uds")

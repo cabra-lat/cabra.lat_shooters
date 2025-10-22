@@ -46,7 +46,7 @@ const NO_BOBBING: float = 0.0
 # SPRINTING
 @export_group("Sprinting")
 @export var sprint_fov: float = 1.5 * default_fov
-@export var sprint_speed: float = 1.5 * walk_speed
+@export var sprint_speed: float = 2.5 * walk_speed
 @export var sprint_height: float = 0.85 * default_height
 @export var sprint_bobbing: float = 1.5 * default_bobing
 

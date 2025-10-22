@@ -2,6 +2,9 @@
 class_name Equipment
 extends Resource
 
+signal equipped(item: InventoryItem, slot_name: String)
+signal unequiped(item: InventoryItem, slot_name: String)
+
 # Body zones with slot types
 var slots: Dictionary = {
   "head": EquipmentSlot.new(),
@@ -26,12 +29,16 @@ func _init():
 func equip(item: InventoryItem, slot_name: String) -> bool:
   if not slots.has(slot_name):
     return false
-  return slots[slot_name].add_item(item)
+  var success = slots[slot_name].add_item(item)
+  if success: equipped.emit(item, slot_name)
+  return success
 
 func unequip(item: InventoryItem, slot_name: String) -> bool:
   if not slots.has(slot_name):
     return false
-  return slots[slot_name].remove_item(item)  # Must return true if removed
+  var success = slots[slot_name].remove_item(item)  # Must return true if removed
+  if success: unequiped.emit(item, slot_name)
+  return success
 
 func get_equipped(slot_name: String) -> Array[InventoryItem]:
   if slots.has(slot_name):

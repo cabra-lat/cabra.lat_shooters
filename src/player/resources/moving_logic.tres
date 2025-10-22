@@ -7,8 +7,12 @@
 [sub_resource type="AnimationNodeStateMachine" id="5"]
 
 [sub_resource type="AnimationNodeStateMachine" id="3"]
+states/End/position = Vector2(544, 100)
+graph_offset = Vector2(84, -23)
 
 [sub_resource type="AnimationNodeStateMachine" id="6"]
+states/End/position = Vector2(492, 100)
+graph_offset = Vector2(92, -61)
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="7"]
 advance_mode = 2
@@ -64,6 +68,7 @@ advance_expression = "true"
 
 [resource]
 resource_local_to_scene = true
+states/End/position = Vector2(671, 189)
 states/Falling/node = SubResource("1")
 states/Falling/position = Vector2(315, 189)
 states/Jumping/node = SubResource("4")
@@ -76,4 +81,4 @@ states/Stopped/position = Vector2(263.148, 71.93827)
 states/Walking/node = SubResource("6")
 states/Walking/position = Vector2(417, -21)
 transitions = ["Stopped", "Walking", SubResource("7"), "Walking", "Jumping", SubResource("8"), "Jumping", "Falling", SubResource("9"), "Falling", "Stopped", SubResource("10"), "Stopped", "Jumping", SubResource("11"), "Walking", "Falling", SubResource("12"), "Walking", "Stopped", SubResource("13"), "Stopped", "Falling", SubResource("14"), "Walking", "Sprinting", SubResource("15"), "Sprinting", "Walking", SubResource("16"), "Sprinting", "Jumping", SubResource("17"), "Sprinting", "Falling", SubResource("18"), "Start", "Stopped", SubResource("AnimationNodeStateMachineTransition_2gstt")]
-graph_offset = Vector2(94, -115)
+graph_offset = Vector2(-118, -161)

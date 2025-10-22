@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://chc2iqex6axn1"]
+[gd_scene load_steps=19 format=3 uid="uid://chc2iqex6axn1"]
 
 [ext_resource type="Shader" uid="uid://bo7wc2x3ox5i1" path="res://addons/cabra.lat_shooters/src/shaders/cartridges/cartridge.gdshader" id="1_3hsla"]
 [ext_resource type="Texture2D" uid="uid://d0gbpba0pd43u" path="res://addons/cabra.lat_shooters/assets/cartridge-font.png" id="2_0rwa3"]
@@ -166,6 +166,19 @@ rings = 5
 cap_top = false
 cap_bottom = false
 
-[node name="MainBullet" type="MeshInstance3D"]
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_3hsla"]
+height = 0.073516846
+radius = 0.0078125
+
+[node name="RigidBody3D" type="RigidBody3D"]
+collision_layer = 4
+collision_mask = 4
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0, 0)
 extra_cull_margin = 16384.0
 mesh = SubResource("CylinderMesh_1m3ej")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, -0.0011304133, -0.036880493)
+shape = SubResource("CylinderShape3D_3hsla")

@@ -85,6 +85,13 @@ func _ready():
   if equipment == null:
     equipment = Equipment.new()
 
+  # Connect equipment changes to update weapon node
+  equipment.equipped.connect(_on_equipment_changed)
+  equipment.unequiped.connect(_on_equipment_changed)
+
+  # Initial weapon setup
+  _update_weapon_node()
+
   # Connect state machine signals
   for logic in [moving, crouching, aiming, leaning, firing]:
     logic.connect("state_entered", Callable(self, "_on_state_entered_" + logic.name.to_lower()))
@@ -96,6 +103,21 @@ func _ready():
   set_max_slides(4)
   set_floor_max_angle(PI / 4)
 
+
+func _on_equipment_changed(player: PlayerController, item: Item):
+  _update_weapon_node()
+
+func _update_weapon_node():
+  var primary = equipment.get_equipped("primary")
+  if not primary.is_empty():
+    var weapon_item = primary[0]
+    if weapon_item.extra is Weapon:
+      current_weapon = weapon_item.extra as Weapon
+      weapon_node.data = current_weapon
+      print("DEBUG: WeaponNode data set to: ", current_weapon.name)
+  else:
+    current_weapon = null
+    weapon_node.data = null
 # ─── INPUT ─────────────────────────────────────────
 func _input(event):
   if not inventory_ui.visible and event is InputEventMouseMotion:
@@ -322,7 +344,7 @@ func handle_conditions():
   crouching.set_condition("-prone", Input.is_action_just_released("prone") or Input.is_action_just_pressed("prone_toggle"))
 
   # Aiming logic
-  aiming.set_condition("+focus", Input.is_action_pressed("focus"))
+  aiming.set_condition("+focus", Input.is_action_just_pressed("focus"))
   aiming.set_condition("-focus", not  Input.is_action_pressed("focus"))
   aiming.set_condition("+aim", Input.is_action_pressed("aim"))
   aiming.set_condition("-aim", not Input.is_action_pressed("aim"))

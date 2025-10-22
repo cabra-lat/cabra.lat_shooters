@@ -39,10 +39,17 @@ func _on_player_focused(player: PlayerController, reverse: bool = false) -> void
   var change = player.config.aim_focused_fov if not reverse else player.config.aim_fov
   tween.tween_property(player.camera, "fov", change, duration)
 
+# In your animation script
 func _on_player_weapon_action(player: PlayerController, weapon: Weapon, state: String) -> void:
   match state:
     PlayerController.TRIGGER_PULLED:
-      player.weapon_node.pull_trigger(func(): apply_recoil(player, weapon))
+      # Only apply recoil if the weapon actually fires
+      var fired = player.weapon_node.pull_trigger(func():
+        if player.current_weapon and player.current_weapon.ammofeed and player.current_weapon.ammofeed.capacity > 0:
+          apply_recoil(player, weapon)
+      )
+      if not fired:
+        print("DEBUG: Weapon failed to fire - no ammunition or other issue")
     PlayerController.TRIGGER_RELEASED:
       player.weapon_node.release_trigger()
 

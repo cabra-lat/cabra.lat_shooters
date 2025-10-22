@@ -53,4 +53,4 @@ states/Idle/node = SubResource("s_idle")
 states/Idle/position = Vector2(-213.556, -46.6118)
 states/Start/position = Vector2(-338, -46.6118)
 transitions = ["Idle", "Aiming", SubResource("t_idle_to_aiming"), "Aiming", "Idle", SubResource("t_aiming_to_idle"), "Aiming", "HoldingBreath", SubResource("t_aiming_to_holdingbreath"), "HoldingBreath", "Aiming", SubResource("t_holdingbreath_to_aiming"), "HoldingBreath", "Idle", SubResource("AnimationNodeStateMachineTransition_m8des"), "Start", "BareHanded", SubResource("AnimationNodeStateMachineTransition_tlca3"), "BareHanded", "Idle", SubResource("AnimationNodeStateMachineTransition_xcwf3"), "Idle", "BareHanded", SubResource("AnimationNodeStateMachineTransition_lyklb")]
-graph_offset = Vector2(-449, -309)
+graph_offset = Vector2(-399, -310)

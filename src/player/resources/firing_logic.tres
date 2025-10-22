@@ -46,4 +46,4 @@ states/TriggerPulled/position = Vector2(45, -40)
 states/TriggerReleased/node = SubResource("AnimationNodeStateMachine_uipgm")
 states/TriggerReleased/position = Vector2(-170, -40)
 transitions = ["Start", "TriggerReleased", SubResource("AnimationNodeStateMachineTransition_rmw8f"), "TriggerReleased", "TriggerPulled", SubResource("AnimationNodeStateMachineTransition_kfbfd"), "TriggerReleased", "ChangingMode", SubResource("AnimationNodeStateMachineTransition_m8des"), "TriggerPulled", "TriggerReleased", SubResource("AnimationNodeStateMachineTransition_g8hl1"), "TriggerReleased", "Reloading", SubResource("AnimationNodeStateMachineTransition_pmml0"), "Reloading", "TriggerReleased", SubResource("AnimationNodeStateMachineTransition_k7anp"), "ChangingMode", "TriggerReleased", SubResource("AnimationNodeStateMachineTransition_uipgm")]
-graph_offset = Vector2(-455, -225)
+graph_offset = Vector2(-431, -258)
