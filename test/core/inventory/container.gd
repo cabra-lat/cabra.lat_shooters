@@ -13,7 +13,7 @@ func _run():
   # Create test ammo item
   var ammo = Ammo.create_test_ammo()
   var item = InventoryItem.new()
-  item.content = ammo
+  item = ammo
   item.max_stack = 30
   item.stack_count = 10
   item.dimensions = Vector2i(2, 1)

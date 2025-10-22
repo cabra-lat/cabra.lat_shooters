@@ -164,7 +164,7 @@ func add_item(item: InventoryItem, position: Vector2i = Vector2i(-1, -1)) -> boo
   return true
 
 func remove_item(item: InventoryItem) -> bool:
-  print("DEBUG: Removing item from grid: ", item.content.name if item.content else "Unknown")
+  print("DEBUG: Removing item from grid: ", item.name if item else "Unknown")
   var index = items.find(item)
   if index != -1:
     free_area(item.position, item.dimensions)

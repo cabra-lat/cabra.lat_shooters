@@ -1,0 +1,44 @@
+[gd_resource type="AnimationNodeStateMachine" load_steps=11 format=3 uid="uid://b670t66ds4lnh"]
+
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_gsogp"]
+
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_a20rg"]
+
+[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_4275n"]
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_y0q3g"]
+advance_mode = 2
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_nqh7h"]
+advance_mode = 2
+advance_condition = &"lean_right"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_g5121"]
+advance_mode = 2
+advance_condition = &"-lean"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_asuj2"]
+advance_mode = 2
+advance_condition = &"lean_left"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_em7ri"]
+advance_mode = 2
+advance_condition = &"lean_right"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_ctskf"]
+advance_mode = 2
+advance_condition = &"-lean"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_2vu2g"]
+advance_mode = 2
+advance_condition = &"lean_left"
+
+[resource]
+states/LeaningLeft/node = SubResource("AnimationNodeStateMachine_gsogp")
+states/LeaningLeft/position = Vector2(509, 247)
+states/LeaningRight/node = SubResource("AnimationNodeStateMachine_a20rg")
+states/LeaningRight/position = Vector2(509, -36)
+states/NotLeaning/node = SubResource("AnimationNodeStateMachine_4275n")
+states/NotLeaning/position = Vector2(341, 100)
+transitions = ["Start", "NotLeaning", SubResource("AnimationNodeStateMachineTransition_y0q3g"), "NotLeaning", "LeaningRight", SubResource("AnimationNodeStateMachineTransition_nqh7h"), "LeaningRight", "NotLeaning", SubResource("AnimationNodeStateMachineTransition_g5121"), "LeaningRight", "LeaningLeft", SubResource("AnimationNodeStateMachineTransition_asuj2"), "LeaningLeft", "LeaningRight", SubResource("AnimationNodeStateMachineTransition_em7ri"), "LeaningLeft", "NotLeaning", SubResource("AnimationNodeStateMachineTransition_ctskf"), "NotLeaning", "LeaningLeft", SubResource("AnimationNodeStateMachineTransition_2vu2g")]
+graph_offset = Vector2(111, -109)

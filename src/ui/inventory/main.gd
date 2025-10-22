@@ -31,7 +31,7 @@ func open_inventory(player: PlayerController, container: InventoryContainer = nu
 
     # Open backpack if equipped
     var equipped = player.equipment.get_equipped("back")
-    var backpack = equipped[0].content as Backpack if not equipped.is_empty() else null
+    var backpack = equipped[0].extra as Backpack if not equipped.is_empty() else null
     if backpack:
         _open_container_once(backpack)
 
@@ -60,7 +60,7 @@ func _handle_container_drop(data: Dictionary, target_slot: InventorySlotUI):
 
 func _on_slot_dropped(data: Dictionary, target_slot: InventorySlotUI):
     print("=== DROP EVENT START ===")
-    print("Drop data: %s -> %s" % [data["item"].content.name if data["item"].content else "Unknown",
+    print("Drop data: %s -> %s" % [data["item"].name if data["item"] else "Unknown",
           target_slot.grid_position if target_slot.grid_position != Vector2i(-1, -1) else target_slot.name])
     print("Source: %s" % data["source"])
 
@@ -91,7 +91,7 @@ func _on_drag_ended():
 
 func _handle_world_drop(data: Dictionary):
     print("=== WORLD DROP START ===")
-    print("Dropping item in world: %s" % data["item"].content.name if data["item"].content else "Unknown")
+    print("Dropping item in world: %s" % data["item"].name if data["item"] else "Unknown")
 
     var item = data["item"]
     var source = data["source"]
@@ -124,22 +124,7 @@ func _handle_world_drop(data: Dictionary):
     print("=== WORLD DROP END ===")
 
 func _create_world_item(item: InventoryItem):
-    var world_item_scene = preload("res://addons/cabra.lat_shooters/src/gameplay/world_item.tscn")
-    var world_item = world_item_scene.instantiate() as WorldItem
-    # Set up the world item - Use the original item, don't duplicate
-    world_item.inventory_item = item
-    # Reset the item's position for the world - THIS IS THE CRITICAL FIX
-    item.position = Vector2i.ZERO
-    # Position the item in front of the player
-    if player_controller and player_controller.equipment:
-        var player_pos = player_controller.global_position
-        var player_forward = -player_controller.global_transform.basis.z
-        var drop_pos = player_pos + player_forward * 2.0 + Vector3(0, 1, 0)  # 2m in front, 1m up
-        world_item.global_position = drop_pos
-        # Add some random rotation
-        world_item.rotate_y(randf() * PI * 2)
-    # Add to scene
-    get_tree().current_scene.add_child(world_item)
+    var world_item = WorldItem.spawn(player_controller, item)
     print("Created world item at position: %s" % world_item.global_position)
 
 # World drop zone drag handling
@@ -156,7 +141,7 @@ func _can_drop_data_at_position(at_position: Vector2, data: Variant) -> bool:
 func _drop_data_at_position(at_position: Vector2, data: Variant) -> void:
     if data is Dictionary and data.has("item") and data.has("source"):
         print("=== WORLD DROP START ===")
-        print("Dropping item in world: %s" % data["item"].content.name if data["item"].content else "Unknown")
+        print("Dropping item in world: %s" % data["item"].name if data["item"] else "Unknown")
 
         # Remove item from source
         var item = data["item"]

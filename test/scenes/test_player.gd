@@ -42,10 +42,7 @@ func _ready():
     $Player.equipment.equip(backpack_item, "back")
 
     # Create world item
-    var world_item = %WorldItem
-    var item = InventorySystem.create_inventory_item(ammo, 30)
-    world_item.inventory_item = item
-    world_item._ready()
+    var world_item = WorldItem.spawn($Player, ammo, 30)
 
     var signals = $Player.get_signal_list()
     for sig in signals:

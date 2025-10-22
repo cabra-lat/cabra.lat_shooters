@@ -17,7 +17,7 @@ func setup(item: InventoryItem, container: BaseInventoryUI):
 
     # Create the visual representation
     var texture_rect = TextureRect.new()
-    texture_rect.texture = item.content.icon
+    texture_rect.texture = item.icon
     texture_rect.expand_mode = TextureRect.EXPAND_FIT_HEIGHT_PROPORTIONAL
     texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 

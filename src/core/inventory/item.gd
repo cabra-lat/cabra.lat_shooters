@@ -2,8 +2,7 @@
 class_name InventoryItem
 extends Item
 
-# What this item represents (Ammo, Weapon, Armor, etc.)
-@export var content: Item
+@export var extra: Item = null
 
 # Stacking
 @export var max_stack: int = 1  # 1 = not stackable, >1 = stackable
@@ -25,11 +24,11 @@ var occupied_cells: Array[Vector2i]:
     return cells
 
 func can_stack_with(other: InventoryItem) -> bool:
-  if not content or not other.content:
+  if not other:
     return false
   if max_stack <= 1 or other.max_stack <= 1:
     return false
-  return content.resource_path == other.content.resource_path
+  return resource_path == other.resource_path
 
 func merge(other: InventoryItem) -> bool:
   if not can_stack_with(other):
@@ -41,10 +40,13 @@ func merge(other: InventoryItem) -> bool:
   return false
 
 func duplicate(deep: bool = false) -> InventoryItem:
-  var copy = InventoryItem.new()
-  copy.content = content.duplicate() if (deep and content) else content
-  copy.max_stack = max_stack
-  copy.stack_count = stack_count
-  copy.dimensions = dimensions
-  copy.position = position
-  return copy
+  return self.duplicate() if deep else self
+
+static func slurp(item: Item) -> InventoryItem:
+    var new = InventoryItem.new()
+    new.icon = item.icon
+    new.name = item.name
+    new.view_model = item.view_model
+    new.equip_sound = item.equip_sound
+    new.extra = item
+    return new

@@ -23,15 +23,6 @@ func _init():
   slots["secondary"].slot_type = EquipmentSlot.Type.SECONDARY_WEAPON
   slots["back"].slot_type = EquipmentSlot.Type.BACK
 
-  # Weapon slots: only 1 item
-  slots["primary"].max_items = 1
-  slots["secondary"].max_items = 1
-  slots["back"].max_items = 1
-
-  # Clothing/armor slots: allow layering (optional)
-  slots["torso"].max_items = 3  # base layer + clothing + armor
-  slots["head"].max_items = 2   # cap + helmet
-
 func equip(item: InventoryItem, slot_name: String) -> bool:
   if not slots.has(slot_name):
     return false
@@ -47,6 +38,9 @@ func get_equipped(slot_name: String) -> Array[InventoryItem]:
     return slots[slot_name].items
   return []
 
+func is_equipped(slot_name: String) -> bool:
+  return slots.has(slot_name) and slots[slot_name].items.size() > 0
+
 func get_total_mass() -> float:
   var total = 0.0
   for slot in slots.values():
@@ -58,8 +52,8 @@ func get_insulation_rating() -> float:
   var rating = 0.0
   for slot in ["torso", "legs", "head"]:
     for item in slots[slot].items:
-      if item.content.has_method("get_insulation"):
-        rating += item.content.get_insulation()
+      if item.has_method("get_insulation"):
+        rating += item.get_insulation()
   return rating
 
 # Encumbrance hooks

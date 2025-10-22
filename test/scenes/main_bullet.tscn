@@ -62,7 +62,7 @@ seamless_blend_skirt = 0.836
 render_priority = 0
 shader = ExtResource("1_3hsla")
 shader_parameter/mesh_segments_length = 64
-shader_parameter/mesh_segments_circumference = 64
+shader_parameter/mesh_segments_circumference = 5
 shader_parameter/gap_segments = 1
 shader_parameter/scale = 1.0
 shader_parameter/center_of_mass = 0.0
@@ -162,7 +162,7 @@ shader_parameter/stamp_ao_darkness = 0.651
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_1m3ej"]
 material = SubResource("ShaderMaterial_aeqdp")
-rings = 64
+rings = 5
 cap_top = false
 cap_bottom = false
 

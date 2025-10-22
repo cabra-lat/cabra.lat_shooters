@@ -103,7 +103,7 @@ func _show_icon_after_drag():
 
 func _create_drag_preview(item: InventoryItem) -> Control:
     var preview = TextureRect.new()
-    preview.texture = item.content.icon
+    preview.texture = item.icon
     preview.expand_mode = TextureRect.EXPAND_FIT_HEIGHT_PROPORTIONAL
     preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
     preview.size = SLOT_SIZE_PX * Vector2(item.dimensions)

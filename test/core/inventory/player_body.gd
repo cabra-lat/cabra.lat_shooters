@@ -11,7 +11,7 @@ func _run():
   var weapon = Weapon.new()
   weapon.name = "M4A1"
   var weapon_item = InventoryItem.new()
-  weapon_item.content = weapon
+  weapon_item = weapon
   weapon_item.dimensions = Vector2i(3, 1)
 
   check(body.equip(weapon_item, "primary"), "Equip primary weapon")
@@ -21,7 +21,7 @@ func _run():
   var armor = Armor.new()
   armor.name = "Plate Carrier"
   var armor_item = InventoryItem.new()
-  armor_item.content = armor
+  armor_item = armor
   armor_item.dimensions = Vector2i(2, 2)
 
   check(body.equip(armor_item, "torso"), "Equip armor")

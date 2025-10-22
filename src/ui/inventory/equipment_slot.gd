@@ -16,20 +16,20 @@ func _validate_drop(item: InventoryItem) -> bool:
 func _is_item_compatible(item: InventoryItem) -> bool:
     match slot_type:
         "back":
-            return item.content is Backpack
+            return item.extra is Backpack
         "primary", "secondary":
-            return item.content is Weapon
+            return item.extra is Weapon
         "helmet":
-            return item.content is Armor and (item.content as Armor).slot == "head"
+            return item.extra is Armor and (item.extra as Armor).slot == "head"
         "vest":
-            return item.content is Armor and (item.content as Armor).slot == "torso"
+            return item.extra is Armor and (item.extra as Armor).slot == "torso"
         _:
             return false
 
 # Override drag data creation for equipment slots
 func _create_drag_data() -> Dictionary:
     if associated_item and source_container:
-        print("Starting drag from equipment slot: %s" % associated_item.content.name if associated_item.content else "Unknown")
+        print("Starting drag from equipment slot: %s" % associated_item.name if associated_item else "Unknown")
 
         _hide_icon_during_drag()
 

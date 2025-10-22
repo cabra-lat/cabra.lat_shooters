@@ -1,98 +1,24 @@
-[gd_scene load_steps=31 format=3 uid="uid://ly33hk8t667t"]
+[gd_scene load_steps=14 format=3 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
 [ext_resource type="Script" uid="uid://c18se5foxdv01" path="res://addons/cabra.lat_shooters/src/weapons/weapon_node.gd" id="2_hwib0"]
 [ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="3_gsogp"]
 [ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="4_a20rg"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/resources/moving_logic.tres" id="4_gsogp"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="5_4275n"]
-[ext_resource type="AnimationNodeStateMachine" uid="uid://cr8hjyxyw6huw" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="6_y0q3g"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://b670t66ds4lnh" path="res://addons/cabra.lat_shooters/src/player/resources/leaning_logic.tres" id="7_a20rg"]
 [ext_resource type="PackedScene" uid="uid://8x85dbyhhwva" path="res://addons/cabra.lat_cursors/cursor_3d.tscn" id="7_nqh7h"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cqkqs2q5t0o2s" path="res://addons/cabra.lat_shooters/src/player/resources/aiming_logic.tres" id="8_a20rg"]
 [ext_resource type="PackedScene" uid="uid://c6mfjk8v5pslc" path="res://addons/cabra.lat_interactions/interactor.tscn" id="8_g5121"]
 [ext_resource type="PackedScene" uid="uid://c12klxocgrga0" path="res://addons/cabra.lat_shooters/src/ui/inventory/main.tscn" id="9_hwib0"]
 
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_5m4bh"]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_hwib0"]
+custom_solver_bias = 0.058
+margin = 0.13
+radius = 0.4033203
 height = 1.7
-radius = 0.4
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_le7o6"]
-
-[sub_resource type="AnimationNodeStateMachine" id="1"]
-
-[sub_resource type="AnimationNodeStateMachine" id="3"]
-
-[sub_resource type="AnimationNodeStateMachine" id="4"]
-
-[sub_resource type="AnimationNodeStateMachine" id="5"]
-
-[sub_resource type="AnimationNodeStateMachine" id="6"]
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="7"]
-advance_mode = 2
-advance_condition = &"+move"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="8"]
-advance_mode = 2
-advance_condition = &"+jump"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="9"]
-advance_mode = 2
-advance_condition = &"on_air"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="10"]
-advance_mode = 2
-advance_condition = &"on_ground"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="11"]
-advance_mode = 2
-advance_condition = &"+jump"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="12"]
-advance_mode = 2
-advance_condition = &"on_air"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="13"]
-advance_mode = 2
-advance_condition = &"-move"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="14"]
-advance_mode = 2
-advance_condition = &"on_air"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="15"]
-advance_mode = 2
-advance_condition = &"+sprint"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="16"]
-advance_mode = 2
-advance_condition = &"-sprint"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="17"]
-advance_mode = 2
-advance_condition = &"+jump"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="18"]
-advance_mode = 2
-advance_condition = &"on_air"
-
-[sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_2gstt"]
-advance_mode = 2
-advance_expression = "true"
-
-[sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_gd4lp"]
-resource_local_to_scene = true
-states/Fall/node = SubResource("1")
-states/Fall/position = Vector2(228, 252)
-states/Idle/node = SubResource("3")
-states/Idle/position = Vector2(228.148, -9.06173)
-states/Jump/node = SubResource("4")
-states/Jump/position = Vector2(639, 252)
-states/Sprint/node = SubResource("5")
-states/Sprint/position = Vector2(639, -10)
-states/Start/position = Vector2(78.6667, -10.963)
-states/Walk/node = SubResource("6")
-states/Walk/position = Vector2(427, -139)
-transitions = ["Idle", "Walk", SubResource("7"), "Walk", "Jump", SubResource("8"), "Jump", "Fall", SubResource("9"), "Fall", "Idle", SubResource("10"), "Idle", "Jump", SubResource("11"), "Walk", "Fall", SubResource("12"), "Walk", "Idle", SubResource("13"), "Idle", "Fall", SubResource("14"), "Walk", "Sprint", SubResource("15"), "Sprint", "Walk", SubResource("16"), "Sprint", "Jump", SubResource("17"), "Sprint", "Fall", SubResource("18"), "Start", "Idle", SubResource("AnimationNodeStateMachineTransition_2gstt")]
-graph_offset = Vector2(-27, 31)
 
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_thwj1")
@@ -103,7 +29,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
-shape = SubResource("CylinderShape3D_5m4bh")
+shape = SubResource("CapsuleShape3D_hwib0")
 
 [node name="Head" type="Marker3D" parent="."]
 unique_name_in_owner = true
@@ -117,7 +43,7 @@ far = 937.3
 
 [node name="Shoulder" type="Marker3D" parent="Head"]
 unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.04, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.117, 0, 0)
 
 [node name="Hand" type="Marker3D" parent="Head/Shoulder"]
 unique_name_in_owner = true
@@ -134,10 +60,10 @@ libraries = {
 }
 script = ExtResource("3_gsogp")
 
-[node name="MovingLogic" type="AnimationTree" parent="StateMachine"]
+[node name="Moving" type="AnimationTree" parent="StateMachine"]
 unique_name_in_owner = true
-root_node = NodePath("%MovingLogic/../..")
-tree_root = SubResource("AnimationNodeStateMachine_gd4lp")
+root_node = NodePath("%Moving/../..")
+tree_root = ExtResource("4_gsogp")
 anim_player = NodePath("..")
 parameters/conditions/+jump = false
 parameters/conditions/+move = false
@@ -149,36 +75,41 @@ parameters/conditions/on_ground = false
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
-[node name="CrouchLogic" type="AnimationTree" parent="StateMachine"]
+[node name="Crouching" type="AnimationTree" parent="StateMachine"]
 unique_name_in_owner = true
-root_node = NodePath("%CrouchLogic/../..")
+root_node = NodePath("%Crouching/../..")
 tree_root = ExtResource("5_4275n")
 anim_player = NodePath("..")
 parameters/conditions/+crouch = false
-parameters/conditions/+lean = false
 parameters/conditions/+prone = false
 parameters/conditions/-crouch = false
-parameters/conditions/-lean = false
 parameters/conditions/-prone = false
+script = ExtResource("4_a20rg")
+metadata/_custom_type_script = "uid://x8rsaq0qwxag"
+
+[node name="Leaning" type="AnimationTree" parent="StateMachine"]
+unique_name_in_owner = true
+root_node = NodePath("%Leaning/../..")
+tree_root = ExtResource("7_a20rg")
+anim_player = NodePath("..")
+parameters/conditions/-lean = false
 parameters/conditions/lean_left = false
 parameters/conditions/lean_right = false
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
-[node name="FiringLogic" type="AnimationTree" parent="StateMachine"]
+[node name="Aiming" type="AnimationTree" parent="StateMachine"]
 unique_name_in_owner = true
-root_node = NodePath("%FiringLogic/../..")
-tree_root = ExtResource("6_y0q3g")
+root_node = NodePath("%Aiming/../..")
+tree_root = ExtResource("8_a20rg")
 anim_player = NodePath("..")
 parameters/conditions/+aim = false
 parameters/conditions/+equip = false
-parameters/conditions/+fire = false
 parameters/conditions/+firemode = false
 parameters/conditions/+focus = false
 parameters/conditions/+reload = false
 parameters/conditions/-aim = false
 parameters/conditions/-equip = false
-parameters/conditions/-fire = false
 parameters/conditions/-firemode = false
 parameters/conditions/-focus = false
 parameters/conditions/-reload = false
@@ -213,7 +144,7 @@ Cursor = NodePath("../Cursor3D")
 unique_name_in_owner = true
 visible = false
 
-[connection signal="aiming" from="." to="StateMachine" method="_on_player_aiming"]
+[connection signal="aimed" from="." to="StateMachine" method="_on_player_aimed"]
 [connection signal="check_ammofeed" from="." to="StateMachine" method="_on_player_check_ammofeed"]
 [connection signal="crouched" from="." to="StateMachine" method="_on_player_crouched"]
 [connection signal="equipped" from="." to="StateMachine" method="_on_player_equipped"]

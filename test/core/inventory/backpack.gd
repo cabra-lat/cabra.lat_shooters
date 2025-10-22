@@ -14,7 +14,7 @@ func _run():
   var weapon = Weapon.new()
   weapon.name = "Test Rifle"
   var weapon_item = InventoryItem.new()
-  weapon_item.content = weapon
+  weapon_item = weapon
   weapon_item.dimensions = Vector2i(3, 2)
 
   check(backpack.add_item(weapon_item), "Add weapon to backpack")

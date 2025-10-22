@@ -5,7 +5,7 @@ extends Resource
 static func transfer_item(source: Resource, target: Resource, item: InventoryItem) -> bool:
     print("=== TRANSFER ITEM START ===")
     print("Transfer: %s -> %s" % [source, target])
-    print("Item: %s (dimensions: %s)" % [item.content.name if item.content else "Unknown", item.dimensions])
+    print("Item: %s (dimensions: %s)" % [item.name if item else "Unknown", item.dimensions])
     var result = transfer_item_to_position(source, target, item, Vector2i(-1, -1))
     print("Transfer result: %s" % result)
     print("=== TRANSFER ITEM END ===")
@@ -20,7 +20,7 @@ static func transfer_item_to_position(
     print("=== TRANSFER TO POSITION START ===")
     print("Source: %s" % source)
     print("Target: %s" % target)
-    print("Item: %s" % item.content.name if item.content else "Unknown")
+    print("Item: %s" % item.name if item else "Unknown")
     print("Position: %s" % position)
 
     if not target or not item:
@@ -157,9 +157,9 @@ static func _is_compatible_with_target(item: InventoryItem, target: Resource) ->
     if target is Equipment:
         compatible = _is_equipment_compatible(item, target)
     else:
-        compatible = target is InventoryContainer or target is Backpack
+        compatible = target is InventoryContainer or target.is_type(Backpack)
 
-    print("Compatibility check: %s -> %s = %s" % [item.content.name if item.content else "Unknown", target, compatible])
+    print("Compatibility check: %s -> %s = %s" % [item.name if item else "Unknown", target, compatible])
     return compatible
 
 static func _is_equipment_compatible(item: InventoryItem, target: Equipment) -> bool:
@@ -172,7 +172,7 @@ static func _is_equipment_compatible(item: InventoryItem, target: Equipment) -> 
     if target.slots.has(slot_name):
         var slot = target.slots[slot_name]
         var can_add = slot.can_add_item(item)
-        print("Equipment compatibility: %s -> %s = %s (slot type: %s)" % [item.content.name if item.content else "Unknown", slot_name, can_add, slot.slot_type])
+        print("Equipment compatibility: %s -> %s = %s (slot type: %s)" % [item.name if item else "Unknown", slot_name, can_add, slot.slot_type])
         return can_add
 
     print("Slot %s not found in equipment" % slot_name)
@@ -180,21 +180,22 @@ static func _is_equipment_compatible(item: InventoryItem, target: Equipment) -> 
 
 static func _infer_slot(item: InventoryItem) -> String:
     var slot_name = ""
-    if item.content is Weapon:
+    if item.extra is Weapon:
         slot_name = "primary"
-    elif item.content is Armor:
-        slot_name = (item.content as Armor).slot
-    elif item.content is Backpack:
+    elif item.extra is Armor:
+        slot_name = (item.extra as Armor).slot
+    elif item.extra is Backpack:
         slot_name = "back"
 
-    print("Inferred slot for %s: %s" % [item.content.name if item.content else "Unknown", slot_name])
+    print("Inferred slot for %s: %s" % [item.name if item else "Unknown", slot_name])
     return slot_name
 
 # Keep this function as requested
-static func create_inventory_item(content: Resource, stack_count: int = 1) -> InventoryItem:
-    var item = InventoryItem.new()
-    item.content = content
-    item.max_stack = 30 if content is Ammo else 1
+static func create_inventory_item(content: Item, stack_count: int = 1) -> InventoryItem:
+    var item := InventoryItem.new()
+    print(content, content.name)
+    item = InventoryItem.slurp(content as Item)
+    item.max_stack = 30 if (content as Item) is Ammo else 1
     item.stack_count = stack_count
     if content is Weapon:
         item.dimensions = Vector2i(3, 2)

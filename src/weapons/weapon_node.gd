@@ -10,7 +10,7 @@ var firerate_timer: Timer
     set(value):
         var old_vm = get_node_or_null(VIEWMODEL_NAME)
         if old_vm: old_vm.queue_free()
-        if value.view_model:
+        if value and value.view_model:
             var new_vm = value.view_model.instantiate()
             add_child(new_vm)
         data = value

@@ -2,8 +2,8 @@
 class_name InventoryContainer
 extends Item
 
-@export var grid_width: int = 5
-@export var grid_height: int = 5
+@export var grid_width: int = 999
+@export var grid_height: int = 999
 @export var max_weight: float = 100.0
 @export var is_open: bool = true
 
@@ -20,7 +20,7 @@ var total_weight: float:
     get:
         var weight = 0.0
         for item in items:
-            weight += item.content.mass * item.stack_count
+            weight += item.mass * item.stack_count
         return weight
 
 func _init():
@@ -34,7 +34,7 @@ func _init():
 func can_add_item(item: InventoryItem) -> bool:
     if not is_open:
         return false
-    if total_weight + (item.content.mass * item.stack_count) > max_weight:
+    if total_weight + (item.mass * item.stack_count) > max_weight:
         return false
     return true
 
@@ -48,7 +48,7 @@ func remove_item(item: InventoryItem) -> bool:
 
 func find_item_by_content(content: Resource) -> InventoryItem:
     for item in items:
-        if item.content == content:
+        if item == content:
             return item
     return null
 

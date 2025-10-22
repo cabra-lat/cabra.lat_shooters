@@ -80,14 +80,14 @@ func _update_equipment_slot(slot: EquipmentSlotUI, slot_name: String):
     if player_controller and player_controller.equipment:
         var equipped = player_controller.equipment.get_equipped(slot_name)
         if not equipped.is_empty():
-            slot.icon.texture = equipped[0].content.icon
+            slot.icon.texture = equipped[0].icon
             slot.associated_item = equipped[0]
             slot.source_container = player_controller.equipment
             slot.icon.visible = true
 
 func _on_equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI):
     print("EquipmentUI: Slot dropped: %s -> %s" % [
-        data["item"].content.name if data["item"].content else "Unknown",
+        data["item"].name if data["item"] else "Unknown",
         target_slot.slot_type
     ])
     equipment_slot_dropped.emit(data, target_slot)
@@ -98,7 +98,7 @@ func handle_equipment_drop(data: Dictionary, target_slot: EquipmentSlotUI) -> bo
     var source = data["source"]
 
     print("Equipment drop attempt: %s -> %s" % [
-        item.content.name if item.content else "Unknown",
+        item.name if item else "Unknown",
         slot_name
     ])
 
