@@ -30,15 +30,8 @@ func _ready():
   backpack_item.dimensions = Vector2i(2,2)
   $Player.equipment.equip(backpack_item, "back")
 
-    # Create world item
-  var world_item = WorldItem.spawn($Player, ammo, 30)
-
-  print("Ammo view_model: ", ammo.view_model)
-  print("Weapon data: ", weapon)
-
-
   # Connect to player's current weapon signals
-  $Player.equipped.connect(_on_player_equipped)
+  $Player.equipment.equipped.connect(_on_player_equipped)
 
   # If weapon is already equipped, connect to it
   var primary = $Player.equipment.get_equipped("primary")
@@ -47,75 +40,72 @@ func _ready():
 
   load_ammunition_into_weapon()
 
-func _on_player_equipped(player: PlayerController, item: Item):
+func _on_player_equipped(item: Item, slot_name: String):
   if item is Weapon:
     _connect_weapon_signals(item as Weapon)
 
 func _connect_weapon_signals(weapon: Weapon):
   if weapon:
     print("DEBUG: Connecting to weapon signals: ", weapon.name)
+    for sig in weapon.get_signal_list():
+      if not weapon.is_connected(sig.name,  Callable(self, "_on_%s" % sig.name)):
+        weapon.connect(sig.name, Callable(self, "_on_%s" % sig.name))
 
-    if not weapon.is_connected("cartridge_fired", Callable(self, "_on_cartridge_fired")):
-      weapon.cartridge_fired.connect(_on_cartridge_fired)
-
-    if not weapon.is_connected("trigger_locked", Callable(self, "_on_trigger_locked")):
-      weapon.trigger_locked.connect(_on_trigger_locked)
-
-    if not weapon.is_connected("trigger_released", Callable(self, "_on_trigger_released")):
-      weapon.trigger_released.connect(_on_trigger_released)
-
-    if not weapon.is_connected("firemode_changed", Callable(self, "_on_firemode_changed")):
-      weapon.firemode_changed.connect(_on_firemode_changed)
-
-    if not weapon.is_connected("ammofeed_empty", Callable(self, "_on_ammofeed_empty")):
-      weapon.ammofeed_empty.connect(_on_ammofeed_empty)
-
-    if not weapon.is_connected("ammofeed_missing", Callable(self, "_on_ammofeed_missing")):
-      weapon.ammofeed_missing.connect(_on_ammofeed_missing)
-
-    if not weapon.is_connected("ammofeed_changed", Callable(self, "_on_ammofeed_changed")):
-      weapon.ammofeed_changed.connect(_on_ammofeed_changed)
-
-    if not weapon.is_connected("ammofeed_incompatible", Callable(self, "_on_ammofeed_incompatible")):
-      weapon.ammofeed_incompatible.connect(_on_ammofeed_incompatible)
-
-func _on_trigger_locked():
+func _on_trigger_locked(_weapon: Weapon):
   $HUD.show_popup("[can't pull the trigger]")
 
-func _on_cartridge_fired(ejected):
+func _on_cartridge_fired(_weapon: Weapon, ejected: Ammo):
   print("Cartridge fired signal received, ejected: ", ejected)
-  var string = ""
-  for chambered in ejected:
-    string += "Pow! (%d) %s\n" % [ \
-    player.weapon.ammofeed.max_capacity \
-    - player.weapon.ammofeed.remaining, \
-    chambered.caliber ]
-  $HUD.show_popup(string)
+  $HUD.show_popup("Pow! (%d) %s" % [
+    _weapon.ammofeed.max_capacity - _weapon.ammofeed.capacity,
+    ejected.caliber
+  ])
 
-func _on_trigger_released():
-  $HUD.show_popup("Released trigger")
+func _on_trigger_released(_weapon: Weapon):
+  $HUD.add_log("[ Trigger released ]")
 
-func _on_firemode_changed(new):
-  $HUD.show_popup("changed firemode: %s" % new)
+func _on_firemode_changed(_weapon: Weapon, mode: String):
+  $HUD.show_popup("[ Changed firemode: %s ]" % mode)
 
-func _on_ammofeed_empty():
-  $HUD.show_popup("Click!")
+func _on_ammofeed_empty(_weapon: Weapon, _ammofeed: AmmoFeed):
+  $HUD.show_popup("[ AmmoFeed is empty! ]")
 
-func _on_ammofeed_missing():
-  $HUD.show_popup('Click!')
+func _on_ammofeed_missing(_weapon: Weapon):
+  $HUD.show_popup('[ AmmoFeed is missing! ]')
 
-func _on_ammofeed_changed(old, new):
+func _on_ammofeed_changed(_weapon: Weapon, old: AmmoFeed, new: AmmoFeed):
   $HUD.show_popup("changed mag %d/%d to %d/%d"
-    % [old.remaining  if old else 0,
+    % [old.capacity  if old else 0,
       old.max_capacity if old else 0,
-      new.remaining,
+      new.capacity,
       new.max_capacity])
 
-func _on_ammofeed_incompatible():
-  $HUD.show_popup("- This doesn't fit here")
+func _on_ammofeed_incompatible(_weapon: Weapon, ammofeed: AmmoFeed):
+  $HUD.show_popup("[ AmmoFeed incompatible ]")
 
 func _on_player_debug(player: PlayerController, text: String) -> void:
   $HUD.update_debug(text)
+
+func _on_trigger_pressed(_weapon: Weapon):
+   $HUD.show_popup("[ You pressed the trigger ]")
+
+func _on_weapon_racked(_weapon: Weapon):
+   $HUD.show_popup("[ Weapon racking sound ]")
+
+func _on_attachment_added(_weapon: Weapon, attachment: Attachment, point: int):
+   $HUD.show_popup("[ Attachment added sound ]")
+
+func _on_attachment_removed(_weapon: Weapon, attachment: Attachment, point: int):
+   $HUD.show_popup("[ Attachment removed sound ]")
+
+func _on_shell_ejected(_weapon: Weapon, cartridge: Ammo):
+   $HUD.show_popup("[ Shell ejection sound ]")
+
+func _on_cartridge_ejected(_weapon: Weapon, cartridge: Ammo):
+   $HUD.show_popup("[ Cartridge ejection sound ]")
+
+func _on_cartridge_inserted(_weapon: Weapon, cartridge: Ammo):
+   $HUD.show_popup("[ Cartridge insertion sound ]")
 
 func _on_player_landed(player: PlayerController, max_velocity: float, delta: float) -> void:
   var letal_g = player.config.letal_acceleration
@@ -126,7 +116,7 @@ func _on_player_landed(player: PlayerController, max_velocity: float, delta: flo
     $HUD.show_popup("Letal fall damage (%.2f g)" % g)
   elif letality_ratio > .5:
     $HUD.show_popup("Minor fall damage (%.2f g)" % g)
-  else:
+  elif letality_ratio > 0.1:
     $HUD.show_popup("Safely landed     (%.2f g)" % g)
 
 func load_ammunition_into_weapon():

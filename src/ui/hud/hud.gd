@@ -1,21 +1,29 @@
 class_name HUD extends Control
 
 @onready var visibility = $Visibility
-@onready var bottom_right_popup   = $BottomRightPopup
+@onready var popup = $Popup
+@onready var GameLog = $GameLog
 
 func _ready():
-    bottom_right_popup.hide()
-    
+    GameLog.text = ''
+    popup.text = ''
+    popup.hide()
+
 func update_debug(content: String) -> void:
     $CurrentState.text = content
+
+func add_log(log):
+  GameLog.text = '[' + Time.get_datetime_string_from_system() \
+         + '] - ' + str(log) + '\n' + GameLog.text
 
 func show_popup(content: String, wait_time: float = 1.0) -> void:
     visibility.wait_time = wait_time
     visibility.start()
-    bottom_right_popup.text = content
-    bottom_right_popup.show()
+    popup.text = content
+    add_log(content)
+    popup.show()
     await visibility.timeout
-    bottom_right_popup.hide()
+    popup.hide()
 
 func _on_show_firemode(mode: String):
     show_popup(mode.capitalize(), 0.5)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://bxlbq0drdtji4"]
+[gd_scene load_steps=7 format=3 uid="uid://bxlbq0drdtji4"]
 
 [ext_resource type="Script" uid="uid://c3c54enfd85t5" path="res://addons/cabra.lat_shooters/src/ui/hud/hud.gd" id="1"]
 
@@ -24,9 +24,16 @@ cache/0/16/0/underline_thickness = 0.0
 cache/0/16/0/scale = 1.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_efote"]
-bg_color = Color(0, 0, 0, 1)
+bg_color = Color(0, 0, 0, 0.62352943)
 border_color = Color(1, 1, 1, 1)
 corner_detail = 9
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0agty"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
+shadow_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_afxo8"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
 
 [node name="HUD" type="Control"]
 layout_mode = 3
@@ -41,39 +48,70 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
 
-[node name="BottomRightPopup" type="Label" parent="."]
+[node name="Popup" type="Label" parent="."]
 layout_mode = 1
-anchors_preset = -1
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 431.297
-offset_top = 277.378
-offset_right = -420.702
-offset_bottom = -411.622
-grow_horizontal = 0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -112.7027
+offset_top = -41.621582
+offset_right = 109.2973
+offset_bottom = -18.621582
+grow_horizontal = 2
 grow_vertical = 2
 size_flags_vertical = 1
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.552941)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 0.180392)
 theme_override_constants/shadow_outline_size = 1
-text = "Safe"
 horizontal_alignment = 1
 vertical_alignment = 1
+clip_text = true
 
 [node name="Visibility" type="Timer" parent="."]
 
 [node name="CurrentState" type="Label" parent="."]
 layout_mode = 1
-anchors_preset = -1
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 6.2973022
-offset_top = 8.378418
-offset_right = -845.703
-offset_bottom = -680.622
+offset_right = 80.2973
+offset_bottom = 23.0
 size_flags_vertical = 1
 theme_override_fonts/font = SubResource("FontFile_k5de2")
 theme_override_styles/normal = SubResource("StyleBoxFlat_efote")
 text = "No State"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="GameLog" type="TextEdit" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -134.0
+offset_right = 340.0
+grow_vertical = 0
+theme_override_colors/font_readonly_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_efote")
+theme_override_styles/focus = SubResource("StyleBoxFlat_0agty")
+theme_override_styles/read_only = SubResource("StyleBoxFlat_afxo8")
+text = "19 Made This and That very long string with datetime
+18 Made This and That very long string with datetime
+17 Made This and That very long string with datetime
+16 Made This and That 
+15 Made This and That 
+14 Made This and That 
+13 Made This and That 
+12 Made This and That 
+11 Made This and That 
+10 Made This and That 
+9 Made This and That
+8 Made This and That
+7 Made This and That
+6 Made This and That
+5 Made This and That
+4 Made This and That
+3 Made This and That
+2 Made This and That
+1 Made This and That"
+editable = false

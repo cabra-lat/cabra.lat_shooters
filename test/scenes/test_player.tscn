@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://pc011sk80jnn"]
+[gd_scene load_steps=20 format=3 uid="uid://pc011sk80jnn"]
 
 [ext_resource type="Script" uid="uid://dn0782newa14v" path="res://addons/cabra.lat_shooters/test/scenes/test_player.gd" id="1_cnysa"]
 [ext_resource type="PackedScene" uid="uid://ly33hk8t667t" path="res://addons/cabra.lat_shooters/src/player/scenes/player.tscn" id="2_yghno"]
@@ -20,8 +20,10 @@ fill_to = Vector2(1, 1)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vsj1y"]
 albedo_texture = SubResource("GradientTexture2D_1jipf")
 metallic = 0.14
-metallic_specular = 0.62
-roughness = 0.06
+metallic_specular = 0.65
+roughness = 0.1
+anisotropy_enabled = true
+anisotropy = 0.7
 uv1_scale = Vector3(1.175, 1.175, 1.175)
 uv1_triplanar = true
 uv1_world_triplanar = true
@@ -32,20 +34,33 @@ material = SubResource("StandardMaterial3D_vsj1y")
 size = Vector3(40, 1, 10)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_5uk0x"]
-size = Vector3(40, 1, 10)
+size = Vector3(40, 1.0087891, 10)
 
 [sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_fam23"]
 
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_fam23"]
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_1jipf"]
 frequency = 1.0
 
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_1jipf"]
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_vsj1y"]
+noise = SubResource("FastNoiseLite_1jipf")
+seamless = true
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_fam23"]
+frequency = 0.1129
+domain_warp_enabled = true
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_cnysa"]
 noise = SubResource("FastNoiseLite_fam23")
+seamless = true
+as_normal_map = true
+bump_strength = 32.0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cnysa"]
-albedo_texture = SubResource("NoiseTexture2D_1jipf")
-metallic = 0.06
-roughness = 0.09
+albedo_texture = SubResource("NoiseTexture2D_vsj1y")
+metallic = 1.0
+roughness = 0.34
+roughness_texture_channel = 4
+normal_texture = SubResource("NoiseTexture2D_cnysa")
 uv1_scale = Vector3(400, 400, 400)
 
 [sub_resource type="BoxMesh" id="BoxMesh_fam23"]
@@ -80,6 +95,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00212133, 0, -0.00437784)
 mesh = SubResource("BoxMesh_lx1hn")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0043945313, 0)
+shape = SubResource("BoxShape3D_5uk0x")
+
+[node name="Platform9" type="StaticBody3D" parent="Level"]
+transform = Transform3D(0.59129566, 0.80645496, 0, -0.80645496, 0.59129566, 0, 0, 0, 1, -31.345295, 16.031086, 0.00437784)
+collision_layer = 7
+collision_mask = 0
+constant_linear_velocity = Vector3(10, 10, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Level/Platform9"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.00212133, 0, -0.00437784)
+mesh = SubResource("BoxMesh_lx1hn")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Level/Platform9"]
 shape = SubResource("BoxShape3D_5uk0x")
 
 [node name="Platform2" type="StaticBody3D" parent="Level"]
@@ -178,5 +207,4 @@ environment = SubResource("Environment_m5uds")
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
 
 [connection signal="debug" from="Player" to="." method="_on_player_debug"]
-[connection signal="equipped" from="Player" to="." method="_on_player_equipped"]
 [connection signal="landed" from="Player" to="." method="_on_player_landed"]

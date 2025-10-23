@@ -1,68 +1,13 @@
-[gd_scene load_steps=19 format=3 uid="uid://chc2iqex6axn1"]
+[gd_scene load_steps=7 format=3 uid="uid://chc2iqex6axn1"]
 
 [ext_resource type="Shader" uid="uid://bo7wc2x3ox5i1" path="res://addons/cabra.lat_shooters/src/shaders/cartridges/cartridge.gdshader" id="1_3hsla"]
 [ext_resource type="Texture2D" uid="uid://d0gbpba0pd43u" path="res://addons/cabra.lat_shooters/assets/cartridge-font.png" id="2_0rwa3"]
-
-[sub_resource type="Gradient" id="Gradient_8jjh3"]
-colors = PackedColorArray(0.54338, 0.54338, 0.54338, 1, 1, 1, 1, 1)
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_3hxk4"]
-frequency = 1.0
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_b4e4f"]
-noise = SubResource("FastNoiseLite_3hxk4")
-color_ramp = SubResource("Gradient_8jjh3")
-as_normal_map = true
-bump_strength = 32.0
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_gf2ig"]
-noise = SubResource("FastNoiseLite_3hxk4")
-color_ramp = SubResource("Gradient_8jjh3")
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_1m3ej"]
-noise = SubResource("FastNoiseLite_3hxk4")
-color_ramp = SubResource("Gradient_8jjh3")
-as_normal_map = true
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_p0kqc"]
-noise = SubResource("FastNoiseLite_3hxk4")
-color_ramp = SubResource("Gradient_8jjh3")
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_ch326"]
-noise = SubResource("FastNoiseLite_3hxk4")
-color_ramp = SubResource("Gradient_8jjh3")
-as_normal_map = true
-bump_strength = 32.0
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_fbono"]
-frequency = 0.2206
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_8jjh3"]
-noise = SubResource("FastNoiseLite_fbono")
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_fbono"]
-noise = SubResource("FastNoiseLite_3hxk4")
-color_ramp = SubResource("Gradient_8jjh3")
-as_normal_map = true
-bump_strength = 32.0
-
-[sub_resource type="Gradient" id="Gradient_fbono"]
-offsets = PackedFloat32Array(0.0235294, 1)
-colors = PackedColorArray(0.588288, 0.588289, 0.588288, 1, 1, 1, 1, 1)
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_8jjh3"]
-frequency = 1.0
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_3hxk4"]
-noise = SubResource("FastNoiseLite_8jjh3")
-color_ramp = SubResource("Gradient_fbono")
-seamless_blend_skirt = 0.836
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_aeqdp"]
 render_priority = 0
 shader = ExtResource("1_3hsla")
 shader_parameter/mesh_segments_length = 64
-shader_parameter/mesh_segments_circumference = 5
+shader_parameter/mesh_segments_circumference = 10
 shader_parameter/gap_segments = 1
 shader_parameter/scale = 1.0
 shader_parameter/center_of_mass = 0.0
@@ -112,22 +57,14 @@ shader_parameter/bullet_drop_ms2 = 9.81
 shader_parameter/wind_velocity_ms = 0.0
 shader_parameter/zero_range_m = 100.0
 shader_parameter/ballistic_coefficient = 0.5
-shader_parameter/case_texture = SubResource("NoiseTexture2D_p0kqc")
-shader_parameter/case_normal = SubResource("NoiseTexture2D_1m3ej")
-shader_parameter/case_texture_scale_x = 10.0
-shader_parameter/case_texture_scale_y = 10.0
-shader_parameter/bullet_texture = SubResource("NoiseTexture2D_gf2ig")
-shader_parameter/bullet_normal = SubResource("NoiseTexture2D_b4e4f")
-shader_parameter/bullet_texture_scale_x = 10.0
-shader_parameter/bullet_texture_scale_y = 10.0
-shader_parameter/primer_texture = SubResource("NoiseTexture2D_8jjh3")
-shader_parameter/primer_normal = SubResource("NoiseTexture2D_ch326")
-shader_parameter/primer_texture_scale_x = 5.0
-shader_parameter/primer_texture_scale_y = 5.0
-shader_parameter/rim_texture = SubResource("NoiseTexture2D_3hxk4")
-shader_parameter/rim_normal = SubResource("NoiseTexture2D_fbono")
-shader_parameter/rim_texture_scale_x = 10.0
-shader_parameter/rim_texture_scale_y = 1.91
+shader_parameter/case_texture_scale_x = 1.0
+shader_parameter/case_texture_scale_y = 1.0
+shader_parameter/bullet_texture_scale_x = 1.0
+shader_parameter/bullet_texture_scale_y = 1.0
+shader_parameter/primer_texture_scale_x = 1.0
+shader_parameter/primer_texture_scale_y = 1.0
+shader_parameter/rim_texture_scale_x = 1.0
+shader_parameter/rim_texture_scale_y = 1.0
 shader_parameter/wear_amount = 0.1
 shader_parameter/stamp_font = ExtResource("2_0rwa3")
 shader_parameter/cells_per_row = 16
@@ -160,15 +97,17 @@ shader_parameter/stamp_ao_strength = 1.779
 shader_parameter/stamp_ao_radius = 0.02
 shader_parameter/stamp_ao_darkness = 0.651
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_1m3ej"]
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_3hsla"]
 material = SubResource("ShaderMaterial_aeqdp")
-rings = 5
-cap_top = false
-cap_bottom = false
+radial_segments = 10
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_3hsla"]
+radius = 0.0043945313
+height = 0.034490585
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_3hsla"]
-height = 0.073516846
-radius = 0.0078125
+height = 0.040992737
+radius = 0.005859375
 
 [node name="RigidBody3D" type="RigidBody3D"]
 collision_layer = 4
@@ -177,8 +116,12 @@ collision_mask = 4
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0, 0)
 extra_cull_margin = 16384.0
-mesh = SubResource("CylinderMesh_1m3ej")
+mesh = SubResource("CapsuleMesh_3hsla")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, -0.0011304133, -0.036880493)
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, -0.001130414, -0.051581383)
+shape = SubResource("CapsuleShape3D_3hsla")
+
+[node name="CollisionShape3D2" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, -0.0011304126, -0.020895004)
 shape = SubResource("CylinderShape3D_3hsla")
