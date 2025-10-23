@@ -4,6 +4,7 @@ extends Resource
 
 signal equipped(item: InventoryItem, slot_name: String)
 signal unequiped(item: InventoryItem, slot_name: String)
+signal container_changed()
 
 # Body zones with slot types
 var slots: Dictionary = {
@@ -25,6 +26,14 @@ func _init():
   slots["primary"].slot_type = EquipmentSlot.Type.PRIMARY_WEAPON
   slots["secondary"].slot_type = EquipmentSlot.Type.SECONDARY_WEAPON
   slots["back"].slot_type = EquipmentSlot.Type.BACK
+
+  # Connect slot container changes
+  for slot_name in slots:
+    var slot = slots[slot_name]
+    slot.container_changed.connect(_on_slot_container_changed)
+
+func _on_slot_container_changed():
+    container_changed.emit()
 
 func equip(item: InventoryItem, slot_name: String) -> bool:
   if not slots.has(slot_name):

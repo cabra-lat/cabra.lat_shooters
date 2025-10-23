@@ -1,4 +1,5 @@
 # src/ui/inventory/equipment.gd
+# src/ui/inventory/equipment.gd
 class_name EquipmentUI
 extends BaseInventoryUI
 
@@ -8,7 +9,33 @@ signal equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI)
 @onready var slots_container: Control = $Equipment/TabContainer
 
 var player_controller: PlayerController
-var slots: Dictionary = {}  # Keyed by slot name
+var slots: Dictionary = {}
+
+func setup_player(player: PlayerController):
+    # Disconnect from previous equipment
+    if player_controller and player_controller.equipment:
+        player_controller.equipment.equipped.disconnect(_on_equipment_changed)
+        player_controller.equipment.unequiped.disconnect(_on_equipment_changed)
+        player_controller.equipment.container_changed.disconnect(_update_ui)
+
+    player_controller = player
+    if player and player.equipment:
+        current_inventory_source = player.equipment
+
+        # Connect to equipment signals
+        player.equipment.equipped.connect(_on_equipment_changed)
+        player.equipment.unequiped.connect(_on_equipment_changed)
+        player.equipment.container_changed.connect(_update_ui)
+        _update_ui()
+
+func _on_equipment_changed(item: InventoryItem, slot_name: String):
+    print("Equipment changed: %s in %s" % [item.name if item else "None", slot_name])
+    _update_equipment_slot(slot_name)
+
+func _update_ui():
+    # Still do full update initially, but incremental updates will use signals
+    for slot_name in slots:
+        _update_equipment_slot(slot_name)
 
 func _ready():
     super._ready()
@@ -26,12 +53,6 @@ func _initialize_slots_dict():
     for slot_name in slots:
         if slots[slot_name]:
             slots[slot_name].slot_type = slot_name
-
-func setup_player(player: PlayerController):
-    player_controller = player
-    if player and player.equipment:
-        current_inventory_source = player.equipment
-        _update_ui()
 
 func _setup_slots():
     # Equipment slots are pre-defined in the scene
@@ -70,12 +91,11 @@ func _position_item_display(display: InventoryItemUI, item: InventoryItem):
 func _update_slot_states():
     # Update slot icons and associated items
     for slot_name in slots:
-        _update_equipment_slot(slots[slot_name], slot_name)
+        _update_equipment_slot(slot_name)
 
-func _update_equipment_slot(slot: EquipmentSlotUI, slot_name: String):
-    if not slot:
-        return
-
+func _update_equipment_slot(slot_name: String):
+    var slot = slots.get(slot_name)
+    if not slot: return
     slot.clear()
     if player_controller and player_controller.equipment:
         var equipped = player_controller.equipment.get_equipped(slot_name)

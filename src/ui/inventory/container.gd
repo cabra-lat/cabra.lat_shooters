@@ -147,16 +147,11 @@ func _on_slot_mouse_exited(slot: InventorySlotUI):
 # Handle drag start - hide the original item
 func _on_drag_started(item: InventoryItem):
     dragged_item = item
-    for display in item_displays:
-        if display.inventory_item == item:
-            display.visible = false
-            break
+    # Don't hide the item display during drag - let the signals handle updates
 
 # Handle drag end - restore all items
 func _on_drag_ended():
     dragged_item = null
-    for display in item_displays:
-        display.visible = true
     hide_drop_preview()
     current_hovered_slot = null
 

@@ -2,6 +2,11 @@
 class_name InventoryContainer
 extends Item
 
+signal item_added(item: InventoryItem, position: Vector2i)
+signal item_removed(item: InventoryItem)
+signal item_moved(item: InventoryItem, from_pos: Vector2i, to_pos: Vector2i)
+signal container_changed
+
 @export var grid_width: int = 999
 @export var grid_height: int = 999
 @export var max_weight: float = 100.0
@@ -41,10 +46,28 @@ func can_add_item(item: InventoryItem) -> bool:
 func add_item(item: InventoryItem, position: Vector2i = Vector2i.ZERO) -> bool:
     if not can_add_item(item):
         return false
-    return grid.add_item(item, position)
+
+    var success = grid.add_item(item, position)
+    if success:
+        item_added.emit(item, position)
+        container_changed.emit()
+    return success
 
 func remove_item(item: InventoryItem) -> bool:
-    return grid.remove_item(item)
+    var old_pos = item.position
+    var success = grid.remove_item(item)
+    if success:
+        item_removed.emit(item)
+        container_changed.emit()
+    return success
+
+func move_item(item: InventoryItem, new_position: Vector2i) -> bool:
+    var old_pos = item.position
+    var success = grid.move_item(item, new_position)
+    if success:
+        item_moved.emit(item, old_pos, new_position)
+        container_changed.emit()
+    return success
 
 func find_item_by_content(content: Resource) -> InventoryItem:
     for item in items:

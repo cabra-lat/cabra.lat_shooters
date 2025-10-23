@@ -2,7 +2,7 @@
 class_name InventoryUI
 extends Control
 
-@onready var equipment_ui:    EquipmentUI   = $InventoryUi/HB/RS/VB/Equipment
+@onready var equipment_ui: EquipmentUI = $InventoryUi/HB/RS/VB/Equipment
 @onready var world_drop_zone: WorldDropZone = $WorldDropZone
 @onready var containers_vbox: VBoxContainer = $InventoryUi/HB/LS/VB
 @onready var close_button: Button = %CloseButton
@@ -14,15 +14,9 @@ var current_drag_data: Dictionary = {}
 func _ready():
     if equipment_ui:
         equipment_ui.equipment_slot_dropped.connect(_on_equipment_slot_dropped)
-        equipment_ui.equipment_updated.connect(_refresh_open_containers)
     close_button.pressed.connect(_on_close_button_pressed)
     if world_drop_zone:
         world_drop_zone.item_dropped.connect(_on_world_drop)
-
-func _on_equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI):
-    print("Main UI: Equipment slot drop received")
-    if equipment_ui:
-        equipment_ui.handle_equipment_drop(data, target_slot)
 
 func open_inventory(player: PlayerController, container: InventoryContainer = null):
     player_controller = player
@@ -46,17 +40,96 @@ func _handle_container_drop(data: Dictionary, target_slot: InventorySlotUI):
     if container_ui and container_ui.current_inventory_source:
         var container = container_ui.current_inventory_source as InventoryContainer
         var pos = target_slot.grid_position
-        if pos != Vector2i(-1, -1):
-            print("Attempting to transfer to container %s at position %s" % [container.name, pos])
-            if InventorySystem.transfer_item_to_position(data["source"], container, data["item"], pos):
-                print("Transfer successful")
-                _refresh_open_containers()
-            else:
-                print("Transfer failed")
+
+        # Let the core system handle the transfer and emit signals
+        # The UI will update automatically via signal connections
+        if InventorySystem.transfer_item_to_position(data["source"], container, data["item"], pos):
+            print("Transfer successful")
+            # Update ALL open containers, not just the target
+            _update_all_open_containers()
         else:
-            print("Invalid position")
+            print("Transfer failed - both UIs should remain unchanged")
+
+func _handle_equipment_drop(data: Dictionary, target_slot: EquipmentSlotUI):
+    var slot_name = target_slot.slot_type
+    var item = data["item"]
+    var source = data["source"]
+
+    print("Equipment drop attempt: %s -> %s" % [
+        item.name if item else "Unknown",
+        slot_name
+    ])
+
+    if target_slot._is_item_compatible(item):
+        print("Attempting to equip item in %s" % slot_name)
+        if InventorySystem.transfer_item(source, player_controller.equipment, item):
+            print("Item equipped successfully")
+            # Update all containers when equipment changes
+            _update_all_open_containers()
+        else:
+            print("Failed to equip item")
     else:
-        print("No container found for slot %s" % target_slot.grid_position)
+        print("Item not compatible with equipment slot")
+
+func _handle_world_drop(data: Dictionary):
+    var item = data["item"]
+    var source = data["source"]
+    var removed = false
+
+    if source is InventoryContainer:
+        removed = source.remove_item(item)
+    elif source is Equipment:
+        for slot_name in source.slots:
+            var slot = source.slots[slot_name]
+            if item in slot.items:
+                removed = slot.remove_item(item)
+                break
+
+    if removed:
+        _create_world_item(item)
+        # Update all containers when world drop happens
+        _update_all_open_containers()
+
+func _open_container_once(container: InventoryContainer):
+    for ui in open_containers:
+        if ui.current_inventory_source == container:
+            return
+
+    var container_ui_scene = preload("res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn")
+    var container_ui = container_ui_scene.instantiate() as InventoryContainerUI
+
+    # Connect to the container's signals
+    if container.has_signal("container_changed"):
+        container.container_changed.connect(container_ui._update_ui)
+
+    container_ui.slot_dropped.connect(_on_slot_dropped)
+    container_ui.container_closed.connect(_on_container_closed.bind(container_ui))
+    containers_vbox.add_child(container_ui)
+    open_containers.append(container_ui)
+    container_ui.open_container(container)
+
+func _update_all_open_containers():
+    # Update all open container UIs
+    for container_ui in open_containers:
+        container_ui._update_ui()
+
+    # Update equipment UI
+    if equipment_ui:
+        equipment_ui._update_ui()
+
+func _on_container_closed(container_ui: InventoryContainerUI):
+    if container_ui in open_containers:
+        # Disconnect from container signals
+        if container_ui.current_inventory_source and container_ui.current_inventory_source.has_signal("container_changed"):
+            container_ui.current_inventory_source.container_changed.disconnect(container_ui._update_ui)
+
+        open_containers.erase(container_ui)
+        containers_vbox.remove_child(container_ui)
+        container_ui.queue_free()
+
+func _on_equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI):
+    print("Main UI: Equipment slot drop received")
+    _handle_equipment_drop(data, target_slot)
 
 func _on_slot_dropped(data: Dictionary, target_slot: InventorySlotUI):
     print("=== DROP EVENT START ===")
@@ -89,40 +162,6 @@ func _on_drag_ended():
     current_drag_data = {}
     print("World drop zone deactivated")
 
-func _handle_world_drop(data: Dictionary):
-    print("=== WORLD DROP START ===")
-    print("Dropping item in world: %s" % data["item"].name if data["item"] else "Unknown")
-
-    var item = data["item"]
-    var source = data["source"]
-    var removed = false
-
-    if source is InventoryContainer:
-        removed = source.remove_item(item)
-        print("Removed from container: %s" % removed)
-    elif source is Equipment:
-        # Find which slot the item is in and remove it
-        for slot_name in source.slots:
-            var slot = source.slots[slot_name]
-            if item in slot.items:
-                removed = slot.remove_item(item)
-                print("Removed from equipment slot %s: %s" % [slot_name, removed])
-                break
-
-    if removed:
-        # Create world item - Use the original item, don't duplicate
-        _create_world_item(item)
-        print("World item created successfully")
-
-        # Update UI
-        if equipment_ui:
-            equipment_ui._update_ui()
-        _refresh_open_containers()
-    else:
-        print("Failed to remove item from source")
-
-    print("=== WORLD DROP END ===")
-
 func _create_world_item(item: InventoryItem):
     var world_item = WorldItem.spawn(player_controller, item)
     print("Created world item at position: %s" % world_item.global_position)
@@ -133,68 +172,6 @@ func _get_drag_data_at_position(at_position: Vector2) -> Variant:
     if current_drag_data and current_drag_data.has("item"):
         return current_drag_data
     return null
-
-func _can_drop_data_at_position(at_position: Vector2, data: Variant) -> bool:
-    # Always allow dropping in world when dragging outside inventory
-    return data is Dictionary and data.has("item")
-
-func _drop_data_at_position(at_position: Vector2, data: Variant) -> void:
-    if data is Dictionary and data.has("item") and data.has("source"):
-        print("=== WORLD DROP START ===")
-        print("Dropping item in world: %s" % data["item"].name if data["item"] else "Unknown")
-
-        # Remove item from source
-        var item = data["item"]
-        var source = data["source"]
-        var removed = false
-
-        if source is InventoryContainer:
-            removed = source.remove_item(item)
-            print("Removed from container: %s" % removed)
-        elif source is Equipment:
-            # Find which slot the item is in and remove it
-            for slot_name in source.slots:
-                var slot = source.slots[slot_name]
-                if item in slot.items:
-                    removed = slot.remove_item(item)
-                    print("Removed from equipment slot %s: %s" % [slot_name, removed])
-                    break
-
-        if removed:
-            # Create world item - Use the original item reference
-            _create_world_item(item)
-            print("World item created successfully")
-
-            # Update UI
-            if equipment_ui:
-                equipment_ui._update_ui()
-            _refresh_open_containers()
-        else:
-            print("Failed to remove item from source")
-
-        print("=== WORLD DROP END ===")
-
-func _open_container_once(container: InventoryContainer):
-    for ui in open_containers:
-        if ui.current_inventory_source == container:
-            return
-    var container_ui_scene = preload("res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn")
-    var container_ui = container_ui_scene.instantiate() as InventoryContainerUI
-    container_ui.slot_dropped.connect(_on_slot_dropped)
-    container_ui.container_closed.connect(_on_container_closed.bind(container_ui))
-    containers_vbox.add_child(container_ui)
-    open_containers.append(container_ui)
-    container_ui.open_container(container)
-
-func _refresh_open_containers():
-    for ui in open_containers:
-        ui._update_ui()
-
-func _on_container_closed(container_ui: InventoryContainerUI):
-    if container_ui in open_containers:
-        open_containers.erase(container_ui)
-        containers_vbox.remove_child(container_ui)
-        container_ui.queue_free()
 
 func _on_close_button_pressed():
     hide()

@@ -1,4 +1,4 @@
-# src/ui/inventory/slot.gd
+# src/ui/inventory/slot.gd (UPDATED)
 class_name InventorySlotUI
 extends BaseSlotUI
 
@@ -37,8 +37,7 @@ func _create_drag_data() -> Dictionary:
         if item_at_slot:
             dragged_item = item_at_slot
             source = container
-            # Tell container to hide the original item
-            container_ui._on_drag_started(item_at_slot)
+            # Don't hide the item display - let signals handle it
 
     if dragged_item:
         var preview = _create_drag_preview(dragged_item)

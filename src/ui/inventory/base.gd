@@ -1,4 +1,5 @@
 # src/ui/inventory/base.gd
+# src/ui/inventory/base.gd
 class_name BaseInventoryUI
 extends PanelContainer
 
@@ -14,23 +15,35 @@ var current_inventory_source: Resource = null
 func _ready():
     _setup_common_connections()
 
-func _setup_common_connections():
-    # Common signal connections will be set up by subclasses
-    pass
-
 func setup_inventory(source: Resource):
+    # Disconnect from previous source
+    if current_inventory_source and current_inventory_source.has_signal("container_changed"):
+        current_inventory_source.container_changed.disconnect(_on_container_changed)
+
     current_inventory_source = source
+
+    # Connect to new source signals
+    if source and source.has_signal("container_changed"):
+        source.container_changed.connect(_on_container_changed)
+
     _setup_slots()
     _update_ui()
 
-func _setup_slots():
-    # To be implemented by subclasses
-    push_error("_setup_slots must be implemented by subclass")
+func _on_container_changed():
+    _update_ui()
 
 func _update_ui():
     _clear_item_displays()
     _create_item_displays()
     _update_slot_states()
+
+func _setup_common_connections():
+    # Common signal connections will be set up by subclasses
+    pass
+
+func _setup_slots():
+    # To be implemented by subclasses
+    push_error("_setup_slots must be implemented by subclass")
 
 func _clear_item_displays():
     for display in item_displays:
