@@ -1,7 +1,7 @@
 [gd_scene load_steps=15 format=3 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
-[ext_resource type="Script" uid="uid://c18se5foxdv01" path="res://addons/cabra.lat_shooters/src/weapons/weapon_node.gd" id="2_hwib0"]
+[ext_resource type="Script" uid="uid://cl1v3jhv7weaq" path="res://addons/cabra.lat_shooters/src/weapons/weapon_node.gd" id="2_hwib0"]
 [ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="3_gsogp"]
 [ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="4_a20rg"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/resources/moving_logic.tres" id="4_gsogp"]
@@ -166,7 +166,6 @@ visible = false
 [connection signal="proned" from="." to="StateMachine" method="_on_player_proned"]
 [connection signal="reloaded" from="." to="StateMachine" method="_on_player_reloaded"]
 [connection signal="unequiped" from="." to="StateMachine" method="_on_player_unequiped"]
-[connection signal="weapon_action" from="." to="StateMachine" method="_on_player_weapon_action"]
 [connection signal="timeout" from="FocusTimer" to="." method="_on_focus_timeout"]
 [connection signal="timeout" from="ReloadTimer" to="." method="_on_reload_timeout"]
 [connection signal="timeout" from="FiremodeTimer" to="." method="_on_firemode_timeout"]

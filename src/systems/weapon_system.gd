@@ -56,7 +56,7 @@ static func pull_trigger(weapon: Weapon) -> bool:
   # Eject shell for non-revolver systems
   if weapon.feed_type != AmmoFeed.Type.INTERNAL:
     print("DEBUG: Emitting shell_ejected signal")
-    weapon.shell_ejected.emit(weapon)
+    weapon.shell_ejected.emit(weapon, round_to_fire)
 
   return true
 

@@ -35,7 +35,6 @@ signal landed(player: PlayerController, max_velocity: float, delta: float)
 signal reloaded(player: PlayerController)
 signal equipped(player: PlayerController, what: Item)
 signal unequiped(player: PlayerController, what: Item)
-signal weapon_action(player: PlayerController, weapon: Weapon, state: String)
 signal insert_ammofeed(player: PlayerController)
 signal check_ammofeed(player: PlayerController, ammofeed: AmmoFeed)
 signal debug(player: PlayerController, text: String)
@@ -104,7 +103,7 @@ func _ready():
   set_floor_max_angle(PI / 4)
 
 
-func _on_equipment_changed(player: PlayerController, item: Item):
+func _on_equipment_changed(item: Item, slot_name: String):
   _update_weapon_node()
 
 func _update_weapon_node():
@@ -197,9 +196,9 @@ func _on_state_entered_firing(state: String):
   moving.set_condition("-sprint", true)
   match state:
     TRIGGER_PULLED:
-      weapon_action.emit(self, current_weapon, state)
+      weapon_node.pull_trigger()
     TRIGGER_RELEASED:
-      weapon_action.emit(self, current_weapon, state)
+      weapon_node.release_trigger()
     CHANGING_MODE:
       if firemode_timer.is_stopped():
         firemode_timer.timeout.connect(func(): Input.action_release("firemode"))
@@ -245,12 +244,8 @@ func _on_state_exited_moving(state: String):
 func _on_state_entered_leaning(state: String):
   match state:
     LEANING_RIGHT:
-      current_speed = config.lean_speed
-      #current_head_bobbing = config.NO_BOBBING
       leaned.emit(self, -1)
     LEANING_LEFT:
-      current_speed = config.lean_speed
-      #current_head_bobbing = config.NO_BOBBING
       leaned.emit(self, +1)
     NOT_LEANING:
       leaned.emit(self, 0)
@@ -295,7 +290,9 @@ func _physics_process(delta):
       current_head_bobbing  = config.prone_bobbing
       current_camera_height = config.prone_height
       moving.set_condition("+jump", false)
-
+  match leaning.state:
+    LEANING_LEFT, LEANING_RIGHT:
+      current_speed = config.lean_speed
   match aiming.state:
     AIMING:
       current_speed        = config.crouch_speed
@@ -324,8 +321,6 @@ func _physics_process(delta):
 
 # ─── HELPERS ───────────────────────────────────────
 func handle_conditions():
-  firing.set_condition("+fire", Input.is_action_pressed("fire"))
-  firing.set_condition("-fire", not Input.is_action_pressed("fire"))
   moving.set_condition("+move", abs(current_direction.length()) > 0)
   moving.set_condition("-move", abs(current_direction.length()) == 0)
   moving.set_condition("+jump", Input.is_action_just_pressed("jump"))
@@ -352,6 +347,8 @@ func handle_conditions():
   aiming.set_condition("-equip", Input.is_action_just_pressed("weapon_drop"))
 
   # Firing logic
+  firing.set_condition("+fire", Input.is_action_pressed("fire"))
+  firing.set_condition("-fire", not Input.is_action_pressed("fire"))
   firing.set_condition("+reload", Input.is_action_just_pressed("reload"))
   firing.set_condition("-reload", Input.is_action_just_released("reload"))
   firing.set_condition("+firemode", Input.is_action_just_pressed("firemode"))

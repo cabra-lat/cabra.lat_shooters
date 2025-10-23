@@ -4,7 +4,7 @@ extends Resource
 
 # All inventory items must implement these
 @export var name: String = "Item"
-@export var mass: float: get = get_mass, set = set_mass
+@export var mass: float = 0.0: get = get_mass, set = set_mass
 @export var icon: Texture2D = preload("../../assets/ui/inventory/placeholder.png")
 @export var view_model: PackedScene
 @export var equip_sound: AudioStream

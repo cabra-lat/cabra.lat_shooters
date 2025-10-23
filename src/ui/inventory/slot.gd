@@ -14,7 +14,7 @@ func _ready():
         icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH
         icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
         icon.custom_minimum_size = size
-        icon.size = size
+        icon.set_deferred("size", size)
 
 func setup(parent: BaseInventoryUI):
     super.setup(parent)

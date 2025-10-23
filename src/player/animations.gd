@@ -16,7 +16,11 @@ func _on_player_crouched(player: PlayerController, reverse: bool = false) -> voi
   var duration = player.config.crouch_time
   var change_height = player.config.crouch_height if not reverse else player.config.default_height
   tween.tween_property(player.head, "position:y", change_height, duration)
-  tween.tween_property(player.collision, "shape:height", change_height, duration) # What if there is something over my head?
+  var shape = player.collision.shape
+  if shape is BoxShape3D:
+      tween.tween_property(player.collision, "shape:y", change_height, 0.0) # What if there is something over my head?
+  if shape is SphereShape3D:
+      tween.tween_property(player.collision, "shape:height", change_height, 0.0) # What if there is something over my head?
 
 func _on_player_proned(player: PlayerController, reverse: bool = false) -> void:
   var tween = player.create_tween()
@@ -25,7 +29,11 @@ func _on_player_proned(player: PlayerController, reverse: bool = false) -> void:
   var change_head_rotation = deg_to_rad(100) if not reverse else  deg_to_rad(0)
   var change_body_rotation = deg_to_rad(-70) if not reverse else  deg_to_rad(0)
   tween.tween_property(player.head, "position:y", change_height, duration)
-  tween.tween_property(player.collision, "shape:height", change_height, duration) # What if there is something over my head?
+  var shape = player.collision.shape
+  if shape is BoxShape3D:
+      tween.tween_property(player.collision, "shape:y", change_height, 0.0) # What if there is something over my head?
+  if shape is SphereShape3D:
+      tween.tween_property(player.collision, "shape:height", change_height, 0.0) # What if there is something over my head?
 
 func _on_player_leaned(player: PlayerController, direction: int = 0) -> void:
   var tween = player.create_tween()
@@ -39,22 +47,7 @@ func _on_player_focused(player: PlayerController, reverse: bool = false) -> void
   var change = player.config.aim_focused_fov if not reverse else player.config.aim_fov
   tween.tween_property(player.camera, "fov", change, duration)
 
-# In your animation script
-func _on_player_weapon_action(player: PlayerController, weapon: Weapon, state: String) -> void:
-  match state:
-    PlayerController.TRIGGER_PULLED:
-      # Only apply recoil if the weapon actually fires
-      var fired = player.weapon_node.pull_trigger(func():
-        if player.current_weapon and player.current_weapon.ammofeed and player.current_weapon.ammofeed.capacity > 0:
-          apply_recoil(player, weapon)
-      )
-      if not fired:
-        print("DEBUG: Weapon failed to fire - no ammunition or other issue")
-    PlayerController.TRIGGER_RELEASED:
-      player.weapon_node.release_trigger()
-
-
-func apply_recoil(player: PlayerController, weapon: Weapon) -> void:
+static func apply_recoil(player: PlayerController, weapon: Weapon) -> void:
   var tween = player.create_tween()
   tween.set_parallel(true)
 

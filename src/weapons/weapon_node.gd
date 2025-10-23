@@ -11,9 +11,10 @@ var casing_ejection: bool = true
   get: return data
   set(value):
     # Disconnect from old weapon
-    if data and data.is_connected("cartridge_fired", Callable(self, "_on_weapon_cartridge_fired")):
-      data.disconnect("cartridge_fired", Callable(self, "_on_weapon_cartridge_fired"))
-      data.disconnect("shell_ejected", Callable(self, "_on_weapon_shell_ejected"))
+    if data:
+      for sig in data.get_signal_list():
+        if data.is_connected(sig.name,  Callable(self, "_on_weapon_%s" % sig.name)):
+          data.disconnect(sig.name, Callable(self, "_on_weapon_%s" % sig.name))
 
     var old_vm = get_node_or_null(VIEWMODEL_NAME)
     if old_vm:
@@ -28,8 +29,10 @@ var casing_ejection: bool = true
 
     # Connect to new weapon
     if data:
-      data.connect("cartridge_fired", Callable(self, "_on_weapon_cartridge_fired"))
-      data.connect("shell_ejected", Callable(self, "_on_weapon_shell_ejected"))
+      for sig in data.get_signal_list():
+        if data.is_connected(sig.name,  Callable(self, "_on_weapon_%s" % sig.name)):
+          data.disconnect(sig.name, Callable(self, "_on_weapon_%s" % sig.name))
+        data.connect(sig.name, Callable(self, "_on_weapon_%s" % sig.name))
 
 # Track active casings for cleanup
 var active_casings = []
@@ -40,26 +43,7 @@ func _ready():
   firerate_timer.connect("timeout", Callable(self,"_on_firerate_timeout"))
   add_child(firerate_timer)
 
-  var weapon_viewmodel = get_node_or_null(VIEWMODEL_NAME)
-
-  # Initialize ejection point
-  if weapon_viewmodel and not weapon_viewmodel.has_node(EJECTION_POINT_NAME):
-    var point = Marker3D.new()
-    point.name = EJECTION_POINT_NAME
-    point.position = Vector3(0.05, 0, 0)
-    weapon_viewmodel.add_child(point)
-
-  # Connect to weapon signals if data is already set
-  if data:
-    print("DEBUG: WeaponNode connecting to signals for weapon: ", data.name)
-    if not data.is_connected("cartridge_fired", Callable(self, "_on_weapon_cartridge_fired")):
-      data.connect("cartridge_fired", Callable(self, "_on_weapon_cartridge_fired"))
-    if not data.is_connected("shell_ejected", Callable(self, "_on_weapon_shell_ejected")):
-      data.connect("shell_ejected", Callable(self, "_on_weapon_shell_ejected"))
-  else:
-    print("DEBUG: WeaponNode has no data weapon assigned")
-
-func _on_weapon_cartridge_fired(weapon: Weapon, cartridge: Ammo):
+func _on_weapon_shell_ejected(weapon: Weapon, cartridge: Ammo):
   if not casing_ejection or not cartridge:
     return
 
@@ -129,6 +113,8 @@ func _on_weapon_cartridge_fired(weapon: Weapon, cartridge: Ammo):
 
   # Clean up invalid casings
   _cleanup_casings()
+  var player = world_root.get_node("Player")
+  PlayerAnimations.apply_recoil(player, weapon)
 
 func _apply_casing_physics(casing: Node3D, cartridge: Ammo):
   # Method 1: Casing is a RigidBody3D
@@ -160,40 +146,16 @@ func _apply_casing_physics(casing: Node3D, cartridge: Ammo):
       randf_range(-0.5, 0.5)
     ))
 
+    rb.angular_damp = 1.0
+    rb.linear_damp = 1.0
+
     print("DEBUG: Applied physics to RigidBody3D casing with force: ", ejection_force)
     return
 
   # Method 2: Look for RigidBody3D in children
   var rigid_body = casing.get_node_or_null("RigidBody3D")
   if rigid_body and rigid_body is RigidBody3D:
-    var rb = rigid_body as RigidBody3D
-    rb.mass = clamp(cartridge.cartridge_mass / 1000.0, 0.01, 0.05)
-
-    # FIXED: Use the same energy calculation as Method 1
-    var base_force = 2.0
-    var energy_factor = cartridge.kinetic_energy / 1000.0  # Added missing division
-    var force_multiplier = base_force * min(energy_factor, 5.0)
-
-    var ejection_force = Vector3(
-      randf_range(0.5, 1.0),
-      randf_range(0.2, 0.5),
-      randf_range(-0.3, 0.1)
-    ).normalized() * force_multiplier
-
-    ejection_force = global_transform.basis * ejection_force
-
-    rb.apply_central_impulse(ejection_force)
-    rb.apply_torque_impulse(Vector3(
-      randf_range(-0.5, 0.5),
-      randf_range(-0.3, 0.3),
-      randf_range(-0.5, 0.5)
-    ))
-
-    # FIXED: Use more reasonable damping values
-    rb.angular_damp = 1.0  # Reduced from 200.0
-    rb.linear_damp = 0.5   # Reduced from 200.0
-
-    print("DEBUG: Applied physics to child RigidBody3D")
+    _apply_casing_physics(rigid_body as RigidBody3D, cartridge)
     return
 
   # Method 3: Casing has custom method
@@ -229,10 +191,8 @@ func _on_firerate_timeout():
     WeaponSystem.pull_trigger(data)
     firerate_timer.start()
 
-func _on_weapon_shell_ejected(weapon: Weapon, cartridge: Ammo):
-  # Fallback for shell_ejected signal
-  if casing_ejection and cartridge:
-    _on_weapon_cartridge_fired(weapon, cartridge)
+func _on_weapon_cartridge_fired(weapon: Weapon, cartridge: Ammo):
+  pass
 
 # ─── WEAPON CONTROL ───────────────────────────────
 
@@ -242,7 +202,7 @@ func pull_trigger(callback: Callable = func(): return null):
   if not data:
     return
 
-  firerate_timer.wait_time = 60.0 / data.firerate
+  firerate_timer.wait_time = data.cycle_time
 
   # Connect callback if provided
   if callback:
