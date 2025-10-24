@@ -110,8 +110,12 @@ height = 0.040992737
 radius = 0.005859375
 
 [node name="RigidBody3D" type="RigidBody3D"]
+process_thread_group = 2
+process_thread_group_order = 0
+process_thread_messages = 0
 collision_layer = 4
 collision_mask = 4
+input_ray_pickable = false
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0, 0)

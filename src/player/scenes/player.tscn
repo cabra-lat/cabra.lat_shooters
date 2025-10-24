@@ -145,7 +145,7 @@ animation = &"cross"
 
 [node name="Interactor3D" parent="." node_paths=PackedStringArray("follow", "Cursor") instance=ExtResource("8_g5121")]
 process_mode = 4
-transform = Transform3D(0.998363, -1.45519e-11, 4.65661e-10, -4.00178e-11, 0.998363, -2.56784e-05, -1.62981e-09, 2.56747e-05, 0.998363, 0, 0.8508735, 0)
+transform = Transform3D(0.998363, -1.45519e-11, 4.65661e-10, -4.00178e-11, 0.998363, -2.56784e-05, -1.62981e-09, 2.56747e-05, 0.998363, 0, 1.7481184, 0)
 follow = NodePath("../Head/Camera3D")
 Cursor = NodePath("../Cursor3D")
 

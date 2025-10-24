@@ -16,11 +16,6 @@ func _on_player_crouched(player: PlayerController, reverse: bool = false) -> voi
   var duration = player.config.crouch_time
   var change_height = player.config.crouch_height if not reverse else player.config.default_height
   tween.tween_property(player.head, "position:y", change_height, duration)
-  var shape = player.collision.shape
-  if shape is BoxShape3D:
-      tween.tween_property(player.collision, "shape:y", change_height, 0.0) # What if there is something over my head?
-  if shape is SphereShape3D:
-      tween.tween_property(player.collision, "shape:height", change_height, 0.0) # What if there is something over my head?
 
 func _on_player_proned(player: PlayerController, reverse: bool = false) -> void:
   var tween = player.create_tween()
@@ -29,11 +24,6 @@ func _on_player_proned(player: PlayerController, reverse: bool = false) -> void:
   var change_head_rotation = deg_to_rad(100) if not reverse else  deg_to_rad(0)
   var change_body_rotation = deg_to_rad(-70) if not reverse else  deg_to_rad(0)
   tween.tween_property(player.head, "position:y", change_height, duration)
-  var shape = player.collision.shape
-  if shape is BoxShape3D:
-      tween.tween_property(player.collision, "shape:y", change_height, 0.0) # What if there is something over my head?
-  if shape is SphereShape3D:
-      tween.tween_property(player.collision, "shape:height", change_height, 0.0) # What if there is something over my head?
 
 func _on_player_leaned(player: PlayerController, direction: int = 0) -> void:
   var tween = player.create_tween()

@@ -47,5 +47,5 @@ states/Standing/node = SubResource("3")
 states/Standing/position = Vector2(146, 248)
 states/Start/position = Vector2(5.6667004, 248)
 transitions = ["Standing", "Crouching", SubResource("6"), "Crouching", "Proning", SubResource("7"), "Standing", "Proning", SubResource("9"), "Proning", "Standing", SubResource("10"), "Crouching", "Standing", SubResource("11"), "Start", "Standing", SubResource("AnimationNodeStateMachineTransition_qyqoc"), "Proning", "Crouching", SubResource("8")]
-graph_offset = Vector2(-92, 64.121994)
+graph_offset = Vector2(-68, 118.121994)
 script = SubResource("1")
