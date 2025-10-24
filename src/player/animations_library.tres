@@ -1,0 +1,38 @@
+[gd_resource type="AnimationLibrary" load_steps=17 format=3 uid="uid://daivyohtsaq1n"]
+
+[ext_resource type="Animation" uid="uid://brdhh0hkkhwc8" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/firing_rifle.tres" id="1_jtr8i"]
+[ext_resource type="Animation" uid="uid://c7ot7dq1h7jdh" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/hit_reaction.tres" id="2_ebw3o"]
+[ext_resource type="Animation" uid="uid://dsipxa7oenh60" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/reloading.tres" id="3_mytx1"]
+[ext_resource type="Animation" uid="uid://dsr2igd7mplqf" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/rifle_aiming_idle.tres" id="4_423yu"]
+[ext_resource type="Animation" uid="uid://bmb8f1la06iyx" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/rifle_jump.tres" id="5_tyfno"]
+[ext_resource type="Animation" uid="uid://b6oibgruh5457" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/rifle_run.tres" id="6_50tun"]
+[ext_resource type="Animation" uid="uid://cfmccbly2bg5" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/run_backwards.tres" id="7_rhlpm"]
+[ext_resource type="Animation" uid="uid://bjfvh4h5374r8" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/strafe_1.tres" id="8_46cbl"]
+[ext_resource type="Animation" uid="uid://bp2u7s755kn84" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/strafe_2.tres" id="9_x17yu"]
+[ext_resource type="Animation" uid="uid://b70y4tgc5yv7m" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/strafe_left.tres" id="10_l1bx3"]
+[ext_resource type="Animation" uid="uid://c2gr32wulm8u3" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/strafe_right.tres" id="11_1ko0b"]
+[ext_resource type="Animation" uid="uid://c8xxlg8t7f60l" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/toss_grenade.tres" id="12_goxio"]
+[ext_resource type="Animation" uid="uid://b0c28wr8kdgu2" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/turn_left.tres" id="13_u3mc4"]
+[ext_resource type="Animation" uid="uid://ofgahh2riuuk" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/turning_right_45.tres" id="14_hvsu1"]
+[ext_resource type="Animation" uid="uid://bycaoh7k72se1" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/walking.tres" id="15_7gl8y"]
+[ext_resource type="Animation" uid="uid://dhpnyhy7itkb4" path="res://addons/cabra.lat_shooters/src/player/scenes/animations/walking_backwards.tres" id="16_7daev"]
+
+[resource]
+_data = {
+&"firing_rifle": ExtResource("1_jtr8i"),
+&"hit_reaction": ExtResource("2_ebw3o"),
+&"reloading": ExtResource("3_mytx1"),
+&"rifle_aiming_idle": ExtResource("4_423yu"),
+&"rifle_jump": ExtResource("5_tyfno"),
+&"rifle_run": ExtResource("6_50tun"),
+&"run_backwards": ExtResource("7_rhlpm"),
+&"strafe_1": ExtResource("8_46cbl"),
+&"strafe_2": ExtResource("9_x17yu"),
+&"strafe_left": ExtResource("10_l1bx3"),
+&"strafe_right": ExtResource("11_1ko0b"),
+&"toss_grenade": ExtResource("12_goxio"),
+&"turn_left": ExtResource("13_u3mc4"),
+&"turning_right_45": ExtResource("14_hvsu1"),
+&"walking": ExtResource("15_7gl8y"),
+&"walking_backwards": ExtResource("16_7daev")
+}
