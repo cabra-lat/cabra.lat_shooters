@@ -83,6 +83,8 @@ func _ready():
     health = Health.new()
   if equipment == null:
     equipment = Equipment.new()
+  if inventory_ui == null:
+    inventory_ui = InventoryUI.new()
 
   # Connect equipment changes to update weapon node
   equipment.equipped.connect(_on_equipment_changed)
@@ -117,6 +119,7 @@ func _update_weapon_node():
   else:
     current_weapon = null
     weapon_node.data = null
+
 # ─── INPUT ─────────────────────────────────────────
 func _input(event):
   if not inventory_ui.visible and event is InputEventMouseMotion:
@@ -124,7 +127,7 @@ func _input(event):
     head.rotation_degrees.x = clamp(head.rotation_degrees.x - event.relative.y * config.mouse_sensitivity / 10, -90, 90)
   if not inventory_ui.visible and Input.is_action_just_pressed("open_inventory"):
     inventory_ui.open_inventory(self)
-    Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+    Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
   elif Input.is_action_just_pressed("open_inventory"):
     inventory_ui.hide()
     Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
