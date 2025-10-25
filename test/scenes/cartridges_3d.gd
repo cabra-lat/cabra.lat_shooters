@@ -372,7 +372,7 @@ var stamp_text_override: String = "":
       stamp_codes.append(0)
 
     if Engine.is_editor_hint() and has_node("MainBullet"):
-      var material = $MainBullet.material_override
+      var material = $MainBullet.mesh.material
       if material:
         # Set stamp parameters
         material.set_shader_parameter("stamp_characters", value.length())
@@ -395,7 +395,7 @@ var bullet_extraction: float = 100.0 * 1000.0:
   set(value):
     bullet_extraction = value
     if Engine.is_editor_hint() and has_node("MainBullet"):
-      var material = $MainBullet.material_override
+      var material = $MainBullet.mesh.material
       if material:
         material.set_shader_parameter("bullet_extraction_mm", value)
 
@@ -563,7 +563,7 @@ func create_bullet_mesh(low_poly: bool = false) -> MeshInstance3D:
   else:
     push_warning("Bullet shader not found at: " + BULLET_SHADER)
 
-  mesh_instance.material_override = shader_material
+  mesh_instance.mesh.material = shader_material
 
   # Performance: Disable shadows for casings
   if disable_casing_shadows:
@@ -576,7 +576,7 @@ func apply_ammo_type(ammo_name: String):
     return
 
   var ammo_data = AMMO_DATABASE[ammo_name]
-  var material = main_bullet.material_override
+  var material = main_bullet.mesh.material
 
   if material:
     # Apply all dimensions
@@ -591,7 +591,7 @@ func apply_ammo_type(ammo_name: String):
 
     # Apply stamp settings
     apply_stamp_settings(material, ammo_data)
-  ejected_case_material = main_bullet.material_override.duplicate()
+  ejected_case_material = main_bullet.mesh.material.duplicate()
   ejected_case_material.set_shader_parameter("bullet_color", Color(0.0, 0.0, 0.0, 0.0))
   ejected_case_material.set_shader_parameter("bullet_tip_color", Color(0.0, 0.0, 0.0, 0.0))
   ejected_case_material.set_shader_parameter("bullet_base_color", Color(0.0, 0.0, 0.0, 0.0))
@@ -812,7 +812,7 @@ func switch_ammo(index: int):
   reset_scene()
 
 func _set_bullet_extraction(value: float = 0.0):
-  var material = main_bullet.material_override
+  var material = main_bullet.mesh.material
   if material:
     material.set_shader_parameter("bullet_extraction_mm", value)
 
@@ -828,7 +828,7 @@ func eject_casing():
   ejected_bullet.rotation = main_bullet.rotation
   ejected_bullet.position = main_bullet.position
   # Share material to reduce draw calls
-  ejected_bullet.material_override = ejected_case_material
+  ejected_bullet.mesh.material = ejected_case_material
 
   add_child(ejected_bullet)
 
@@ -868,7 +868,7 @@ func _start_casing_cleanup(casing: MeshInstance3D):
     ejected_casings.erase(casing)
 
 func extract_bullet():
-  var material = main_bullet.material_override
+  var material = main_bullet.mesh.material
   if material:
     # Animate bullet extraction
     var tween = create_tween()
@@ -877,7 +877,7 @@ func extract_bullet():
 
 func reset_scene():
   # Reset main bullet
-  var material = main_bullet.material_override
+  var material = main_bullet.mesh.material
   if material:
     material.set_shader_parameter("bullet_extraction_mm", 0.0)
 

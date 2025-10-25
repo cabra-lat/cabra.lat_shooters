@@ -1,8 +1,9 @@
-[gd_scene load_steps=20 format=3 uid="uid://pc011sk80jnn"]
+[gd_scene load_steps=21 format=3 uid="uid://pc011sk80jnn"]
 
 [ext_resource type="Script" uid="uid://dn0782newa14v" path="res://addons/cabra.lat_shooters/test/scenes/test_player.gd" id="1_cnysa"]
 [ext_resource type="PackedScene" uid="uid://ly33hk8t667t" path="res://addons/cabra.lat_shooters/src/player/scenes/player.tscn" id="2_yghno"]
-[ext_resource type="PackedScene" uid="uid://bxlbq0drdtji4" path="res://addons/cabra.lat_shooters/src/scenes/HUD.tscn" id="3_aiq23"]
+[ext_resource type="PackedScene" uid="uid://c12klxocgrga0" path="res://addons/cabra.lat_shooters/src/ui/inventory/main.tscn" id="3_1jipf"]
+[ext_resource type="PackedScene" uid="uid://bxlbq0drdtji4" path="res://addons/cabra.lat_shooters/src/ui/hud/debug_hud.tscn" id="3_aiq23"]
 [ext_resource type="Texture2D" uid="uid://rwr14fl7ogi4" path="res://addons/cabra.lat_shooters/assets/skybox.jpg" id="3_yghno"]
 
 [sub_resource type="Gradient" id="Gradient_fam23"]
@@ -82,6 +83,10 @@ tonemap_mode = 2
 script = ExtResource("1_cnysa")
 
 [node name="HUD" parent="." instance=ExtResource("3_aiq23")]
+
+[node name="InventoryUi" parent="." instance=ExtResource("3_1jipf")]
+unique_name_in_owner = true
+visible = false
 
 [node name="Level" type="Node3D" parent="."]
 
@@ -203,8 +208,9 @@ mesh = SubResource("BoxMesh_fam23")
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_m5uds")
 
-[node name="Player" parent="." instance=ExtResource("2_yghno")]
+[node name="Player" parent="." node_paths=PackedStringArray("inventory_ui") instance=ExtResource("2_yghno")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
+inventory_ui = NodePath("../InventoryUi")
 
 [connection signal="debug" from="Player" to="." method="_on_player_debug"]
 [connection signal="landed" from="Player" to="." method="_on_player_landed"]

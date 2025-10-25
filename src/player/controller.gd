@@ -43,6 +43,7 @@ signal debug(player: PlayerController, text: String)
 @export var config: PlayerConfig
 @export var health: Health  # Player health system
 @export var equipment: Equipment  # Equipment slots
+@export var inventory_ui: InventoryUI
 
 @onready var moving:    StateMachine = %Moving
 @onready var crouching: StateMachine = %Crouching
@@ -58,7 +59,6 @@ signal debug(player: PlayerController, text: String)
 @onready var focus_timer: Timer = %FocusTimer
 @onready var reload_timer: Timer = %ReloadTimer
 @onready var firemode_timer: Timer = %FiremodeTimer
-@onready var inventory_ui: InventoryUI = %InventoryUi
 
 var max_velocity: float = 0.0
 var current_weapon: Weapon = null

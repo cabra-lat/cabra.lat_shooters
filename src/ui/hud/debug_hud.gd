@@ -1,4 +1,5 @@
-class_name HUD extends Control
+class_name DebugHUD
+extends Control
 
 @onready var visibility = $Visibility
 @onready var popup = $Popup

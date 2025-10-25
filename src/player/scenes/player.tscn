@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://ly33hk8t667t"]
+[gd_scene load_steps=14 format=3 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
 [ext_resource type="Script" uid="uid://cl1v3jhv7weaq" path="res://addons/cabra.lat_shooters/src/weapons/weapon_node.gd" id="2_hwib0"]
@@ -11,7 +11,6 @@
 [ext_resource type="PackedScene" uid="uid://8x85dbyhhwva" path="res://addons/cabra.lat_cursors/cursor_3d.tscn" id="7_nqh7h"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cqkqs2q5t0o2s" path="res://addons/cabra.lat_shooters/src/player/resources/aiming_logic.tres" id="8_a20rg"]
 [ext_resource type="PackedScene" uid="uid://c6mfjk8v5pslc" path="res://addons/cabra.lat_interactions/interactor.tscn" id="8_g5121"]
-[ext_resource type="PackedScene" uid="uid://c12klxocgrga0" path="res://addons/cabra.lat_shooters/src/ui/inventory/main.tscn" id="9_hwib0"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_4275n"]
 size = Vector3(0.8, 1.7, 0.8)
@@ -148,10 +147,6 @@ process_mode = 4
 transform = Transform3D(0.998363, -1.45519e-11, 4.65661e-10, -4.00178e-11, 0.998363, -2.56784e-05, -1.62981e-09, 2.56747e-05, 0.998363, 0, 1.7481184, 0)
 follow = NodePath("../Head/Camera3D")
 Cursor = NodePath("../Cursor3D")
-
-[node name="InventoryUi" parent="." instance=ExtResource("9_hwib0")]
-unique_name_in_owner = true
-visible = false
 
 [connection signal="aimed" from="." to="StateMachine" method="_on_player_aimed"]
 [connection signal="check_ammofeed" from="." to="StateMachine" method="_on_player_check_ammofeed"]

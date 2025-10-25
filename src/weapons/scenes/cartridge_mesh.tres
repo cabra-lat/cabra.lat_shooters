@@ -1,11 +1,11 @@
-[gd_scene load_steps=7 format=3 uid="uid://chc2iqex6axn1"]
+[gd_resource type="CapsuleMesh" load_steps=4 format=3 uid="uid://bm6fo0ehskq31"]
 
-[ext_resource type="Shader" uid="uid://bo7wc2x3ox5i1" path="res://addons/cabra.lat_shooters/src/shaders/cartridges/cartridge.gdshader" id="1_3hsla"]
-[ext_resource type="Texture2D" uid="uid://d0gbpba0pd43u" path="res://addons/cabra.lat_shooters/assets/cartridge-font.png" id="2_0rwa3"]
+[ext_resource type="Shader" uid="uid://bo7wc2x3ox5i1" path="res://addons/cabra.lat_shooters/src/shaders/cartridges/cartridge.gdshader" id="1_05avb"]
+[ext_resource type="Texture2D" uid="uid://d0gbpba0pd43u" path="res://addons/cabra.lat_shooters/assets/cartridge-font.png" id="2_olcsw"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_aeqdp"]
 render_priority = 0
-shader = ExtResource("1_3hsla")
+shader = ExtResource("1_05avb")
 shader_parameter/mesh_segments_length = 64
 shader_parameter/mesh_segments_circumference = 10
 shader_parameter/gap_segments = 1
@@ -66,7 +66,7 @@ shader_parameter/primer_texture_scale_y = 1.0
 shader_parameter/rim_texture_scale_x = 1.0
 shader_parameter/rim_texture_scale_y = 1.0
 shader_parameter/wear_amount = 0.1
-shader_parameter/stamp_font = ExtResource("2_0rwa3")
+shader_parameter/stamp_font = ExtResource("2_olcsw")
 shader_parameter/cells_per_row = 16
 shader_parameter/cells_per_col = 16
 shader_parameter/cells_width = 64
@@ -97,34 +97,6 @@ shader_parameter/stamp_ao_strength = 1.779
 shader_parameter/stamp_ao_radius = 0.02
 shader_parameter/stamp_ao_darkness = 0.651
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_3hsla"]
+[resource]
 material = SubResource("ShaderMaterial_aeqdp")
 radial_segments = 10
-
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_3hsla"]
-radius = 0.0043945313
-height = 0.034490585
-
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_3hsla"]
-height = 0.040992737
-radius = 0.005859375
-
-[node name="RigidBody3D" type="RigidBody3D"]
-process_thread_group = 2
-process_thread_group_order = 0
-process_thread_messages = 0
-collision_layer = 4
-collision_mask = 4
-input_ray_pickable = false
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 0, 0)
-mesh = SubResource("CapsuleMesh_3hsla")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, -0.001130414, -0.051581383)
-shape = SubResource("CapsuleShape3D_3hsla")
-
-[node name="CollisionShape3D2" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, -0.0011304126, -0.020895004)
-shape = SubResource("CylinderShape3D_3hsla")
