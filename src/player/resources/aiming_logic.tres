@@ -13,34 +13,34 @@ states/Start/position = Vector2(177.333, 100.741)
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="t_idle_to_aiming"]
 advance_mode = 2
-advance_condition = &"+aim"
+advance_expression = "input.aim_held"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="t_aiming_to_idle"]
 advance_mode = 2
-advance_condition = &"-aim"
+advance_expression = "!input.aim_held"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="t_aiming_to_holdingbreath"]
 advance_mode = 2
-advance_condition = &"+focus"
+advance_expression = "input.focus_held"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="t_holdingbreath_to_aiming"]
 advance_mode = 2
-advance_condition = &"-focus"
+advance_expression = "!input.focus_held"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_m8des"]
 advance_mode = 2
-advance_condition = &"-aim"
+advance_expression = "!input.aim_held"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_tlca3"]
 advance_mode = 2
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_xcwf3"]
 advance_mode = 2
-advance_condition = &"+equip"
+advance_expression = "input.weapon_equip"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_lyklb"]
 advance_mode = 2
-advance_condition = &"-equip"
+advance_expression = "input.weapon_drop"
 
 [resource]
 states/Aiming/node = SubResource("s_aiming")

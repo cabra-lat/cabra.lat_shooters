@@ -14,13 +14,13 @@ static func _on_player_aimed(player: PlayerController, reverse: bool = false) ->
 static func _on_player_crouched(player: PlayerController, reverse: bool = false) -> void:
   var tween = player.create_tween()
   var duration = player.config.crouch_time
-  var change_height = player.config.crouch_height if not reverse else player.config.default_height
+  var change_height = player.config.crouch_height if not reverse else player.config.stand_height
   tween.tween_property(player.head, "position:y", change_height, duration)
 
 static func _on_player_proned(player: PlayerController, reverse: bool = false) -> void:
   var tween = player.create_tween()
   var duration = player.config.prone_time
-  var change_height = player.config.prone_height if not reverse else player.config.default_height
+  var change_height = player.config.prone_height if not reverse else player.config.stand_height
   var change_head_rotation = deg_to_rad(100) if not reverse else  deg_to_rad(0)
   var change_body_rotation = deg_to_rad(-70) if not reverse else  deg_to_rad(0)
   tween.tween_property(player.head, "position:y", change_height, duration)

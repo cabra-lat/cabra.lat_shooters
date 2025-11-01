@@ -1,27 +1,6 @@
-[gd_scene load_steps=7 format=3 uid="uid://bxlbq0drdtji4"]
+[gd_scene load_steps=5 format=3 uid="uid://bxlbq0drdtji4"]
 
 [ext_resource type="Script" uid="uid://c3c54enfd85t5" path="res://addons/cabra.lat_shooters/src/ui/hud/debug_hud.gd" id="1"]
-
-[sub_resource type="FontFile" id="41"]
-subpixel_positioning = 0
-msdf_pixel_range = 14
-msdf_size = 128
-cache/0/16/0/ascent = 0.0
-cache/0/16/0/descent = 0.0
-cache/0/16/0/underline_position = 0.0
-cache/0/16/0/underline_thickness = 0.0
-cache/0/16/0/scale = 1.0
-
-[sub_resource type="FontFile" id="FontFile_k5de2"]
-fallbacks = Array[Font]([SubResource("41"), SubResource("41"), SubResource("41")])
-subpixel_positioning = 0
-msdf_pixel_range = 14
-msdf_size = 128
-cache/0/16/0/ascent = 0.0
-cache/0/16/0/descent = 0.0
-cache/0/16/0/underline_position = 0.0
-cache/0/16/0/underline_thickness = 0.0
-cache/0/16/0/scale = 1.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_efote"]
 bg_color = Color(0, 0, 0, 0.62352943)
@@ -71,24 +50,33 @@ clip_text = true
 
 [node name="Visibility" type="Timer" parent="."]
 
-[node name="CurrentState" type="Label" parent="."]
+[node name="DebugTimer" type="Timer" parent="."]
+wait_time = 0.3
+autostart = true
+
+[node name="CurrentState" type="RichTextLabel" parent="."]
 layout_mode = 1
-offset_right = 80.2973
-offset_bottom = 23.0
-size_flags_vertical = 1
-theme_override_fonts/font = SubResource("FontFile_k5de2")
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 638.2973
+grow_vertical = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_efote")
+bbcode_enabled = true
 text = "No State"
+fit_content = true
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="GameLog" type="TextEdit" parent="."]
 layout_mode = 1
-anchors_preset = 2
+anchors_preset = 3
+anchor_left = 1.0
 anchor_top = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -340.0
 offset_top = -134.0
-offset_right = 340.0
+grow_horizontal = 0
 grow_vertical = 0
 theme_override_colors/font_readonly_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 12
@@ -115,3 +103,5 @@ text = "19 Made This and That very long string with datetime
 2 Made This and That
 1 Made This and That"
 editable = false
+
+[connection signal="timeout" from="DebugTimer" to="." method="_on_debug_timer_timeout"]

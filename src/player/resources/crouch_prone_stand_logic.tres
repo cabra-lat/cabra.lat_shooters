@@ -11,23 +11,23 @@ graph_offset = Vector2(0, 72.384)
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="6"]
 advance_mode = 2
-advance_condition = &"+crouch"
+advance_expression = "input.crouch_held || input.crouch_toggle"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="7"]
 advance_mode = 2
-advance_condition = &"+prone"
+advance_expression = "input.prone_held || input.prone_toggle"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="9"]
 advance_mode = 2
-advance_condition = &"+prone"
+advance_expression = "input.prone_held || input.prone_toggle"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="10"]
 advance_mode = 2
-advance_condition = &"-prone"
+advance_expression = "input.prone_toggle || !input.prone_held"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="11"]
 advance_mode = 2
-advance_condition = &"-crouch"
+advance_expression = "input.crouch_toggle || !input.crouch_held"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_qyqoc"]
 advance_mode = 2
@@ -35,7 +35,7 @@ advance_expression = "true"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="8"]
 advance_mode = 2
-advance_condition = &"+crouch"
+advance_expression = "input.crouch_held || input.crouch_toggle"
 
 [resource]
 states/Crouching/node = SubResource("2")

@@ -11,27 +11,27 @@ advance_mode = 2
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_nqh7h"]
 advance_mode = 2
-advance_condition = &"lean_right"
+advance_expression = "input.lean_right"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_g5121"]
 advance_mode = 2
-advance_condition = &"-lean"
+advance_expression = "!input.lean_right"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_asuj2"]
 advance_mode = 2
-advance_condition = &"lean_left"
+advance_expression = "input.lean_left"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_em7ri"]
 advance_mode = 2
-advance_condition = &"lean_right"
+advance_expression = "input.lean_right"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_ctskf"]
 advance_mode = 2
-advance_condition = &"-lean"
+advance_expression = "!input.lean_left"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_2vu2g"]
 advance_mode = 2
-advance_condition = &"lean_left"
+advance_expression = "input.lean_left"
 
 [resource]
 states/LeaningLeft/node = SubResource("AnimationNodeStateMachine_gsogp")

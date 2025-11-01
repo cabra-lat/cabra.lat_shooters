@@ -59,6 +59,7 @@ script = ExtResource("3_gsogp")
 unique_name_in_owner = true
 root_node = NodePath("%Moving/../..")
 tree_root = ExtResource("4_gsogp")
+advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
 parameters/conditions/+jump = false
 parameters/conditions/+move = false
@@ -74,11 +75,8 @@ metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 unique_name_in_owner = true
 root_node = NodePath("%Crouching/../..")
 tree_root = ExtResource("5_4275n")
+advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-parameters/conditions/+crouch = false
-parameters/conditions/+prone = false
-parameters/conditions/-crouch = false
-parameters/conditions/-prone = false
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
@@ -86,10 +84,8 @@ metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 unique_name_in_owner = true
 root_node = NodePath("%Leaning/../..")
 tree_root = ExtResource("7_a20rg")
+advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-parameters/conditions/-lean = false
-parameters/conditions/lean_left = false
-parameters/conditions/lean_right = false
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
@@ -97,13 +93,8 @@ metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 unique_name_in_owner = true
 root_node = NodePath("%Aiming/../..")
 tree_root = ExtResource("8_a20rg")
+advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-parameters/conditions/+aim = false
-parameters/conditions/+equip = false
-parameters/conditions/+focus = false
-parameters/conditions/-aim = false
-parameters/conditions/-equip = false
-parameters/conditions/-focus = false
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
@@ -111,13 +102,8 @@ metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 unique_name_in_owner = true
 root_node = NodePath("%Firing/../..")
 tree_root = ExtResource("6_y0q3g")
+advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-parameters/conditions/+fire = false
-parameters/conditions/+firemode = false
-parameters/conditions/+reload = false
-parameters/conditions/-fire = false
-parameters/conditions/-firemode = false
-parameters/conditions/-reload = false
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
@@ -135,11 +121,9 @@ wait_time = 0.4
 one_shot = true
 
 [connection signal="aimed" from="." to="StateMachine" method="_on_player_aimed"]
-[connection signal="check_ammofeed" from="." to="StateMachine" method="_on_player_check_ammofeed"]
 [connection signal="crouched" from="." to="StateMachine" method="_on_player_crouched"]
 [connection signal="equipped" from="." to="StateMachine" method="_on_player_equipped"]
 [connection signal="focused" from="." to="StateMachine" method="_on_player_focused"]
-[connection signal="insert_ammofeed" from="." to="StateMachine" method="_on_player_insert_ammofeed"]
 [connection signal="jumped" from="." to="StateMachine" method="_on_player_jumped"]
 [connection signal="landed" from="." to="StateMachine" method="_on_player_landed"]
 [connection signal="leaned" from="." to="StateMachine" method="_on_player_leaned"]

@@ -13,27 +13,27 @@ advance_mode = 2
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_kfbfd"]
 advance_mode = 2
-advance_condition = &"+fire"
+advance_expression = "input.fire_held"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_m8des"]
 advance_mode = 2
-advance_condition = &"+firemode"
+advance_expression = "input.firemode_pressed"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_g8hl1"]
 advance_mode = 2
-advance_condition = &"-fire"
+advance_expression = "!input.fire_held"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_pmml0"]
 advance_mode = 2
-advance_condition = &"+reload"
+advance_expression = "input.reload_pressed"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_k7anp"]
 advance_mode = 2
-advance_condition = &"-reload"
+advance_expression = "!input.reload_pressed"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_uipgm"]
 advance_mode = 2
-advance_condition = &"-firemode"
+advance_expression = "!input.firemode_pressed"
 
 [resource]
 states/ChangingMode/node = SubResource("AnimationNodeStateMachine_g8hl1")
