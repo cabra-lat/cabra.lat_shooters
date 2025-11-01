@@ -18,10 +18,10 @@ func _run():
   ammo.cartridge_mass = 0.012
   feed.insert(ammo)
   feed.insert(ammo)  # ← SECOND ROUND
-  weapon.ammofeed = feed
+  weapon.ammo_feed = feed
 
   # Chamber first round
-  weapon.chambered_round = weapon.ammofeed.eject()
+  weapon.chambered_round = weapon.ammo_feed.eject()
 
   # Test firing
   var fired = WeaponSystem.pull_trigger(weapon)
@@ -35,8 +35,8 @@ func _run():
   # Release trigger and fire again
   WeaponSystem.release_trigger(weapon)
   # Re-chamber from remaining ammo
-  if weapon.ammofeed and not weapon.ammofeed.is_empty():
-    weapon.chambered_round = weapon.ammofeed.eject()
+  if weapon.ammo_feed and not weapon.ammo_feed.is_empty():
+    weapon.chambered_round = weapon.ammo_feed.eject()
   fired = WeaponSystem.pull_trigger(weapon)
   check(fired, "Should fire after release")
 

@@ -14,10 +14,10 @@ signal shell_ejected(weapon: Weapon, cartridge: Ammo)
 signal cartridge_fired(weapon: Weapon, cartridge: Ammo)
 signal cartridge_ejected(weapon: Weapon, cartridge: Ammo)
 signal cartridge_inserted(weapon: Weapon, cartridge: Ammo)
-signal ammofeed_empty(weapon: Weapon, ammofeed: AmmoFeed)
-signal ammofeed_changed(weapon: Weapon, old: AmmoFeed, new: AmmoFeed)
-signal ammofeed_missing(weapon: Weapon)
-signal ammofeed_incompatible(weapon: Weapon, ammofeed: AmmoFeed)
+signal ammo_feed_empty(weapon: Weapon, ammo_feed: AmmoFeed)
+signal ammo_feed_changed(weapon: Weapon, old: AmmoFeed, new: AmmoFeed)
+signal ammo_feed_missing(weapon: Weapon)
+signal ammo_feed_incompatible(weapon: Weapon, ammo_feed: AmmoFeed)
 
 # ─── ENUMS ─────────────────────────────────────────
 enum AttachmentPoint {
@@ -36,7 +36,7 @@ enum AttachmentPoint {
 @export var extra_sound: AudioStream
 
 # ─── CONFIGURATION ─────────────────────────────────
-@export var ammofeed: AmmoFeed
+@export var ammo_feed: AmmoFeed
 @export_flags("MUZZLE", "LEFT_RAIL", "RIGHT_RAIL", "TOP_RAIL", "UNDER", "NONE")
 var attach_points: int = 0
 @export_flags("SAFE", "AUTO", "SEMI", "BURST", "PUMP", "BOLT")
@@ -145,15 +145,15 @@ func _can_fire() -> bool:
       if not is_cycled: return false
   if chambered_round:
     return true
-  if ammofeed and not ammofeed.is_empty():
+  if ammo_feed and not ammo_feed.is_empty():
     return true
   return false
 
 # ─── AMMO & MAGAZINE ───────────────────────────────
-func cycle_weapon():
+func cycle_weapon() -> void:
   WeaponSystem.cycle_weapon(self)
 
-func insert_cartridge(cartridge: Ammo):
+func insert_cartridge(cartridge: Ammo) -> void:
   WeaponSystem.insert_cartridge(self, cartridge)
 
 func change_magazine(new_mag: AmmoFeed) -> bool:
@@ -192,7 +192,7 @@ func get_current_recoil_tilt() -> float:
   return rec
 
 func get_reload_time() -> float:
-  var mult = 1.5 if ammofeed and not ammofeed.is_empty() else 1.0
+  var mult = 1.5 if ammo_feed and not ammo_feed.is_empty() else 1.0
   var time = base_reload_time * mult
   for att in attachments.values():
     time *= att.reload_speed_modifier
@@ -200,8 +200,8 @@ func get_reload_time() -> float:
 
 func get_mass() -> float:
   var total = base_mass
-  if ammofeed:
-    total += ammofeed.mass
+  if ammo_feed:
+    total += ammo_feed.mass
   for att in attachments.values():
     total += att.mass
   return total

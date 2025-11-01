@@ -35,8 +35,8 @@ signal landed(player: PlayerController, max_velocity: float, delta: float)
 signal reloaded(player: PlayerController)
 signal equipped(player: PlayerController, what: Item)
 signal unequiped(player: PlayerController, what: Item)
-signal insert_ammofeed(player: PlayerController)
-signal check_ammofeed(player: PlayerController, ammofeed: AmmoFeed)
+signal insert_ammo_feed(player: PlayerController)
+signal check_ammo_feed(player: PlayerController, ammo_feed: AmmoFeed)
 signal debug(player: PlayerController, text: String)
 
 # ─── REFERENCES ────────────────────────────────────
@@ -225,9 +225,9 @@ func _on_state_exited_firing(state: String):
     RELOADING:
       if current_weapon:
         if reload_timer.time_left == 0:
-          insert_ammofeed.emit(self)
+          insert_ammo_feed.emit(self)
         else:
-          check_ammofeed.emit(self, current_weapon.ammofeed)
+          check_ammo_feed.emit(self, current_weapon.ammo_feed)
       reload_timer.stop()
 
 

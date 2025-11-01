@@ -27,7 +27,7 @@ func _run():
   ammo.caliber = "5.56x45mm"
   ammo.cartridge_mass = 0.012
   feed.insert(ammo)
-  weapon.ammofeed = feed
+  weapon.ammo_feed = feed
   check(weapon.can_fire, "Can fire with ammo")
 
   # Test mass

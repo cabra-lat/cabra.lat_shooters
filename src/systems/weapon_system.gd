@@ -13,10 +13,10 @@ static func pull_trigger(weapon: Weapon) -> bool:
   print("  firemode: ", weapon.get_firemode_name())
   print("  semi_control: ", weapon.semi_control)
   print("  chambered_round: ", weapon.chambered_round)
-  print("  ammofeed: ", weapon.ammofeed)
-  if weapon.ammofeed:
-    print("  ammofeed remaining: ", weapon.ammofeed.capacity)
-    print("  ammofeed is_empty: ", weapon.ammofeed.is_empty())
+  print("  ammo_feed: ", weapon.ammo_feed)
+  if weapon.ammo_feed:
+    print("  ammo_feed remaining: ", weapon.ammo_feed.capacity)
+    print("  ammo_feed is_empty: ", weapon.ammo_feed.is_empty())
 
   if not _can_fire(weapon):
     print("DEBUG: _can_fire returned FALSE")
@@ -31,9 +31,9 @@ static func pull_trigger(weapon: Weapon) -> bool:
     round_to_fire = weapon.chambered_round
     weapon.chambered_round = null
     print("DEBUG: Using chambered round: ", round_to_fire.name)
-  elif weapon.ammofeed and not weapon.ammofeed.is_empty():
-    round_to_fire = weapon.ammofeed.eject()
-    print("DEBUG: Ejected round from ammofeed: ", round_to_fire.name if round_to_fire else "null")
+  elif weapon.ammo_feed and not weapon.ammo_feed.is_empty():
+    round_to_fire = weapon.ammo_feed.eject()
+    print("DEBUG: Ejected round from ammo_feed: ", round_to_fire.name if round_to_fire else "null")
 
   if not round_to_fire:
     print("DEBUG: No round to fire available")
@@ -49,8 +49,8 @@ static func pull_trigger(weapon: Weapon) -> bool:
   weapon.cartridge_fired.emit(weapon, round_to_fire)
 
   # Auto-chamber next round for automatic weapons
-  if weapon.is_automatic() and weapon.ammofeed and not weapon.ammofeed.is_empty():
-    weapon.chambered_round = weapon.ammofeed.eject()
+  if weapon.is_automatic() and weapon.ammo_feed and not weapon.ammo_feed.is_empty():
+    weapon.chambered_round = weapon.ammo_feed.eject()
     print("DEBUG: Auto-chambered next round: ", weapon.chambered_round.name)
 
   # Eject shell for non-revolver systems
@@ -70,46 +70,46 @@ static func release_trigger(weapon: Weapon) -> void:
 
 static func cycle_weapon(weapon: Weapon) -> void:
   if not weapon: return
-  if not weapon.is_cycled and weapon.ammofeed and not weapon.ammofeed.is_empty():
-    weapon.chambered_round = weapon.ammofeed.eject()
+  if not weapon.is_cycled and weapon.ammo_feed and not weapon.ammo_feed.is_empty():
+    weapon.chambered_round = weapon.ammo_feed.eject()
     weapon.is_cycled = true
     weapon.cartridge_inserted.emit(weapon, weapon.chambered_round)
 
 static func insert_cartridge(weapon: Weapon, new_cartridge: Ammo) -> void:
   if not weapon: return
   if weapon.feed_type != AmmoFeed.Type.INTERNAL:
-    weapon.ammofeed_incompatible.emit(weapon, new_cartridge)
+    weapon.ammo_feed_incompatible.emit(weapon, new_cartridge)
     return
   if not weapon.chambered_round:
     weapon.chambered_round = new_cartridge
     weapon.cartridge_inserted.emit(weapon, new_cartridge)
-  elif weapon.ammofeed:
-    weapon.ammofeed.insert(new_cartridge)
+  elif weapon.ammo_feed:
+    weapon.ammo_feed.insert(new_cartridge)
 
 static func change_magazine(weapon: Weapon, new_magazine: AmmoFeed) -> bool:
   if weapon.feed_type == AmmoFeed.Type.INTERNAL or new_magazine.type != weapon.feed_type:
-    weapon.ammofeed_incompatible.emit(weapon, new_magazine)
+    weapon.ammo_feed_incompatible.emit(weapon, new_magazine)
     return false
 
   var caliber_compatible = false
-  if weapon.ammofeed:
+  if weapon.ammo_feed:
     for caliber in new_magazine.compatible_calibers:
-      if weapon.ammofeed.compatible_calibers.has(caliber):
+      if weapon.ammo_feed.compatible_calibers.has(caliber):
         caliber_compatible = true
         break
   else:
     caliber_compatible = not new_magazine.compatible_calibers.is_empty()
 
   if not caliber_compatible:
-    weapon.ammofeed_incompatible.emit(weapon, new_magazine)
+    weapon.ammo_feed_incompatible.emit(weapon, new_magazine)
     return false
 
-  var old_magazine = weapon.ammofeed
-  weapon.ammofeed = new_magazine.duplicate()
-  if weapon.ammofeed and not weapon.ammofeed.is_empty():
-    weapon.chambered_round = weapon.ammofeed.eject()
+  var old_magazine = weapon.ammo_feed
+  weapon.ammo_feed = new_magazine.duplicate()
+  if weapon.ammo_feed and not weapon.ammo_feed.is_empty():
+    weapon.chambered_round = weapon.ammo_feed.eject()
     weapon.cartridge_inserted.emit(weapon, weapon.chambered_round)
-  weapon.ammofeed_changed.emit(weapon, old_magazine, new_magazine)
+  weapon.ammo_feed_changed.emit(weapon, old_magazine, new_magazine)
   return true
 
 static func cycle_firemode(weapon: Weapon) -> void:
@@ -140,7 +140,7 @@ static func _can_fire(weapon: Weapon) -> bool:
       if not weapon.is_cycled: return false
   if weapon.chambered_round:
     return true
-  if weapon.ammofeed and not weapon.ammofeed.is_empty():
+  if weapon.ammo_feed and not weapon.ammo_feed.is_empty():
     return true
   return false
 
@@ -159,9 +159,9 @@ static func _handle_fire_failure(weapon: Weapon) -> void:
       weapon.trigger_locked.emit(weapon)
       weapon.semi_control = true
   else:
-    if (not weapon.ammofeed or weapon.ammofeed.is_empty()) and not weapon.semi_control:
-      weapon.ammofeed_empty.emit(weapon, weapon.ammofeed)
+    if (not weapon.ammo_feed or weapon.ammo_feed.is_empty()) and not weapon.semi_control:
+      weapon.ammo_feed_empty.emit(weapon, weapon.ammo_feed)
       weapon.semi_control = true
-    elif not weapon.ammofeed and not weapon.semi_control:
-      weapon.ammofeed_missing.emit(weapon)
+    elif not weapon.ammo_feed and not weapon.semi_control:
+      weapon.ammo_feed_missing.emit(weapon)
       weapon.semi_control = true
