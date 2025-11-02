@@ -62,8 +62,8 @@ enum ReticleType {
 @export_group("Laser/Light Properties")
 @export var laser_active: bool = true
 @export var light_active: bool = true
-@export var laser_range: float = 50.0
-@export var light_range: float = 100.0
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var laser_range: float = 50.0
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var light_range: float = 100.0
 
 @export_group("Magazine Properties")
 @export var capacity_multiplier: float = 1.0

@@ -163,7 +163,7 @@ func _on_drag_ended():
     print("World drop zone deactivated")
 
 func _create_world_item(item: InventoryItem):
-    var world_item = WorldItem.spawn(player_controller, item)
+    var world_item = Item3D.new() #spawn(player_controller, item)
     print("Created world item at position: %s" % world_item.global_position)
 
 # World drop zone drag handling

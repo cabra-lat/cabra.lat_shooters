@@ -23,3 +23,17 @@ static func get_priority_order() -> Array[int]:
 
 static func is_automatic(mode: int) -> bool:
   return mode == AUTO or mode == BURST
+
+static func get_initial_from_available(firemodes: int) -> int:
+  if firemodes & Firemode.SEMI:
+    return Firemode.SEMI
+  elif firemodes & Firemode.AUTO:
+    return Firemode.AUTO
+  elif firemodes & Firemode.BURST:
+    return Firemode.BURST
+  elif firemodes & Firemode.PUMP:
+    return Firemode.PUMP
+  elif firemodes & Firemode.BOLT:
+    return Firemode.BOLT
+  else:
+    return Firemode.SAFE

@@ -19,25 +19,25 @@ enum Type {
 }
 
 @export var type: Type = Type.FMJ
-@export var bullet_mass: float = 1.0     # grams
-@export var cartridge_mass: float = 1.0  # grams
-@export var muzzle_velocity: float = 1.0 # m/s
+@export_custom(PROPERTY_HINT_NONE, "suffix:g") var bullet_mass: float = 1.0     # grams
+@export_custom(PROPERTY_HINT_NONE, "suffix:g") var cartridge_mass: float = 1.0  # grams
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var muzzle_velocity: float = 1.0 # m/s
 
 # ─── ADVANCED BALLISTICS ──────────────────────────
 @export_group("Advanced Ballistics")
 @export var ballistic_coefficient: float = 0.3
-@export var bullet_length: float = 20.0         # mm
-@export var bullet_diameter: float = 7.62       # mm
-@export var sectional_density: float = 0.2      # kg/m²
+@export_custom(PROPERTY_HINT_NONE, "suffix:mm") var bullet_length: float = 20.0         # mm
+@export_custom(PROPERTY_HINT_NONE, "suffix:mm") var bullet_diameter: float = 7.62       # mm
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg/m²") var sectional_density: float = 0.2      # kg/m²
 
 # ─── PENETRATION MODEL ────────────────────────────
 @export_group("Unified Penetration Model")
-@export var reference_penetration: float = 15.0  # mm RHA at reference_distance
-@export var reference_distance: float = 100.0    # meters
-@export var penetration_at_500m: float = 8.0
+@export_custom(PROPERTY_HINT_NONE, "suffix:mmRHA") var reference_penetration: float = 15.0  # mm RHA at reference_distance
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = 100.0    # meters
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var penetration_at_500m: float = 8.0
 @export var armor_performance: float = 1.0
-@export var core_hardness: float = 300.0         # BHN
-@export var core_density: float = 7.85           # g/cm³
+@export_custom(PROPERTY_HINT_NONE, "suffix:BHN") var core_hardness: float = 300.0         # BHN
+@export_custom(PROPERTY_HINT_NONE, "suffix:g/cm³") var core_density: float = 7.85           # g/cm³
 @export var angle_performance: float = 1.0
 
 # ─── TERMINAL EFFECTS ─────────────────────────────

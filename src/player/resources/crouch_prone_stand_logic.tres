@@ -13,25 +13,25 @@ graph_offset = Vector2(0, 72.384)
 advance_mode = 2
 advance_expression = "input.crouch_held || input.crouch_toggle"
 
-[sub_resource type="AnimationNodeStateMachineTransition" id="7"]
-advance_mode = 2
-advance_expression = "input.prone_held || input.prone_toggle"
-
 [sub_resource type="AnimationNodeStateMachineTransition" id="9"]
 advance_mode = 2
 advance_expression = "input.prone_held || input.prone_toggle"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="10"]
 advance_mode = 2
-advance_expression = "input.prone_toggle || !input.prone_held"
+advance_expression = "input.unprone"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="11"]
 advance_mode = 2
-advance_expression = "input.crouch_toggle || !input.crouch_held"
+advance_expression = "input.uncrouch"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="AnimationNodeStateMachineTransition_qyqoc"]
 advance_mode = 2
 advance_expression = "true"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="7"]
+advance_mode = 2
+advance_expression = "input.prone_held || input.prone_toggle"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="8"]
 advance_mode = 2
@@ -46,6 +46,6 @@ states/Proning/position = Vector2(294, 353)
 states/Standing/node = SubResource("3")
 states/Standing/position = Vector2(146, 248)
 states/Start/position = Vector2(5.6667004, 248)
-transitions = ["Standing", "Crouching", SubResource("6"), "Crouching", "Proning", SubResource("7"), "Standing", "Proning", SubResource("9"), "Proning", "Standing", SubResource("10"), "Crouching", "Standing", SubResource("11"), "Start", "Standing", SubResource("AnimationNodeStateMachineTransition_qyqoc"), "Proning", "Crouching", SubResource("8")]
+transitions = ["Standing", "Crouching", SubResource("6"), "Standing", "Proning", SubResource("9"), "Proning", "Standing", SubResource("10"), "Crouching", "Standing", SubResource("11"), "Start", "Standing", SubResource("AnimationNodeStateMachineTransition_qyqoc"), "Crouching", "Proning", SubResource("7"), "Proning", "Crouching", SubResource("8")]
 graph_offset = Vector2(-68, 118.121994)
 script = SubResource("1")

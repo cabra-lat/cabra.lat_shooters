@@ -1,12 +1,12 @@
 # res://test/gameplay/world_item.gd
 @tool
-class_name TestWorldItem extends EditorScript
+class_name TestItem3D extends EditorScript
 
 func _run():
-  print("🧪 Testing WorldItem...")
+  print("🧪 Testing Item3D...")
 
   # Create world item
-  var world_item = WorldItem.new()
+  var world_item = Item3D.new()
   var ammo = Ammo.create_test_ammo()
   var inventory_item = InventorySystem.create_inventory_item(ammo, 5)
   world_item.inventory_item = inventory_item
@@ -19,7 +19,7 @@ func _run():
   check(success, "Should pick up item from world")
   check(player.backpack.items.size() == 1, "Backpack should contain item")
 
-  print("✅ WorldItem tests passed!")
+  print("✅ Item3D tests passed!")
 
 func _create_mock_player() -> PlayerController:
   var player = PlayerController.new()

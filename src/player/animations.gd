@@ -3,13 +3,14 @@ class_name PlayerAnimations extends AnimationPlayer
 static func _on_player_aimed(player: PlayerController, reverse: bool = false) -> void:
   var tween = player.create_tween()
   var duration = player.config.aim_time
-  var change_middle = 0.0 if not reverse else 0.117
-  tween.tween_property(player.shoulder, "position:x", change_middle, duration)
+  var difference = Vector2(-player.shoulder.position.x, 0.0)
+  var change_middle = difference.x if not reverse else 0.0
 
-  var change_height = -0.117 + 0.117 / 4 if not reverse else -0.117
-  tween.tween_property(player.hand, "position:y", change_height, duration)
-
-  print("_on_player_aiming: ", reverse, change_middle, duration, tween)
+  tween.set_parallel(true)
+  tween.tween_property(player.hand,  "position:x", change_middle, duration)
+  tween.tween_property(player.thumb, "position:x", change_middle, duration)
+  tween.tween_property(player.other_hand, "position:x", change_middle, duration)
+  tween.tween_property(player.other_thumb, "position:x", change_middle, duration)
 
 static func _on_player_crouched(player: PlayerController, reverse: bool = false) -> void:
   var tween = player.create_tween()
@@ -36,6 +37,7 @@ static func _on_player_focused(player: PlayerController, reverse: bool = false) 
   var duration = player.config.aim_time
   var change = player.config.aim_focused_fov if not reverse else player.config.aim_fov
   tween.tween_property(player.camera, "fov", change, duration)
+
 
 static func apply_recoil(player: PlayerController, weapon: Weapon) -> void:
   var tween = player.create_tween()

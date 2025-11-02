@@ -58,13 +58,12 @@ autostart = true
 layout_mode = 1
 anchors_preset = 9
 anchor_bottom = 1.0
-offset_right = 638.2973
+offset_right = 409.2973
 grow_vertical = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_efote")
 bbcode_enabled = true
 text = "No State"
 fit_content = true
-horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="GameLog" type="TextEdit" parent="."]

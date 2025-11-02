@@ -20,7 +20,7 @@ const LEANING_LEFT = "LeaningLeft"
 const RELOADING = "Reloading"
 const SPRINTING = "Sprinting"
 const WALKING = "Walking"
-
+const VIEW_MODEL_NAME = "WeaponModel"
 var debug_text: String = ""
 
 # ─── SIGNALS ───────────────────────────────────────────────────────────────────
@@ -55,8 +55,10 @@ signal debug(player: PlayerController, text: String)
 @onready var head: Node3D = %Head
 @onready var camera: Camera3D = %Camera3D
 @onready var shoulder: Node3D = %Shoulder
-@onready var hand: Node3D = %Hand
-@onready var weapon_node: WeaponNode = %WeaponNode
+@onready var hand: Marker3D = %Hand
+@onready var thumb: Marker3D = %Thumb
+@onready var other_hand: Marker3D = %OtherHand
+@onready var other_thumb: Marker3D = %OtherThumb
 @onready var focus_timer: Timer = %FocusTimer
 @onready var reload_timer: Timer = %ReloadTimer
 @onready var firemode_timer: Timer = %FiremodeTimer
@@ -64,13 +66,13 @@ signal debug(player: PlayerController, text: String)
 # ─── MOVEMENT VARIABLES ────────────────────────────────────────────────────────
 var max_velocity: float = 0.0
 var current_weapon: Weapon = null
+var current_hands: Item3D = null
 var current_direction: Vector3 = Vector3.ZERO
 
 # Animation targets
 var current_speed: float = 0.0
 var current_camera_height: float = 0.0
 var current_camera_fov: float = 0.0
-var current_shoulder_x: float = 0.0
 var current_head_bobbing: float = 0.0
 var current_lean_angle: float = 0.0
 var current_damping: float = 0.0
@@ -98,10 +100,8 @@ func _ready():
     inventory_ui = InventoryUI.new()
 
   # Connect equipment changes to update weapon node
-  if equipment.has_signal("equipped"):
-    equipment.equipped.connect(_on_equipment_changed)
-  if equipment.has_signal("unequiped"):
-    equipment.unequiped.connect(_on_equipment_changed)
+  equipment.equipped.connect(_on_equipment_equipped)
+  equipment.unequiped.connect(_on_equipment_unequiped)
 
   # Connect timers
   if firemode_timer and not firemode_timer.timeout.is_connected(_on_firemode_timeout):
@@ -110,9 +110,6 @@ func _ready():
     reload_timer.timeout.connect(_on_reload_timeout)
   if focus_timer and not focus_timer.timeout.is_connected(_on_focus_timeout):
     focus_timer.timeout.connect(_on_focus_timeout)
-
-  # Initial weapon setup
-  call_deferred("_update_weapon_node")
 
   # Connect state machine signals
   call_deferred("_connect_state_machine_signals")
@@ -142,25 +139,50 @@ func _connect_state_machine_signals():
         state_machine.state_changed.connect(_on_state_changed.bind(state_machine.name))
 
 # ─── EQUIPMENT HANDLING ────────────────────────────────────────────────────────
-func _on_equipment_changed(item: Item, slot_name: String):
-  _update_weapon_node()
+func _on_equipment_equipped(item: Item, slot_name: String):
+  var weapon_item = item
+  if weapon_item and weapon_item.extra is Weapon:
+    current_weapon = weapon_item.extra as Weapon
 
-func _update_weapon_node():
-  if not equipment:
+    # Setup viewmodel on hand
+    _setup_viewmodel_on_hand(current_weapon)
+
+    print("Weapon %s equipped at %s" % [current_weapon.name, slot_name ])
+
+func _on_equipment_unequiped():
+  # Remove viewmodel from hand
+  _remove_viewmodel_from_hand()
+
+func _setup_viewmodel_on_hand(weapon: Weapon):
+  if not hand:
     return
 
-  var primary = equipment.get_equipped("primary")
-  if not primary.is_empty():
-    var weapon_item = primary[0]
-    if weapon_item and weapon_item.extra is Weapon:
-      current_weapon = weapon_item.extra as Weapon
-      if weapon_node:
-        weapon_node.data = current_weapon
-      print("Weapon equipped: ", current_weapon.name)
-  else:
-    current_weapon = null
-    if weapon_node:
-      weapon_node.data = null
+  # Remove existing viewmodel
+  var old_vm = hand.get_node_or_null(VIEW_MODEL_NAME)
+  if old_vm:
+    old_vm.queue_free()
+
+  # Create new viewmodel if available
+  if weapon and weapon.view_model:
+    var new_vm = weapon.view_model.instantiate()
+    get_tree().current_scene.add_child(new_vm)
+    new_vm.name = VIEW_MODEL_NAME
+    new_vm.data = weapon
+    var attractors: Array[Marker3D] = [hand, thumb, other_hand, other_thumb]
+    new_vm.grab(attractors)
+    current_hands = new_vm
+    # Optional: Position/rotate the viewmodel to fit the hand
+    # new_vm.position = Vector3(0.1, -0.05, 0.2)
+    # new_vm.rotation_degrees = Vector3(0, 180, 0)
+
+func _remove_viewmodel_from_hand():
+  if not hand:
+    return
+
+  var old_vm = hand.get_node_or_null(VIEW_MODEL_NAME)
+  if old_vm:
+    old_vm.queue_free()
+    current_hands = null
 
 # ─── INPUT HANDLING ────────────────────────────────────────────────────────────
 func _input(event):
@@ -182,18 +204,18 @@ func _physics_process(delta: float) -> void:
   Debug.clear_category("timing")
 
   # Time entire frame
-  var frame_timer = Debug.timer("frame_total")
+  var frame_timer = Debug.timer("frame")
 
   # Time each section
-  var camera_timer = Debug.timer("camera_rotation")
+  var camera_timer = Debug.timer("camera")
   _handle_camera_rotation()
   camera_timer.call()
 
-  var movement_timer = Debug.timer("movement_direction")
+  var movement_timer = Debug.timer("move")
   _calculate_movement_direction()
   movement_timer.call()
 
-  var states_timer = Debug.timer("state_logic")
+  var states_timer = Debug.timer("state")
   _read_states_and_apply(delta)
   states_timer.call()
 
@@ -217,10 +239,10 @@ func _physics_process(delta: float) -> void:
   Debug.add("on_ground", is_on_floor(), "movement")
 
   # Add input data
-  Debug.add("raw_motion", input.motion, "input")
-  Debug.add("is_aiming", input.aim_held, "input")
-  Debug.add("is_firing", input.fire_held, "input")
-  Debug.add("is_sprinting", input.sprint_held, "input")
+  Debug.add("trying_move", input.motion, "input")
+  Debug.add("is_aim_held", input.aim_held, "input")
+  Debug.add("is_fire_held", input.fire_held, "input")
+  Debug.add("is_sprint_held", input.sprint_held, "input")
 
 
 func _handle_camera_rotation():
@@ -324,12 +346,10 @@ func _update_movement_parameters():
     head.position.y = lerp(head.position.y, current_camera_height, 0.1)
 
 func _handle_state_logic():
-  # Handle weapon visibility based on aiming state
-  if aiming and weapon_node:
-    if aiming.state == BARE_HANDED and current_weapon:
-      weapon_node.hide()
-    elif aiming.state != BARE_HANDED and current_weapon:
-      weapon_node.show()
+  # Handle sprint blocking when firing
+  if moving and firing:
+    if firing.state == TRIGGER_PULLED:
+      Input.action_release("sprint")
 
   # Handle sprint blocking when firing
   if moving and firing:
@@ -369,17 +389,6 @@ func _on_state_entered(state: String, state_machine_name: String):
       match state:
         AIMING:
           aimed.emit(self, false)
-        BARE_HANDED:
-          if not current_weapon:
-            return
-          # Spawn world item and unequip
-          var item = WorldItem.spawn(self, current_weapon)
-          if equipment:
-            equipment.unequip(item.inventory_item, "primary")
-          unequiped.emit(self, current_weapon)
-          if weapon_node:
-            weapon_node.hide()
-          current_weapon = null
         FOCUSING:
           if focus_timer and focus_timer.is_stopped():
             focused.emit(self, false)
@@ -393,11 +402,11 @@ func _on_state_entered(state: String, state_machine_name: String):
 
       match state:
         TRIGGER_PULLED:
-          if weapon_node:
-            weapon_node.pull_trigger()
+          if current_hands is Weapon3D:
+            current_hands.pull_trigger()
         TRIGGER_RELEASED:
-          if weapon_node:
-            weapon_node.release_trigger()
+          if current_hands is Weapon3D:
+            current_hands.release_trigger()
         CHANGING_MODE:
           if firemode_timer and firemode_timer.is_stopped():
             firemode_timer.start()
@@ -422,7 +431,7 @@ func _on_state_entered(state: String, state_machine_name: String):
           leaned.emit(self, 1)
         NOT_LEANING:
           leaned.emit(self, 0)
-    _: print(state_machine_name)
+
 func _on_state_exited(state: String, state_machine_name: String):
   print("State exited: ", state_machine_name, " -> ", state)
 
@@ -436,16 +445,6 @@ func _on_state_exited(state: String, state_machine_name: String):
 
     "Aiming":
       match state:
-        BARE_HANDED:
-          if not equipment:
-            return
-          var primary = equipment.get_equipped("primary")
-          if not primary.is_empty():
-            current_weapon = primary[0].extra as Weapon
-            if weapon_node:
-              weapon_node.data = current_weapon
-              weapon_node.show()
-            equipped.emit(self, current_weapon)
         FOCUSING:
           focused.emit(self, true)
           if focus_timer:
@@ -454,20 +453,14 @@ func _on_state_exited(state: String, state_machine_name: String):
     "Firing":
       match state:
         CHANGING_MODE:
-          if current_weapon:
-            if firemode_timer and firemode_timer.time_left == 0:
-              current_weapon.safe_firemode()
-            else:
+          if current_weapon and firemode_timer:
+            if firemode_timer.time_left != 0:
               WeaponSystem.cycle_firemode(current_weapon)
-          if firemode_timer:
             firemode_timer.stop()
         RELOADING:
-          if current_weapon:
-            if reload_timer and reload_timer.time_left == 0:
-              insert_ammo_feed.emit(self)
-            else:
+          if current_weapon and reload_timer:
+            if reload_timer.time_left != 0:
               check_ammo_feed.emit(self, current_weapon.ammo_feed)
-          if reload_timer:
             reload_timer.stop()
 
     "Moving":
@@ -482,19 +475,23 @@ func _on_state_changed(new_state: String, old_state: String, state_machine_name:
     match [old_state, new_state]:
       [AIMING, IDLE]:
         aimed.emit(self, true)
+      [ BARE_HANDED, _ ]:
+        pass
+      [ _, BARE_HANDED ]:
+        if old_state != "" and current_hands:
+          current_hands.throw(-global_basis.z.normalized())
+          current_hands.top_level = true
+          current_hands = null
 
 # ─── TIMER HANDLERS ────────────────────────────────────────────────────────────
 func _on_firemode_timeout():
-  Input.action_release("firemode")
-  WeaponSystem.cycle_firemode(current_weapon)
+  current_weapon.safe_firemode()
 
 func _on_reload_timeout():
-  Input.action_release("reload")
-  if current_weapon:
-    insert_ammo_feed.emit(self)
+  insert_ammo_feed.emit(self)
 
 func _on_focus_timeout():
-  Input.action_release("focus")
+  pass
 
 # ─── PUBLIC METHODS ────────────────────────────────────────────────────────────
 func get_camera_basis() -> Basis:

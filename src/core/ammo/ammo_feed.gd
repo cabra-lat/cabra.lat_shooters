@@ -13,10 +13,10 @@ enum Type {
 
 @export_multiline var description: String = "This Ammofeed is the default one."
 @export var type: Type = Type.INTERNAL
-@export var empty_mass: float = 0.0
+@export_custom(PROPERTY_HINT_NONE, "suffix:g") var empty_mass: float = 0.0
 @export var compatible_calibers: PackedStringArray = []
-@export var bore_tolerance: float = 0.1
-@export var case_tolerance: float = 1.0
+@export_custom(PROPERTY_HINT_NONE, "suffix:mm") var bore_tolerance: float = 0.1
+@export_custom(PROPERTY_HINT_NONE, "suffix:mm") var case_tolerance: float = 1.0
 @export var strict_mode: bool = false
 
 func get_mass() -> float:

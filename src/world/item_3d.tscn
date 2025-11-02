@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://4fpsqv2ujg4p"]
 
-[ext_resource type="Script" uid="uid://xe0reik2e07u" path="res://addons/cabra.lat_shooters/src/gameplay/world_item.gd" id="1_dv1vi"]
-[ext_resource type="Shader" uid="uid://bvhcokwg5ipgy" path="res://shaders/pixel_perfect_outline.gdshader" id="2_ehggf"]
+[ext_resource type="Script" uid="uid://xe0reik2e07u" path="res://addons/cabra.lat_shooters/src/world/item_3d.gd" id="1_dv1vi"]
+[ext_resource type="Shader" uid="uid://sb5ew6jttbo7" path="res://addons/cabra.lat_interactions/shaders/pixel_perfect_outline.gdshader" id="2_ehggf"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ehggf"]
 render_priority = 0
@@ -9,7 +9,7 @@ shader = ExtResource("2_ehggf")
 shader_parameter/outline_color = Color(1, 1, 1, 1)
 shader_parameter/outline_width = 1.0
 
-[node name="WorldItem" type="Node3D"]
+[node name="Item3D" type="Node3D"]
 script = ExtResource("1_dv1vi")
 outline_material = SubResource("ShaderMaterial_ehggf")
 

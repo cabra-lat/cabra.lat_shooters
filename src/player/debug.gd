@@ -180,14 +180,14 @@ func _format_section(title: String, color_key: String) -> String:
 
 func _format_fps() -> String:
   if _frame_history.is_empty():
-    return "FPS: N/A\n"
+    return "  FPS: N/A\n"
 
   var current_fps = _frame_history[-1]
   var avg_fps = _calculate_average(_frame_history)
   var min_fps = _frame_history.min()
   var max_fps = _frame_history.max()
 
-  return "FPS: %d (Avg: %d, Min: %d, Max: %d)\n" % [current_fps, avg_fps, min_fps, max_fps]
+  return "  FPS: %d (Avg: %d, Min: %d, Max: %d)\n" % [current_fps, avg_fps, min_fps, max_fps]
 
 func _format_timings() -> String:
   var text = ""
@@ -200,7 +200,7 @@ func _format_timings() -> String:
     var average = _calculate_average(times)
     var max_time = times.max()
 
-    text += "%s: %.2fms (Avg: %.2fms, Max: %.2fms)\n" % [key, current, average, max_time]
+    text += "  %s: %.2fms (Avg: %.2fms, Max: %.2fms)\n" % [key, current, average, max_time]
 
   return text
 

@@ -70,25 +70,18 @@ var recoil_vertical: float: get = get_current_recoil_vertical
 var recoil_horizontal: float: get = get_current_recoil_horizontal
 var recoil_tilt: float: get = get_current_recoil_tilt
 var recoil_kick: float: get = get_current_recoil_kick
-var can_fire: bool: get = _can_fire
+var can_fire: bool:
+  get:
+    return WeaponSystem.can_fire(self)
+
 var cycle_time: float:
   get: return (60.0 / firerate)
 
 # ─── INIT ──────────────────────────────────────────
 func _init():
-  if firemodes & Firemode.SEMI:
-    firemode = Firemode.SEMI
-  elif firemodes & Firemode.AUTO:
-    firemode = Firemode.AUTO
-  elif firemodes & Firemode.BURST:
-    firemode = Firemode.BURST
+  firemode = Firemode.get_initial_from_available(firemodes)
+  if firemode == Firemode.BURST:
     burst_counter = burst_count
-  elif firemodes & Firemode.PUMP:
-    firemode = Firemode.PUMP
-  elif firemodes & Firemode.BOLT:
-    firemode = Firemode.BOLT
-  else:
-    firemode = Firemode.SAFE
 
 # ─── ATTACHMENTS ───────────────────────────────────
 func attach_attachment(point: int, attachment: Attachment) -> bool:
@@ -132,22 +125,6 @@ func is_automatic() -> bool:
 
 func get_firemode_name() -> String:
   return Firemode.get_mode(firemode)
-
-func _can_fire() -> bool:
-  match firemode:
-    Firemode.SAFE:
-      return false
-    Firemode.SEMI:
-      if semi_control: return false
-    Firemode.BURST:
-      if burst_counter <= 0: return false
-    Firemode.PUMP, Firemode.BOLT:
-      if not is_cycled: return false
-  if chambered_round:
-    return true
-  if ammo_feed and not ammo_feed.is_empty():
-    return true
-  return false
 
 # ─── AMMO & MAGAZINE ───────────────────────────────
 func cycle_weapon() -> void:

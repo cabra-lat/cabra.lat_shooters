@@ -1,5 +1,4 @@
 # src/ui/inventory/equipment.gd
-# src/ui/inventory/equipment.gd
 class_name EquipmentUI
 extends BaseInventoryUI
 
