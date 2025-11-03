@@ -46,13 +46,25 @@ var firemodes: int = Firemode.SEMI
 # ─── BASE STATS ────────────────────────────────────
 @export var firerate: float = 600
 @export var burst_count: int = 3
-@export var base_mass: float = 3.5
+@export_custom(PROPERTY_HINT_NONE, "suffix:kg") var base_mass: float = 3.5
 @export var base_reload_time: float = 2.5
 @export var base_accuracy: float = 2.0
+
+# ─── RECOIL PHYSICS ────────────────────────────────
+@export_group("Recoil Physics")
 @export var base_recoil_vertical: float = 1.0
 @export var base_recoil_horizontal: float = 0.5
 @export var base_recoil_tilt = 1.5
 @export var base_recoil_kick = 0.04
+@export var recoil_damping_factor: float = 0.8
+@export var muzzle_rise_factor: float = 0.6
+@export var hand_transfer_factor: float = 0.7  # How much recoil transfers to hands vs body
+
+# ─── EJECTION PHYSICS ──────────────────────────────
+@export_group("Ejection Physics")
+@export var ejection_force_multiplier: float = 1.0
+@export var ejection_spin_multiplier: float = 1.0
+@export var ejection_direction: Vector3 = Vector3(0.8, 0.3, -0.5)
 
 # ─── STATE ─────────────────────────────────────────
 var firemode: int = Firemode.SAFE
@@ -61,7 +73,7 @@ var burst_counter: int = 0
 var chambered_round: Ammo = null
 var is_cycled: bool = true
 var current_durability: float = 100.0
-var attachments: Dictionary = {}  # point: Attachment
+var attachments: Dictionary = {}
 
 # ─── COMPUTED PROPERTIES ───────────────────────────
 var accuracy: float: get = get_current_accuracy
@@ -83,6 +95,84 @@ func _init():
   if firemode == Firemode.BURST:
     burst_counter = burst_count
 
+# ─── RECOIL CALCULATION METHODS ────────────────────
+func get_recoil_data(cartridge: Ammo) -> Dictionary:
+  """Calculate unified recoil forces for the weapon"""
+  if not cartridge:
+    return {}
+
+    # Base recoil impulse from cartridge (in N·s)
+  var base_impulse = cartridge.recoil_impulse
+
+    # Apply weapon-specific damping based on mass
+  var mass_damping = 1.0 / (base_mass * recoil_damping_factor * 0.1)
+  var effective_impulse = base_impulse * mass_damping
+
+    # Apply attachment modifiers
+  var recoil_multiplier = 1.0
+  for att in attachments.values():
+    recoil_multiplier *= att.recoil_modifier
+
+  effective_impulse *= recoil_multiplier
+
+    # Unified recoil pattern - mostly back, slightly up
+  var backward_component = effective_impulse * 1.0
+  var vertical_component = effective_impulse * muzzle_rise_factor * 0.6
+  var horizontal_component = effective_impulse * (1.0 - muzzle_rise_factor) * randf_range(-0.15, 0.15)
+
+    # Return forces in weapon-relative space
+  var recoil_force = Vector3(
+    horizontal_component * get_current_recoil_horizontal(),
+    vertical_component * get_current_recoil_vertical(),
+    -backward_component * get_current_recoil_kick()
+  )
+
+    # Calculate rotational forces (pitch up + some yaw)
+  var recoil_torque = Vector3(
+    -effective_impulse * get_current_recoil_tilt() * 0.4,
+    randf_range(-0.1, 0.1) * effective_impulse * 0.08,
+    randf_range(-0.05, 0.05) * effective_impulse * 0.05
+  )
+
+  return {
+    "recoil_force": recoil_force,
+    "recoil_torque": recoil_torque,
+    "total_impulse": effective_impulse
+  }
+
+func get_ejection_data(cartridge: Ammo) -> Dictionary:
+  """Calculate ejection forces for spent casing"""
+  if not cartridge:
+    return {}
+
+  var base_velocity = cartridge.ejection_velocity
+  var casing_mass = cartridge.cartridge_mass / 1000.0
+
+    # Stronger ejection for VR visibility
+  var ejection_velocity = base_velocity * ejection_force_multiplier * 2.0
+  var ejection_momentum = ejection_velocity * casing_mass
+
+    # Convert to force
+  var ejection_force = ejection_momentum / 0.01
+
+    # Ejection direction in weapon-relative space (right, up, back)
+  var ejection_direction_normalized = Vector3(1.0, 0.3, -0.2).normalized()
+
+  var final_force = ejection_direction_normalized * ejection_force
+
+    # Stronger spin for VR visibility
+  var spin_force = Vector3(
+    randf_range(-15.0, 15.0),
+    randf_range(-8.0, 8.0),
+    randf_range(-20.0, 20.0)
+  ) * casing_mass * ejection_spin_multiplier * 2.0
+
+  return {
+    "linear_force": final_force,
+    "spin_force": spin_force,
+    "casing_mass": casing_mass,
+    "ejection_direction": ejection_direction_normalized
+  }
 # ─── ATTACHMENTS ───────────────────────────────────
 func attach_attachment(point: int, attachment: Attachment) -> bool:
   if not (attach_points & point) or attachments.has(point):

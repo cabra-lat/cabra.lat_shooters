@@ -7,11 +7,6 @@ var preloaded_casings: Array[Cartridge3D] = []
 func _ready() -> void:
   super._ready()  # Call parent _ready first
   print("Magazine3D _ready called, data: ", data)
-    # If data is already set by this point, preload casings
-  if data:
-    _preload_casings()
-  else:
-    print("Magazine3D: Data not set yet, will preload when data is assigned")
 
 func _set_data(value: AmmoFeed):
   print("Magazine3D _set_data called with: ", value)

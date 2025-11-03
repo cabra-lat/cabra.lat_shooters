@@ -164,10 +164,11 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
 
   # Create new viewmodel if available
   if weapon and weapon.view_model:
-    var new_vm = weapon.view_model.instantiate()
-    get_tree().current_scene.add_child(new_vm)
+    var new_vm: Weapon3D = weapon.view_model.instantiate()
     new_vm.name = VIEW_MODEL_NAME
     new_vm.data = weapon
+    get_tree().current_scene.add_child(new_vm)
+    new_vm.global_position = hand.global_position
     var attractors: Array[Marker3D] = [hand, thumb, other_hand, other_thumb]
     new_vm.grab(attractors)
     current_hands = new_vm

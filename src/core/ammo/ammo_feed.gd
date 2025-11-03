@@ -20,9 +20,9 @@ enum Type {
 @export var strict_mode: bool = false
 
 func get_mass() -> float:
-  var total = empty_mass
+  var total = empty_mass / 1000.0
   for ammo in contents:
-    total += ammo.cartridge_mass
+    total += ammo.cartridge_mass / 1000.0
   return total
 
 func insert(ammo: Resource) -> bool:

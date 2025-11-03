@@ -1,4 +1,3 @@
-# res://src/core/ammo/ammo.gd
 class_name Ammo
 extends Item
 
@@ -8,7 +7,7 @@ extends Item
     _caliber_data = Utils.parse_caliber(value)
     caliber = value
 @export_multiline var description: String = "Generic ammunition"
-@export var shell_model: PackedScene
+@export var shell_model: PackedScene  # 3D model for the casing
 @export var shell_sound: AudioStream
 
 # ─── BALLISTIC PROPERTIES ─────────────────────────
@@ -19,9 +18,15 @@ enum Type {
 }
 
 @export var type: Type = Type.FMJ
-@export_custom(PROPERTY_HINT_NONE, "suffix:g") var bullet_mass: float = 1.0     # grams
-@export_custom(PROPERTY_HINT_NONE, "suffix:g") var cartridge_mass: float = 1.0  # grams
-@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var muzzle_velocity: float = 1.0 # m/s
+@export_custom(PROPERTY_HINT_NONE, "suffix:g") var bullet_mass: float = 8.0     # grams
+@export_custom(PROPERTY_HINT_NONE, "suffix:g") var cartridge_mass: float = 12.0  # grams
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var muzzle_velocity: float = 360.0 # m/s
+
+# ─── RECOIL & EJECTION PHYSICS ────────────────────
+@export_group("Recoil Physics")
+@export_custom(PROPERTY_HINT_NONE, "suffix:g") var propellant_mass: float = 0.4  # grams
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var gas_velocity: float = 1200.0  # m/s
+@export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var ejection_velocity: float = 5.0  # m/s
 
 # ─── ADVANCED BALLISTICS ──────────────────────────
 @export_group("Advanced Ballistics")
@@ -51,7 +56,7 @@ enum Type {
 @export var accuracy: float = 1.0  # mm R50 at 300m
 
 func get_mass() -> float:
-  return cartridge_mass
+  return cartridge_mass / 1000.0  # Convert grams to kg
 
 # ─── INTERNAL STATE ───────────────────────────────
 var _caliber_data: Dictionary = {}
@@ -61,10 +66,11 @@ var cross_sectional_area: float:
   get: return PI * pow(bullet_diameter / 2000.0, 2)  # m²
 
 var kinetic_energy: float:
-  get: return Utils.bullet_energy(bullet_mass, muzzle_velocity)
+  get:
+    return Utils.bullet_energy(bullet_mass / 1000.0, muzzle_velocity)  # Convert to kg
 
 var momentum: float:
-  get: return (bullet_mass / 1000.0) * muzzle_velocity
+  get: return (bullet_mass / 1000.0) * muzzle_velocity  # Convert to kg
 
 var bore_mm: float:
   get: return _caliber_data.get("bore_mm", bullet_diameter)
@@ -72,84 +78,107 @@ var bore_mm: float:
 var case_mm: float:
   get: return _caliber_data.get("case_mm", 0.0)
 
+# Computed property for automatic recoil calculation
+var recoil_impulse: float:
+  get:
+        # Recoil impulse = bullet momentum + gas momentum
+        # All masses in kg, velocities in m/s
+    var bullet_momentum = (bullet_mass / 1000.0) * muzzle_velocity  # kg·m/s
+    var gas_momentum = (propellant_mass / 1000.0) * gas_velocity * 1.5  # Factor for gas expansion
+    return bullet_momentum + gas_momentum
+
 # ─── INIT ─────────────────────────────────────────
-func _init(mass: float = 1.0, speed: float = 1.0, ammo_type: Type = Type.FMJ) -> void:
+func _init(mass: float = 8.0, speed: float = 360.0, ammo_type: Type = Type.FMJ) -> void:
   bullet_mass = mass
   muzzle_velocity = speed
   type = ammo_type
   _caliber_data = Utils.parse_caliber(caliber)
 
-# ─── PHYSICS METHODS ──────────────────────────────
-func get_energy() -> float:
-  return Utils.bullet_energy(bullet_mass, muzzle_velocity)
-
-func get_velocity_at_range(distance: float) -> float:
-  var drag_factor = ballistic_coefficient * distance / 1000.0
-  return muzzle_velocity * exp(-drag_factor)
-
-func get_energy_at_range(distance: float) -> float:
-  var v = get_velocity_at_range(distance)
-  return Utils.bullet_energy(bullet_mass, v)
-
-func get_ballistic_drop(distance: float, zero_range: float = 100.0, gravity: float = 9.81) -> float:
-  var time = distance / muzzle_velocity
-  var drop = 0.5 * gravity * pow(time, 2)
-  var zero_time = zero_range / muzzle_velocity
-  var zero_drop = 0.5 * gravity * pow(zero_time, 2)
-  return drop - zero_drop
-
-func should_ricochet(impact_angle: float, surface_hardness: float = 1.0) -> bool:
-  var base_chance = ricochet_chance * surface_hardness
-  var angle_factor = 1.0 - (impact_angle / ricochet_angle)
-  return randf() < (base_chance * angle_factor)
-
-func should_fragment(impact_energy: float, target_hardness: float = 1.0) -> int:
-  var energy_threshold = get_energy() * 0.3
-  if impact_energy < energy_threshold:
-    return 0
-  var effective_chance = fragment_chance * (impact_energy / get_energy())
-  if randf() < effective_chance:
-    return int(randf() * 10.0)
-  return 0
-
-func is_deforming() -> bool:
-  return type in [Type.JHP, Type.HOLLOW_POINT, Type.JSP, Type.SLUG, Type.FRAGMENTATION, Type.FSP]
-
 # ─── FACTORY METHODS ──────────────────────────────
-static func create_test_ammo() -> Ammo:
+static func create_9mm_ammo() -> Ammo:
   var a = Ammo.new()
+  a.name = "9x19mm Parabellum"
   a.caliber = "9mm"
   a.type = Ammo.Type.FMJ
   a.bullet_mass = 8.0
+  a.cartridge_mass = 12.0
   a.muzzle_velocity = 360.0
-  a.armor_modifier = 1.0
-  a.flesh_modifier = 1.0
-  a.ricochet_chance = 0.1
-  a.accuracy = 2.0
+  a.propellant_mass = 0.4
+  a.gas_velocity = 1200.0
+  a.ejection_velocity = 5.0
   return a
 
+static func create_556_ammo() -> Ammo:
+  var a = Ammo.new()
+  a.name = "5.56x45mm NATO"
+  a.caliber = "5.56x45mm"
+  a.type = Ammo.Type.FMJ
+  a.bullet_mass = 4.0
+  a.cartridge_mass = 12.0
+  a.muzzle_velocity = 940.0
+  a.propellant_mass = 1.6
+  a.gas_velocity = 1400.0
+  a.ejection_velocity = 6.0
+  return a
+
+static func create_762x39_ammo() -> Ammo:
+  var a = Ammo.new()
+  a.name = "7.62x39mm"
+  a.caliber = "7.62x39mm"
+  a.type = Ammo.Type.FMJ
+  a.bullet_mass = 8.0
+  a.cartridge_mass = 16.0
+  a.muzzle_velocity = 720.0
+  a.propellant_mass = 1.2
+  a.gas_velocity = 1300.0
+  a.ejection_velocity = 5.5
+  return a
+
+static func create_308_ammo() -> Ammo:
+  var a = Ammo.new()
+  a.name = "7.62x51mm NATO"
+  a.caliber = "7.62x51mm"
+  a.type = Ammo.Type.FMJ
+  a.bullet_mass = 9.5
+  a.cartridge_mass = 24.0
+  a.muzzle_velocity = 860.0
+  a.propellant_mass = 2.4
+  a.gas_velocity = 1400.0
+  a.ejection_velocity = 6.5
+  return a
+
+static func create_12g_buckshot() -> Ammo:
+  var a = Ammo.new()
+  a.name = "12 Gauge Buckshot"
+  a.caliber = "12 Gauge"
+  a.type = Ammo.Type.BUCKSHOT
+  a.bullet_mass = 32.0
+  a.cartridge_mass = 40.0
+  a.muzzle_velocity = 400.0
+  a.propellant_mass = 2.0
+  a.gas_velocity = 1100.0
+  a.ejection_velocity = 7.0
+  return a
+
+static func create_test_ammo() -> Ammo:
+  return create_9mm_ammo()
+
 static func create_jhp_ammo() -> Ammo:
-  var a = create_test_ammo()
+  var a = create_9mm_ammo()
   a.type = Ammo.Type.JHP
+  a.name = "9mm JHP"
   a.flesh_modifier = 1.4
   a.armor_modifier = 0.4
   return a
 
 static func create_ap_ammo() -> Ammo:
-  var a = Ammo.new()
+  var a = create_556_ammo()
   a.type = Ammo.Type.AP
-  a.name = "5.56x45mm Armor Piercing 3 (M995)"
-  a.caliber = "5.56x45mm"
+  a.name = "5.56x45mm Armor Piercing (M995)"
   a.description = "Tungsten carbide core for hard target penetration."
-  a.bullet_mass = 3.4
-  a.muzzle_velocity = 1030.0
+  a.armor_modifier = 2.0
+  a.flesh_modifier = 0.8
   return a
 
 static func create_test_shotgun_ammo() -> Ammo:
-  var a = Ammo.new()
-  a.name = "Test Buckshot"
-  a.caliber = "12 Gauge"
-  a.type = Ammo.Type.BUCKSHOT
-  a.bullet_mass = 32.0
-  a.muzzle_velocity = 400.0
-  return a
+  return create_12g_buckshot()
