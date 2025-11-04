@@ -1,6 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://bxlbq0drdtji4"]
+[gd_scene load_steps=6 format=3 uid="uid://bxlbq0drdtji4"]
 
 [ext_resource type="Script" uid="uid://c3c54enfd85t5" path="res://addons/cabra.lat_shooters/src/ui/hud/debug_hud.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kfrbw"]
+bg_color = Color(0, 0, 0, 0.20784314)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_efote"]
 bg_color = Color(0, 0, 0, 0.62352943)
@@ -60,7 +63,7 @@ anchors_preset = 9
 anchor_bottom = 1.0
 offset_right = 409.2973
 grow_vertical = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_efote")
+theme_override_styles/normal = SubResource("StyleBoxFlat_kfrbw")
 bbcode_enabled = true
 text = "No State"
 fit_content = true

@@ -8,9 +8,7 @@ static func _on_player_aimed(player: PlayerController, reverse: bool = false) ->
 
   tween.set_parallel(true)
   tween.tween_property(player.hand,  "position:x", change_middle, duration)
-  tween.tween_property(player.thumb, "position:x", change_middle, duration)
   tween.tween_property(player.other_hand, "position:x", change_middle, duration)
-  tween.tween_property(player.other_thumb, "position:x", change_middle, duration)
 
 static func _on_player_crouched(player: PlayerController, reverse: bool = false) -> void:
   var tween = player.create_tween()

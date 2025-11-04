@@ -1,17 +1,24 @@
-@icon("../assets/grabbable.svg")
 class_name Weapon3D
 extends Item3D
 
 const EJECTION_POINT_NAME = "EjectionPoint"
 const MAGAZINE_ATTACHMENT_POINT = "MagazinePoint"
+const MUZZLE_ATTACHMENT_POINT = "MuzzlePoint"
 
 var firerate_timer: Timer
 var casing_ejection: bool = true
 var magazine_3d: Magazine3D = null
 
+# Muzzle flash system
+var muzzle_flash_effect: MuzzleFlash3D
+var is_muzzle_flash_playing: bool = false
+
 # Recoil system
 var is_applying_recoil: bool = false
 var recoil_cooldown_timer: Timer
+
+# Preloading optimization
+var muzzle_flash_ready: bool = false
 
 func _ready():
   firerate_timer = Timer.new()
@@ -24,7 +31,54 @@ func _ready():
   recoil_cooldown_timer.one_shot = true
   add_child(recoil_cooldown_timer)
 
+  # Initialize muzzle flash system immediately
+  _setup_muzzle_flash()
+
   super._ready()
+
+func _setup_muzzle_flash():
+  muzzle_flash_effect = MuzzleFlash3D.new()
+
+  # Direction
+  muzzle_flash_effect.emission_direction = Vector3(0, 0, -1)
+  muzzle_flash_effect.spread_degrees = 20.0
+
+  var muzzle_point = get_node_or_null(MUZZLE_ATTACHMENT_POINT)
+  if muzzle_point:
+    muzzle_point.add_child(muzzle_flash_effect)
+  else:
+    add_child(muzzle_flash_effect)
+    muzzle_flash_effect.position = Vector3(0, 0, -0.5)
+
+  # Mark as ready after one frame to ensure setup is complete
+  _mark_muzzle_flash_ready()
+
+func _mark_muzzle_flash_ready():
+  muzzle_flash_ready = true
+
+func _play_muzzle_flash():
+  """Play enhanced muzzle flash - optimized for immediate response"""
+  if not muzzle_flash_effect or is_muzzle_flash_playing or not muzzle_flash_ready:
+    return
+
+  is_muzzle_flash_playing = true
+
+  var weapon_data = data as Weapon
+  var flash_size = 1.0
+
+  # Apply suppressor reduction
+  var muzzle_attachment = weapon_data.get_attachment(Weapon.AttachmentPoint.MUZZLE)
+  if muzzle_attachment:
+    flash_size *= (1.0 - muzzle_attachment.flash_suppression)
+
+  muzzle_flash_effect.play_flash(flash_size)
+
+  # Non-blocking timer to reset flag
+  var timer = get_tree().create_timer(0.12)  # Slightly shorter
+  timer.timeout.connect(_on_muzzle_flash_finished)
+
+func _on_muzzle_flash_finished():
+  is_muzzle_flash_playing = false
 
 func _set_data(value: Weapon):
     if data is Weapon:
@@ -44,20 +98,17 @@ func _setup_magazine():
     if data and (data as Weapon).ammo_feed:
         var weapon_data = data as Weapon
 
-        var point_A = get_node_or_null(MAGAZINE_ATTACHMENT_POINT + 'A')
-        var point_B = get_node_or_null(MAGAZINE_ATTACHMENT_POINT + 'B')
-        var point_C = get_node_or_null(MAGAZINE_ATTACHMENT_POINT + 'C')
+        var attachment_point = get_node_or_null(MAGAZINE_ATTACHMENT_POINT)
 
-        if not point_A or not point_B or not point_C:
+        if not attachment_point:
             return
 
         magazine_3d = weapon_data.ammo_feed.view_model.instantiate()
         if magazine_3d:
             magazine_3d.data = weapon_data.ammo_feed
             add_child(magazine_3d)
-            magazine_3d.position = 0.5 * (point_A.position + point_B.position)
-            var attractors: Array[Marker3D] = [ point_A, point_B, point_C ]
-            magazine_3d.grab(attractors)
+            magazine_3d.position = attachment_point.position
+            magazine_3d.grab_single(attachment_point)
 
 func _remove_magazine_3d():
     if magazine_3d and is_instance_valid(magazine_3d):
@@ -77,6 +128,9 @@ func _disconnect_weapon_signals(weapon: Weapon):
 func _on_weapon_shell_ejected(weapon: Weapon, cartridge: Ammo):
   if not casing_ejection:
     return
+
+  # Play muzzle flash when firing
+  _play_muzzle_flash()
 
   # Get or create casing
   var casing: Cartridge3D = null

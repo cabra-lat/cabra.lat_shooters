@@ -56,9 +56,7 @@ signal debug(player: PlayerController, text: String)
 @onready var camera: Camera3D = %Camera3D
 @onready var shoulder: Node3D = %Shoulder
 @onready var hand: Marker3D = %Hand
-@onready var thumb: Marker3D = %Thumb
 @onready var other_hand: Marker3D = %OtherHand
-@onready var other_thumb: Marker3D = %OtherThumb
 @onready var focus_timer: Timer = %FocusTimer
 @onready var reload_timer: Timer = %ReloadTimer
 @onready var firemode_timer: Timer = %FiremodeTimer
@@ -169,12 +167,9 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
     new_vm.data = weapon
     get_tree().current_scene.add_child(new_vm)
     new_vm.global_position = hand.global_position
-    var attractors: Array[Marker3D] = [hand, thumb, other_hand, other_thumb]
+    var attractors: Array[Marker3D] = [hand, other_hand]
     new_vm.grab(attractors)
     current_hands = new_vm
-    # Optional: Position/rotate the viewmodel to fit the hand
-    # new_vm.position = Vector3(0.1, -0.05, 0.2)
-    # new_vm.rotation_degrees = Vector3(0, 180, 0)
 
 func _remove_viewmodel_from_hand():
   if not hand:

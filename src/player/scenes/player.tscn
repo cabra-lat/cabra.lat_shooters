@@ -1,9 +1,9 @@
-[gd_scene load_steps=18 format=4 uid="uid://ly33hk8t667t"]
+[gd_scene load_steps=19 format=4 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
 [ext_resource type="Shader" uid="uid://dje55noqqcouo" path="res://shaders/psx/psx_lit.gdshader" id="2_4275n"]
 [ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="3_gsogp"]
-[ext_resource type="Texture2D" uid="uid://djhelv56vptav" path="res://assets/models/weapon_ak47/AK-47TextureMap.png" id="3_y0q3g"]
+[ext_resource type="Texture2D" uid="uid://djhelv56vptav" path="res://assets/models/weapon_ak47/ak47_original.png" id="3_y0q3g"]
 [ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="4_a20rg"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/resources/moving_logic.tres" id="4_gsogp"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="5_4275n"]
@@ -16,7 +16,12 @@
 [sub_resource type="BoxShape3D" id="BoxShape3D_4275n"]
 size = Vector3(0.8, 1.7, 0.8)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4275n"]
+transparency = 1
+albedo_color = Color(1, 0.54509807, 1, 0.53333336)
+
 [sub_resource type="SphereMesh" id="SphereMesh_4275n"]
+material = SubResource("StandardMaterial3D_4275n")
 radius = 0.025
 height = 0.05
 
@@ -80,40 +85,32 @@ fov = 46.0
 near = 0.01
 far = 937.3
 
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Camera3D"]
+mesh = SubResource("SphereMesh_4275n")
+
 [node name="Shoulder" type="Marker3D" parent="Head"]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.09, -0.024, 0.269)
 
-[node name="Hand" type="Marker3D" parent="Head/Shoulder"]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.11607647, -0.41298082)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Shoulder/Hand"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Shoulder"]
 mesh = SubResource("SphereMesh_4275n")
 
+[node name="Hand" type="Marker3D" parent="Head/Shoulder"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.07014716, -0.441)
+
 [node name="GUN" type="MeshInstance3D" parent="Head/Shoulder/Hand"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0072239637, -0.0055315793)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.07338059, 0.02248761)
 visible = false
 mesh = SubResource("ArrayMesh_4275n")
 skeleton = NodePath("")
 
-[node name="Thumb" type="Marker3D" parent="Head/Shoulder"]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.035471916, -0.441)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Shoulder/Thumb"]
-mesh = SubResource("SphereMesh_4275n")
-
-[node name="OtherThumb" type="Marker3D" parent="Head/Shoulder"]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.033397436, -0.84656036)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Shoulder/OtherThumb"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Shoulder/Hand"]
 mesh = SubResource("SphereMesh_4275n")
 
 [node name="OtherHand" type="Marker3D" parent="Head/Shoulder"]
 unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.033397436, -0.79211664)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06991124, -0.792)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Shoulder/OtherHand"]
 mesh = SubResource("SphereMesh_4275n")
