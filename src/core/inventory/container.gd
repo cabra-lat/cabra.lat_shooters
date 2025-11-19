@@ -7,8 +7,8 @@ signal item_removed(item: InventoryItem)
 signal item_moved(item: InventoryItem, from_pos: Vector2i, to_pos: Vector2i)
 signal container_changed
 
-@export var grid_width: int = 999
-@export var grid_height: int = 999
+@export var grid_width: int = 15
+@export var grid_height: int = 15
 @export var max_weight: float = 100.0
 @export var is_open: bool = true
 

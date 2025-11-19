@@ -20,6 +20,11 @@ var data: set = _set_data, get = _get_data  # Generic data resource (Weapon, Amm
 var physics_timer: Timer
 var _is_physics_enabled: bool = false
 
+func _ready() -> void:
+  if attractors.is_empty():
+    var parent = get_parent_node_3d()
+    if parent: attractors.append(parent as Marker3D)
+
 func _init() -> void:
   gravity_scale = 1.0
   continuous_cd = false

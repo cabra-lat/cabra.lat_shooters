@@ -75,6 +75,13 @@ var current_head_bobbing: float = 0.0
 var current_lean_angle: float = 0.0
 var current_damping: float = 0.0
 
+# ─── DEBUG FLYING ──────────────────────────────────────────────────────────────
+var debug_flying: bool = false
+var debug_fly_speed: float = 10000.0
+var debug_fly_acceleration: float = debug_fly_speed
+var debug_fly_fast_multiplier: float = 3.0
+var debug_fly_slow_multiplier: float = 0.3
+
 # Debug and performance
 var _last_debug_time: float = 0.0
 var _debug_interval: float = 0.1  # Update debug only 10 times per second
@@ -117,7 +124,6 @@ func _ready():
   set_floor_stop_on_slope_enabled(false)
   set_max_slides(4)
   set_floor_max_angle(PI / 4)
-
   # Capture mouse
   Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
@@ -182,6 +188,10 @@ func _remove_viewmodel_from_hand():
 
 # ─── INPUT HANDLING ────────────────────────────────────────────────────────────
 func _input(event):
+  # Debug flying toggle
+  if event.is_action_pressed("debug_toggle_fly"):
+    _toggle_debug_flying()
+
   if not inventory_ui or inventory_ui.visible:
     return
 
@@ -192,12 +202,77 @@ func _input(event):
     inventory_ui.hide()
     Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
+# ─── DEBUG FLYING METHODS ──────────────────────────────────────────────────────
+func _toggle_debug_flying():
+  debug_flying = !debug_flying
+  if debug_flying:
+    print("Debug flying enabled")
+  else:
+    print("Debug flying disabled")
+
+func _handle_debug_flying(delta: float):
+  # Handle camera rotation (same as normal)
+  _handle_camera_rotation()
+
+  # Calculate movement direction
+  var move_direction = Vector3.ZERO
+
+  if input and camera:
+    # Forward/backward (W/S)
+    if Input.is_key_pressed(KEY_W):
+      move_direction -= global_transform.basis.z
+    if Input.is_key_pressed(KEY_S):
+      move_direction += global_transform.basis.z
+
+    # Left/right (A/D)
+    if Input.is_key_pressed(KEY_A):
+      move_direction -= global_transform.basis.x
+    if Input.is_key_pressed(KEY_D):
+      move_direction += global_transform.basis.x
+
+    # Up/down (Space/Shift or E/Q)
+    if Input.is_key_pressed(KEY_SPACE):
+      move_direction += Vector3.UP
+    if Input.is_key_pressed(KEY_CTRL):
+      move_direction += Vector3.DOWN
+
+  # Normalize direction if moving
+  if move_direction.length_squared() > 0:
+    move_direction = move_direction.normalized()
+
+  # Apply speed modifiers
+  var current_fly_speed = debug_fly_speed
+  if Input.is_key_pressed(KEY_SHIFT):  # Fast mode
+    current_fly_speed *= debug_fly_fast_multiplier
+
+  # Apply movement
+  if move_direction.length_squared() > 0:
+    velocity = velocity.move_toward(move_direction * current_fly_speed, debug_fly_acceleration * delta)
+  else:
+    velocity = velocity.move_toward(Vector3.ZERO, debug_fly_acceleration * delta)
+
+  # Apply movement
+  move_and_slide()
+
+  # Update debug info
+  Debug.add("fly_speed", current_fly_speed, "debug")
+  Debug.add("fly_velocity", velocity, "debug")
+  Debug.add("fly_position", global_position, "debug")
+
 # ─── MAIN PHYSICS PROCESS ──────────────────────────────────────────────────────
 
 func _physics_process(delta: float) -> void:
   # Clear previous frame's debug data
   Debug.clear_category("player")
   Debug.clear_category("timing")
+
+  # Add debug flying state to debug display
+  Debug.add("debug_flying", debug_flying, "debug")
+
+  # Handle debug flying mode
+  if debug_flying:
+    _handle_debug_flying(delta)
+    return  # Skip normal physics processing when flying
 
   # Time entire frame
   var frame_timer = Debug.timer("frame")

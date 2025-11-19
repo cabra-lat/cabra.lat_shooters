@@ -33,13 +33,13 @@ func _preload_casings() -> void:
   for i in range(data.contents.size()):
     var ammo = data.contents[i] as Ammo
     if ammo:
-      print("Preloading casing for ammo: ", ammo.name)
+      #print("Preloading casing for ammo: ", ammo.name)
       if ammo.view_model:
         var casing = ammo.view_model.instantiate()
         if casing:
           casing.visible = false
           preloaded_casings.append(casing)
-          print("Successfully preloaded casing, total: ", preloaded_casings.size())
+          #print("Successfully preloaded casing, total: ", preloaded_casings.size())
         else:
           print("ERROR: Failed to instantiate casing from view_model")
       else:
