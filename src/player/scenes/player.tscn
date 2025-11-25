@@ -8,11 +8,13 @@
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cr8hjyxyw6huw" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="6_y0q3g"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://b670t66ds4lnh" path="res://addons/cabra.lat_shooters/src/player/resources/leaning_logic.tres" id="7_a20rg"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cqkqs2q5t0o2s" path="res://addons/cabra.lat_shooters/src/player/resources/aiming_logic.tres" id="8_a20rg"]
-[ext_resource type="Texture2D" uid="uid://bu52pdeq0jup2" path="res://assets/ui/inventory/player_body.png" id="9_hwib0"]
-[ext_resource type="Texture2D" uid="uid://b2lv0clbc536f" path="res://assets/ui/inventory/player_aiming.svg" id="10_gsogp"]
+[ext_resource type="PackedScene" uid="uid://dtos2h0yuxxh8" path="res://addons/cabra.lat_shooters/src/player/scenes/player_ik.tscn" id="9_gsogp"]
+[ext_resource type="PackedScene" uid="uid://cpqqv1tvvtk7a" path="res://src/weapons/weapon_ak47.tscn" id="12_4275n"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_4275n"]
-size = Vector3(0.8, 1.7, 0.8)
+size = Vector3(0.56231534, 1.6092529, 0.8233765)
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_le7o6"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4275n"]
 transparency = 1
@@ -23,8 +25,6 @@ material = SubResource("StandardMaterial3D_4275n")
 radius = 0.025
 height = 0.05
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_le7o6"]
-
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_thwj1")
 
@@ -33,62 +33,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.046732336, 0.8054999, -0.16412967)
 shape = SubResource("BoxShape3D_4275n")
-
-[node name="Sprite3D" type="Sprite3D" parent="CollisionShape3D"]
-transform = Transform3D(0.17555013, 0, 0, 0, 0.1802464, 0, 0, 0, 0.9167189, -0.4394586, -0.846516, 0)
-centered = false
-offset = Vector2(0, -45.02)
-texture = ExtResource("9_hwib0")
-
-[node name="Sprite3D2" type="Sprite3D" parent="CollisionShape3D"]
-transform = Transform3D(-1.5909094e-08, 0, 0.89363533, 0, 0.48786426, 0, -0.36395773, 0, -3.9062044e-08, 0, -1.1009046, 0.7008959)
-centered = false
-texture = ExtResource("10_gsogp")
-
-[node name="Head" type="Marker3D" parent="."]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7508734, 0)
-
-[node name="Camera3D" type="Camera3D" parent="Head"]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.0063997507, 0.031247467)
-current = true
-fov = 46.0
-near = 0.01
-far = 937.3
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Camera3D"]
-mesh = SubResource("SphereMesh_4275n")
-
-[node name="Shoulder" type="Marker3D" parent="Head"]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.09, -0.024, 0.269)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Shoulder"]
-mesh = SubResource("SphereMesh_4275n")
-
-[node name="Hand" type="Marker3D" parent="Head/Shoulder"]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12828755, -0.3763995)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Shoulder/Hand"]
-mesh = SubResource("SphereMesh_4275n")
-
-[node name="OtherHand" type="Marker3D" parent="Head/Shoulder"]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06991124, -0.792)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Shoulder/OtherHand"]
-mesh = SubResource("SphereMesh_4275n")
-
-[node name="SecondPerson" type="Camera3D" parent="Head"]
-unique_name_in_owner = true
-transform = Transform3D(0.64790374, -0.45944032, 0.6075651, -0.118073724, 0.72740364, 0.67597526, -0.7525154, -0.50970435, 0.4170397, 1.2157868, 0.773769, 0.77878344)
-fov = 46.0
-near = 0.01
-far = 937.3
 
 [node name="StateMachine" type="AnimationPlayer" parent="."]
 libraries = {
@@ -161,11 +107,90 @@ unique_name_in_owner = true
 wait_time = 0.4
 one_shot = true
 
-[node name="ThirdPerson" type="Camera3D" parent="."]
+[node name="BackThirdPerson" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.97820926, 0.20762146, 0, -0.20762146, 0.97820926, 0.41747546, 2.1469097, 3.913722)
+current = true
 fov = 46.0
 near = 0.01
 far = 937.3
+
+[node name="FrontThirdPerson" type="Camera3D" parent="."]
+transform = Transform3D(-1, 1.8176218e-08, -8.551238e-08, 0, 0.9781476, 0.2079117, 8.742278e-08, 0.2079117, -0.9781476, 0.41747546, 2.1469097, -5.591758)
+fov = 46.0
+near = 0.01
+far = 937.3
+
+[node name="SideThirdPerson" type="Camera3D" parent="."]
+transform = Transform3D(-4.371139e-08, 0.2079117, -0.9781476, 0, 0.9781476, 0.2079117, 1, 9.088109e-09, -4.275619e-08, -3.8698065, 2.1469097, -0.05837059)
+fov = 46.0
+near = 0.01
+far = 937.3
+
+[node name="OtherThirdPerson" type="Camera3D" parent="."]
+transform = Transform3D(-0.021553146, -0.2078634, 0.9779204, 0, 0.9781476, 0.2079117, -0.9997677, 0.0044811512, -0.02108216, 3.7255852, 2.1469097, -0.05837059)
+fov = 46.0
+near = 0.01
+far = 937.3
+
+[node name="Skeleton3D" parent="." node_paths=PackedStringArray("left_foot_target", "right_foot_target") instance=ExtResource("9_gsogp")]
+unique_name_in_owner = true
+transform = Transform3D(-4.3711385e-08, -0.9999999, -4.371139e-08, 0, -4.3711385e-08, 1, -0.9999999, 4.3711385e-08, 1.9106855e-15, -0.0013518586, 0.91907346, -0.007576268)
+left_foot_target = NodePath("../LeftFoot")
+right_foot_target = NodePath("../RightFoot")
+
+[node name="IK_LeftLeg" parent="Skeleton3D" index="3"]
+magnet = Vector3(1, 1, 1)
+
+[node name="IK_RightLeg" parent="Skeleton3D" index="4"]
+magnet = Vector3(-1, -1, 1)
+
+[node name="LeftFoot" type="Marker3D" parent="."]
+transform = Transform3D(-5.960465e-08, -0.99999994, -3.7855173e-08, -2.1855696e-08, -3.785517e-08, 1, -1.0000001, 5.960464e-08, -2.1855692e-08, -0.25, 0, 0)
+
+[node name="RightFoot" type="Marker3D" parent="."]
+transform = Transform3D(-5.9604645e-08, -1, -3.7855173e-08, -2.1855694e-08, -3.7855173e-08, 1, -1, 5.9604645e-08, -2.1855692e-08, 0.25, 0, 0)
+
+[node name="Head" type="Marker3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(0.9999999, 0, 0, 0, 0.9999999, 0, 0, 0, 0.99999994, 0.024955295, 1.773, -0.008048102)
+
+[node name="Camera3D" type="Camera3D" parent="Head"]
+unique_name_in_owner = true
+transform = Transform3D(1.0000001, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, -0.021011867, -0.09889972, -0.08908173)
+fov = 46.0
+near = 0.01
+far = 937.3
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Camera3D"]
+visible = false
+mesh = SubResource("SphereMesh_4275n")
+
+[node name="Shoulder" type="Marker3D" parent="."]
+unique_name_in_owner = true
+transform = Transform3D(0.03722348, -0.8816413, 0.4704497, 0.06954093, 0.47192004, 0.8788944, -0.99688417, 0, 0.078876674, 0.11321141, 1.5092819, -0.11405429)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Shoulder"]
+visible = false
+mesh = SubResource("SphereMesh_4275n")
+
+[node name="Hand" type="Marker3D" parent="Shoulder"]
+unique_name_in_owner = true
+transform = Transform3D(0.8788171, 0.46089995, -0.12349779, 0, 0.25881904, 0.9659258, 0.47715878, -0.84887207, 0.22745462, 0.0971484, -0.001881957, -0.20107743)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Shoulder/Hand"]
+visible = false
+mesh = SubResource("SphereMesh_4275n")
+
+[node name="weapon_ak47" parent="Shoulder/Hand" instance=ExtResource("12_4275n")]
+transform = Transform3D(0.8447276, -0.30897802, 0.4370001, 0.48422006, 0.09343019, -0.86994374, 0.22796476, 0.9464693, 0.22853611, -0.03429997, 0.058834553, 0.035367966)
+
+[node name="OtherHand" type="Marker3D" parent="Shoulder"]
+unique_name_in_owner = true
+transform = Transform3D(-0.03963278, 0.9938944, -0.102971025, 0.9991026, 0.040964372, 0.010846674, 0.014998521, -0.102448754, -0.99462503, 0.024422854, 0.020206869, -0.6742939)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Shoulder/OtherHand"]
+visible = false
+mesh = SubResource("SphereMesh_4275n")
 
 [connection signal="aimed" from="." to="StateMachine" method="_on_player_aimed"]
 [connection signal="crouched" from="." to="StateMachine" method="_on_player_crouched"]
@@ -181,3 +206,5 @@ far = 937.3
 [connection signal="timeout" from="FocusTimer" to="." method="_on_focus_timeout"]
 [connection signal="timeout" from="ReloadTimer" to="." method="_on_reload_timeout"]
 [connection signal="timeout" from="FiremodeTimer" to="." method="_on_firemode_timeout"]
+
+[editable path="Skeleton3D"]

@@ -53,6 +53,7 @@ signal debug(player: PlayerController, text: String)
 @onready var firing: StateMachine = %Firing
 @onready var collision: CollisionShape3D = %CollisionShape3D
 @onready var head: Node3D = %Head
+@onready var skeleton: Node3D = %Skeleton3D
 @onready var camera: Camera3D = %Camera3D
 @onready var shoulder: Node3D = %Shoulder
 @onready var hand: Marker3D = %Hand
@@ -173,7 +174,7 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
     new_vm.data = weapon
     get_tree().current_scene.add_child(new_vm)
     new_vm.global_position = hand.global_position
-    var attractors: Array[Marker3D] = [hand, other_hand]
+    var attractors: Array[Marker3D] = [shoulder, hand, other_hand]
     new_vm.grab(attractors)
     current_hands = new_vm
 
@@ -324,6 +325,7 @@ func _handle_camera_rotation():
   if mouse_delta.length_squared() > 0:
     rotation_degrees.y -= mouse_delta.x * config.mouse_sensitivity / 10
     head.rotation_degrees.x = clamp(head.rotation_degrees.x - mouse_delta.y * config.mouse_sensitivity / 10, -90, 90)
+    shoulder.rotation_degrees.x = head.rotation_degrees.x
 
 func _calculate_movement_direction():
   if not input or not camera:

@@ -23,15 +23,13 @@ uniform vec2 u_front_lens_scale = vec2(0.5, 0.5);
 uniform vec2 u_front_lens_offset = vec2(-0.25, 0.25);
 uniform float u_front_lens_radius = 0.45;
 uniform float u_front_lens_rotation = 0.0;
+uniform float u_front_squircle_exponent : hint_range(2.0, 8.0) = 4.0;
 
 uniform vec2 u_rear_lens_scale = vec2(0.5, -0.5);
 uniform vec2 u_rear_lens_offset = vec2(0.25, 0.25);
 uniform float u_rear_lens_radius = 0.45;
 uniform float u_rear_lens_rotation = 0.0;
-
-// --- NEW: Squircle Uniform ---
-// Controls lens shape: 2.0 = perfect circle, 4.0 = squircle, higher = more square
-uniform float u_squircle_exponent : hint_range(2.0, 8.0) = 4.0;
+uniform float u_rear_squircle_exponent : hint_range(2.0, 8.0) = 4.0;
 
 // Rotation function
 vec2 rotate_around_point(vec2 uv, vec2 center, float rotation) {
@@ -217,20 +215,20 @@ void fragment() {
     vec2 offset_uv_front = UV - u_front_lens_offset;
     vec2 scaled_uv_front = (offset_uv_front - vec2(0.5)) / u_front_lens_scale + vec2(0.5);
     vec2 rotated_uv_front = rotate_around_point(scaled_uv_front, vec2(0.5), u_front_lens_rotation);
-    float normalized_dist_front = squircle_normalized_distance(rotated_uv_front, vec2(0.5), u_front_lens_radius, u_squircle_exponent);
+    float normalized_dist_front = squircle_normalized_distance(rotated_uv_front, vec2(0.5), u_front_lens_radius, u_front_squircle_exponent);
     
     // Rear lens check
     vec2 offset_uv_rear = UV - u_rear_lens_offset;
     vec2 scaled_uv_rear = (offset_uv_rear - vec2(0.5)) / u_rear_lens_scale + vec2(0.5);
     vec2 rotated_uv_rear = rotate_around_point(scaled_uv_rear, vec2(0.5), u_rear_lens_rotation);
-    float normalized_dist_rear = squircle_normalized_distance(rotated_uv_rear, vec2(0.5), u_rear_lens_radius, u_squircle_exponent);
+    float normalized_dist_rear = squircle_normalized_distance(rotated_uv_rear, vec2(0.5), u_rear_lens_radius, u_rear_squircle_exponent);
     
     // Calculate both lens colors
     vec3 color_front = get_enhanced_scope_color(UV, u_front_lens_scale, u_front_lens_offset, u_front_lens_rotation,
-                                         u_front_lens_radius, u_front_tint_color, true, u_squircle_exponent);
+                                         u_front_lens_radius, u_front_tint_color, true, u_front_squircle_exponent);
     vec3 color_rear = get_enhanced_scope_color(UV, u_rear_lens_scale, u_rear_lens_offset, u_rear_lens_rotation,
-                                         u_rear_lens_radius, u_rear_tint_color, false, u_squircle_exponent);
-    
+                                         u_rear_lens_radius, u_rear_tint_color, false, u_rear_squircle_exponent);
+
     // Apply lens colors where appropriate (rear lens draws on top)
     if (normalized_dist_front <= 1.0) {
         final_color = color_front;
