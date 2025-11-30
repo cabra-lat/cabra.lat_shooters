@@ -5,9 +5,6 @@ var viewport_texture: ViewportTexture
 @onready var sub_viewport: SubViewport = $ScopeViewport
 @onready var camera: Camera3D = $ScopeViewport/Camera3D
 
-# Reference to the node that defines the camera position
-@export var camera_position_node: Node3D = $CameraPosition
-
 # Zoom settings
 @export var min_fov: float = 1.0
 @export var max_fov: float = 45.0
@@ -49,9 +46,6 @@ func _setup_viewport():
     sub_viewport.own_world_3d = false
     camera.current = true
 
-    # Position the camera to match the camera_position_node
-    _update_camera_position()
-
     # Create and assign the ViewportTexture
     _setup_viewport_texture()
 
@@ -73,20 +67,9 @@ func _setup_viewport_texture():
     # Force refresh
     sub_viewport.size = sub_viewport.size
 
-func _update_camera_position():
-    # If we have a specific camera position node, use its transform
-    if camera_position_node:
-        camera.global_transform = camera_position_node.global_transform
-    else:
-        # Fallback: position the camera at the scope's location
-        # but slightly offset to avoid being inside geometry
-        var offset = -global_transform.basis.z * 0.1  # 10cm forward
-        camera.global_transform = global_transform.translated(offset)
 
 # Call this whenever the scope moves to update the camera position
 func update_scope_view():
-    _update_camera_position()
-
     # Force the viewport to render
     sub_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
     await get_tree().process_frame
@@ -98,7 +81,6 @@ var last_global_transform: Transform3D
 func _process(delta):
     # Check if the scope has moved significantly
     if global_transform != last_global_transform:
-        _update_camera_position()
         last_global_transform = global_transform
 
         # Optionally force a render if moving fast

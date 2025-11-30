@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://ly33hk8t667t"]
+[gd_scene load_steps=12 format=3 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
 [ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="3_gsogp"]
@@ -9,32 +9,17 @@
 [ext_resource type="AnimationNodeStateMachine" uid="uid://b670t66ds4lnh" path="res://addons/cabra.lat_shooters/src/player/resources/leaning_logic.tres" id="7_a20rg"]
 [ext_resource type="AnimationNodeStateMachine" uid="uid://cqkqs2q5t0o2s" path="res://addons/cabra.lat_shooters/src/player/resources/aiming_logic.tres" id="8_a20rg"]
 [ext_resource type="PackedScene" uid="uid://dtos2h0yuxxh8" path="res://addons/cabra.lat_shooters/src/player/scenes/player_ik.tscn" id="9_gsogp"]
-[ext_resource type="PackedScene" uid="uid://cpqqv1tvvtk7a" path="res://src/weapons/weapon_ak47.tscn" id="12_4275n"]
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_4275n"]
-size = Vector3(0.56231534, 1.6092529, 0.8233765)
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_le7o6"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4275n"]
-transparency = 1
-albedo_color = Color(1, 0.54509807, 1, 0.53333336)
-
-[sub_resource type="SphereMesh" id="SphereMesh_4275n"]
-material = SubResource("StandardMaterial3D_4275n")
-radius = 0.025
-height = 0.05
+[sub_resource type="BoxShape3D" id="BoxShape3D_hwib0"]
+size = Vector3(0.32958984, 0.18075562, 0.8321991)
 
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_thwj1")
 
 [node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.046732336, 0.8054999, -0.16412967)
-shape = SubResource("BoxShape3D_4275n")
 
 [node name="StateMachine" type="AnimationPlayer" parent="."]
 libraries = {
@@ -48,12 +33,6 @@ root_node = NodePath("%Moving/../..")
 tree_root = ExtResource("4_gsogp")
 advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-parameters/conditions/+jump = false
-parameters/conditions/+move = false
-parameters/conditions/+sprint = false
-parameters/conditions/-move = false
-parameters/conditions/-sprint = false
-parameters/conditions/on_air = false
 parameters/conditions/on_ground = false
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
@@ -107,90 +86,75 @@ unique_name_in_owner = true
 wait_time = 0.4
 one_shot = true
 
-[node name="BackThirdPerson" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.97820926, 0.20762146, 0, -0.20762146, 0.97820926, 0.41747546, 2.1469097, 3.913722)
-current = true
+[node name="SpringArm3D" type="SpringArm3D" parent="."]
+transform = Transform3D(0.90873414, 0.08665611, -0.40828055, 0, 0.97820926, 0.20762147, 0.41737548, -0.18867272, 0.88893217, -1.6158146, 2.1469097, 3.5960114)
+spring_length = 2.0
+
+[node name="Camera3D" type="Camera3D" parent="SpringArm3D"]
+unique_name_in_owner = true
 fov = 46.0
 near = 0.01
 far = 937.3
 
-[node name="FrontThirdPerson" type="Camera3D" parent="."]
-transform = Transform3D(-1, 1.8176218e-08, -8.551238e-08, 0, 0.9781476, 0.2079117, 8.742278e-08, 0.2079117, -0.9781476, 0.41747546, 2.1469097, -5.591758)
+[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+offset_left = 910.0
+offset_top = 31.0
+offset_right = 1118.0
+offset_bottom = 239.0
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
+handle_input_locally = false
+size = Vector2i(208, 208)
+render_target_update_mode = 4
+
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport"]
+transform = Transform3D(-0.90873414, -0.08677724, 0.4082548, 0, 0.9781476, 0.2079117, -0.41737545, 0.18893646, -0.88887614, 1.4998367, 2.1469097, -3.1341827)
 fov = 46.0
 near = 0.01
 far = 937.3
 
-[node name="SideThirdPerson" type="Camera3D" parent="."]
-transform = Transform3D(-4.371139e-08, 0.2079117, -0.9781476, 0, 0.9781476, 0.2079117, 1, 9.088109e-09, -4.275619e-08, -3.8698065, 2.1469097, -0.05837059)
-fov = 46.0
-near = 0.01
-far = 937.3
+[node name="FrontCamera" type="RemoteTransform3D" parent="."]
+transform = Transform3D(-0.90873414, -0.08677724, 0.4082548, 0, 0.9781476, 0.2079117, -0.41737545, 0.18893646, -0.88887614, 1.4998367, 2.1469097, -3.1341827)
+remote_path = NodePath("../SubViewportContainer/SubViewport/Camera3D")
 
-[node name="OtherThirdPerson" type="Camera3D" parent="."]
-transform = Transform3D(-0.021553146, -0.2078634, 0.9779204, 0, 0.9781476, 0.2079117, -0.9997677, 0.0044811512, -0.02108216, 3.7255852, 2.1469097, -0.05837059)
-fov = 46.0
-near = 0.01
-far = 937.3
+[node name="SideCamera" type="RemoteTransform3D" parent="."]
+transform = Transform3D(-0.41737545, 0.18893646, -0.88887614, 0, 0.9781476, 0.2079117, 0.90873414, 0.08677724, -0.4082548, -3.45995, 2.1469097, -1.6465237)
 
-[node name="Skeleton3D" parent="." node_paths=PackedStringArray("left_foot_target", "right_foot_target") instance=ExtResource("9_gsogp")]
+[node name="SideCameraOther" type="RemoteTransform3D" parent="."]
+transform = Transform3D(0.39769244, -0.19076289, 0.8974688, 4.6555312e-10, 0.9781476, 0.2079117, -0.9175188, -0.08268491, 0.3890019, 3.4422421, 2.1469097, 1.5236065)
+
+[node name="Skeleton3D" parent="." instance=ExtResource("9_gsogp")]
 unique_name_in_owner = true
-transform = Transform3D(-4.3711385e-08, -0.9999999, -4.371139e-08, 0, -4.3711385e-08, 1, -0.9999999, 4.3711385e-08, 1.9106855e-15, -0.0013518586, 0.91907346, -0.007576268)
-left_foot_target = NodePath("../LeftFoot")
-right_foot_target = NodePath("../RightFoot")
+transform = Transform3D(-4.3711385e-08, -0.9999999, -4.371139e-08, 0, -4.3711385e-08, 1, -0.9999999, 4.3711385e-08, 1.9106855e-15, 0, 0.8513874, 0)
+bones/2/rotation = Quaternion(0.011, 0, 0, 1)
 
-[node name="IK_LeftLeg" parent="Skeleton3D" index="3"]
-magnet = Vector3(1, 1, 1)
-
-[node name="IK_RightLeg" parent="Skeleton3D" index="4"]
-magnet = Vector3(-1, -1, 1)
-
-[node name="LeftFoot" type="Marker3D" parent="."]
-transform = Transform3D(-5.960465e-08, -0.99999994, -3.7855173e-08, -2.1855696e-08, -3.785517e-08, 1, -1.0000001, 5.960464e-08, -2.1855692e-08, -0.25, 0, 0)
-
-[node name="RightFoot" type="Marker3D" parent="."]
-transform = Transform3D(-5.9604645e-08, -1, -3.7855173e-08, -2.1855694e-08, -3.7855173e-08, 1, -1, 5.9604645e-08, -2.1855692e-08, 0.25, 0, 0)
-
-[node name="Head" type="Marker3D" parent="."]
+[node name="Head" type="RemoteTransform3D" parent="."]
 unique_name_in_owner = true
-transform = Transform3D(0.9999999, 0, 0, 0, 0.9999999, 0, 0, 0, 0.99999994, 0.024955295, 1.773, -0.008048102)
+transform = Transform3D(-0.99940234, 0, -0.03456804, 0, 1, 0, 0.03456804, 0, -0.99940234, 0, 1.6143484, 0)
 
-[node name="Camera3D" type="Camera3D" parent="Head"]
+[node name="Shoulder" type="Marker3D" parent="Head"]
 unique_name_in_owner = true
-transform = Transform3D(1.0000001, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, -0.021011867, -0.09889972, -0.08908173)
-fov = 46.0
-near = 0.01
-far = 937.3
+transform = Transform3D(0.9999998, 0, 0, 0, 1.0000001, 0, 0, 0, 0.99999994, -0.115, 0, 0)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Head/Camera3D"]
-visible = false
-mesh = SubResource("SphereMesh_4275n")
-
-[node name="Shoulder" type="Marker3D" parent="."]
+[node name="LeftHand" type="RemoteTransform3D" parent="Head/Shoulder"]
 unique_name_in_owner = true
-transform = Transform3D(0.03722348, -0.8816413, 0.4704497, 0.06954093, 0.47192004, 0.8788944, -0.99688417, 0, 0.078876674, 0.11321141, 1.5092819, -0.11405429)
+transform = Transform3D(-0.12960471, -0.81812257, 0.56024814, 0.9880584, -0.05907533, 0.142305, -0.08332616, 0.5720013, 0.8160093, 0.084, -0.26, 0.469)
+remote_path = NodePath("../../../Skeleton3D/GodotIK/IK_leftarm")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Shoulder"]
-visible = false
-mesh = SubResource("SphereMesh_4275n")
-
-[node name="Hand" type="Marker3D" parent="Shoulder"]
+[node name="RightHand" type="RemoteTransform3D" parent="Head/Shoulder"]
 unique_name_in_owner = true
-transform = Transform3D(0.8788171, 0.46089995, -0.12349779, 0, 0.25881904, 0.9659258, 0.47715878, -0.84887207, 0.22745462, 0.0971484, -0.001881957, -0.20107743)
+transform = Transform3D(-0.9827538, -0.042387735, -0.17999455, -0.16981328, 0.59217846, 0.787711, 0.073199585, 0.80469126, -0.58916366, -0.0053176815, -0.25474232, 0.16394319)
+remote_path = NodePath("../../../Skeleton3D/GodotIK/IK_rightarm")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Shoulder/Hand"]
-visible = false
-mesh = SubResource("SphereMesh_4275n")
+[node name="LookTarget" type="RemoteTransform3D" parent="Head"]
+transform = Transform3D(-0.12960471, -0.8181227, 0.56024814, 0.9880584, -0.05907533, 0.142305, -0.08332616, 0.5720013, 0.8160093, 0.022444516, -0.26, 2.2486405)
+remote_path = NodePath("../../Skeleton3D/LookTarget")
 
-[node name="weapon_ak47" parent="Shoulder/Hand" instance=ExtResource("12_4275n")]
-transform = Transform3D(0.8447276, -0.30897802, 0.4370001, 0.48422006, 0.09343019, -0.86994374, 0.22796476, 0.9464693, 0.22853611, -0.03429997, 0.058834553, 0.035367966)
-
-[node name="OtherHand" type="Marker3D" parent="Shoulder"]
-unique_name_in_owner = true
-transform = Transform3D(-0.03963278, 0.9938944, -0.102971025, 0.9991026, 0.040964372, 0.010846674, 0.014998521, -0.102448754, -0.99462503, 0.024422854, 0.020206869, -0.6742939)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Shoulder/OtherHand"]
-visible = false
-mesh = SubResource("SphereMesh_4275n")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.024833467, -0.9996916, 0, 0.9996916, 0.024833467, -0.006, 0.41688085, 0.031784393)
+shape = SubResource("BoxShape3D_hwib0")
+debug_color = Color(0.6745098, 0.7019608, 0, 0.41960785)
 
 [connection signal="aimed" from="." to="StateMachine" method="_on_player_aimed"]
 [connection signal="crouched" from="." to="StateMachine" method="_on_player_crouched"]
@@ -206,5 +170,3 @@ mesh = SubResource("SphereMesh_4275n")
 [connection signal="timeout" from="FocusTimer" to="." method="_on_focus_timeout"]
 [connection signal="timeout" from="ReloadTimer" to="." method="_on_reload_timeout"]
 [connection signal="timeout" from="FiremodeTimer" to="." method="_on_firemode_timeout"]
-
-[editable path="Skeleton3D"]

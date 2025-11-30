@@ -56,8 +56,8 @@ signal debug(player: PlayerController, text: String)
 @onready var skeleton: Node3D = %Skeleton3D
 @onready var camera: Camera3D = %Camera3D
 @onready var shoulder: Node3D = %Shoulder
-@onready var hand: Marker3D = %Hand
-@onready var other_hand: Marker3D = %OtherHand
+@onready var hand: Node3D = %RightHand
+@onready var other_hand: Node3D = %LeftHand
 @onready var focus_timer: Timer = %FocusTimer
 @onready var reload_timer: Timer = %ReloadTimer
 @onready var firemode_timer: Timer = %FiremodeTimer
@@ -174,7 +174,7 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
     new_vm.data = weapon
     get_tree().current_scene.add_child(new_vm)
     new_vm.global_position = hand.global_position
-    var attractors: Array[Marker3D] = [shoulder, hand, other_hand]
+    var attractors: Array[Node3D] = [shoulder, hand, other_hand]
     new_vm.grab(attractors)
     current_hands = new_vm
 
