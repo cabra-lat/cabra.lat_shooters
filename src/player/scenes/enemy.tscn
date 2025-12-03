@@ -1,22 +1,22 @@
-[gd_scene load_steps=12 format=3 uid="uid://ly33hk8t667t"]
+[gd_scene load_steps=12 format=3 uid="uid://h1r5r5r48kgw"]
 
-[ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
-[ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="3_gsogp"]
-[ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="4_a20rg"]
-[ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/resources/moving_logic.tres" id="4_gsogp"]
-[ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="5_4275n"]
-[ext_resource type="AnimationNodeStateMachine" uid="uid://cr8hjyxyw6huw" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="6_y0q3g"]
-[ext_resource type="AnimationNodeStateMachine" uid="uid://b670t66ds4lnh" path="res://addons/cabra.lat_shooters/src/player/resources/leaning_logic.tres" id="7_a20rg"]
-[ext_resource type="AnimationNodeStateMachine" uid="uid://cqkqs2q5t0o2s" path="res://addons/cabra.lat_shooters/src/player/resources/aiming_logic.tres" id="8_a20rg"]
-[ext_resource type="PackedScene" uid="uid://dtos2h0yuxxh8" path="res://addons/cabra.lat_shooters/src/player/scenes/player_ik.tscn" id="9_gsogp"]
+[ext_resource type="Script" uid="uid://fgfp4lkhuwmo" path="res://addons/cabra.lat_shooters/src/npcs/controller.gd" id="1_w50rv"]
+[ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="2_4fse5"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://ddnfeqckyxl24" path="res://addons/cabra.lat_shooters/src/player/resources/moving_logic.tres" id="3_d3ce3"]
+[ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="4_x1tqs"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cb3onx78s3qif" path="res://addons/cabra.lat_shooters/src/player/resources/crouch_prone_stand_logic.tres" id="5_pidkp"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://b670t66ds4lnh" path="res://addons/cabra.lat_shooters/src/player/resources/leaning_logic.tres" id="6_bmm3h"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cqkqs2q5t0o2s" path="res://addons/cabra.lat_shooters/src/player/resources/aiming_logic.tres" id="7_4vin6"]
+[ext_resource type="AnimationNodeStateMachine" uid="uid://cr8hjyxyw6huw" path="res://addons/cabra.lat_shooters/src/player/resources/firing_logic.tres" id="8_p7k0a"]
+[ext_resource type="PackedScene" uid="uid://dtos2h0yuxxh8" path="res://addons/cabra.lat_shooters/src/player/scenes/player_ik.tscn" id="9_a16as"]
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_le7o6"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_hwib0"]
 size = Vector3(0.32958984, 0.18075562, 0.8321991)
 
-[node name="Player" type="CharacterBody3D"]
-script = ExtResource("1_thwj1")
+[node name="Enemy" type="CharacterBody3D"]
+script = ExtResource("1_w50rv")
 
 [node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
@@ -25,51 +25,51 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
 libraries = {
 &"": SubResource("AnimationLibrary_le7o6")
 }
-script = ExtResource("3_gsogp")
+script = ExtResource("2_4fse5")
 
 [node name="Moving" type="AnimationTree" parent="StateMachine"]
 unique_name_in_owner = true
 root_node = NodePath("%Moving/../..")
-tree_root = ExtResource("4_gsogp")
+tree_root = ExtResource("3_d3ce3")
 advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-script = ExtResource("4_a20rg")
+script = ExtResource("4_x1tqs")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
 [node name="Crouching" type="AnimationTree" parent="StateMachine"]
 unique_name_in_owner = true
 root_node = NodePath("%Crouching/../..")
-tree_root = ExtResource("5_4275n")
+tree_root = ExtResource("5_pidkp")
 advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-script = ExtResource("4_a20rg")
+script = ExtResource("4_x1tqs")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
 [node name="Leaning" type="AnimationTree" parent="StateMachine"]
 unique_name_in_owner = true
 root_node = NodePath("%Leaning/../..")
-tree_root = ExtResource("7_a20rg")
+tree_root = ExtResource("6_bmm3h")
 advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-script = ExtResource("4_a20rg")
+script = ExtResource("4_x1tqs")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
 [node name="Aiming" type="AnimationTree" parent="StateMachine"]
 unique_name_in_owner = true
 root_node = NodePath("%Aiming/../..")
-tree_root = ExtResource("8_a20rg")
+tree_root = ExtResource("7_4vin6")
 advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-script = ExtResource("4_a20rg")
+script = ExtResource("4_x1tqs")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
 [node name="Firing" type="AnimationTree" parent="StateMachine"]
 unique_name_in_owner = true
 root_node = NodePath("%Firing/../..")
-tree_root = ExtResource("6_y0q3g")
+tree_root = ExtResource("8_p7k0a")
 advance_expression_base_node = NodePath("../..")
 anim_player = NodePath("..")
-script = ExtResource("4_a20rg")
+script = ExtResource("4_x1tqs")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
 [node name="FocusTimer" type="Timer" parent="."]
@@ -123,7 +123,7 @@ transform = Transform3D(-0.41737545, 0.18893646, -0.88887614, 0, 0.9781476, 0.20
 [node name="SideCameraOther" type="RemoteTransform3D" parent="."]
 transform = Transform3D(0.39769244, -0.19076289, 0.8974688, 4.6555312e-10, 0.9781476, 0.2079117, -0.9175188, -0.08268491, 0.3890019, 3.4422421, 2.1469097, 1.5236065)
 
-[node name="Skeleton3D" parent="." instance=ExtResource("9_gsogp")]
+[node name="Skeleton3D" parent="." instance=ExtResource("9_a16as")]
 unique_name_in_owner = true
 transform = Transform3D(-4.3711385e-08, -0.9999999, -4.371139e-08, 0, -4.3711385e-08, 1, -0.9999999, 4.3711385e-08, 1.9106855e-15, 0, 0.8513874, 0)
 bones/2/rotation = Quaternion(0.011, 0, 0, 1)
@@ -162,17 +162,6 @@ transform = Transform3D(1, 0, 0, 0, 0.024833467, -0.9996916, 0, 0.9996916, 0.024
 shape = SubResource("BoxShape3D_hwib0")
 debug_color = Color(0.6745098, 0.7019608, 0, 0.41960785)
 
-[connection signal="aimed" from="." to="StateMachine" method="_on_player_aimed"]
-[connection signal="crouched" from="." to="StateMachine" method="_on_player_crouched"]
-[connection signal="equipped" from="." to="StateMachine" method="_on_player_equipped"]
-[connection signal="focused" from="." to="StateMachine" method="_on_player_focused"]
-[connection signal="jumped" from="." to="StateMachine" method="_on_player_jumped"]
-[connection signal="landed" from="." to="StateMachine" method="_on_player_landed"]
-[connection signal="leaned" from="." to="StateMachine" method="_on_player_leaned"]
-[connection signal="moved" from="." to="StateMachine" method="_on_player_moved"]
-[connection signal="proned" from="." to="StateMachine" method="_on_player_proned"]
-[connection signal="reloaded" from="." to="StateMachine" method="_on_player_reloaded"]
-[connection signal="unequiped" from="." to="StateMachine" method="_on_player_unequiped"]
 [connection signal="timeout" from="FocusTimer" to="." method="_on_focus_timeout"]
 [connection signal="timeout" from="ReloadTimer" to="." method="_on_reload_timeout"]
 [connection signal="timeout" from="FiremodeTimer" to="." method="_on_firemode_timeout"]

@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://dtos2h0yuxxh8"]
+[gd_scene load_steps=13 format=3 uid="uid://dtos2h0yuxxh8"]
 
 [ext_resource type="Script" uid="uid://dv1ghtrg8ero0" path="res://addons/cabra.lat_shooters/src/player/ik.gd" id="1_aq4gr"]
 [ext_resource type="Texture2D" uid="uid://d2du7uv0221qf" path="res://assets/dummy_target.jpg" id="2_ocffs"]
@@ -299,34 +299,10 @@ bind/86/name = &"heel.02.R_end_085"
 bind/86/bone = -1
 bind/86/pose = Transform3D(99.99999, 0, 0, 0, 100, 0, 0, 0, 99.99999, 0, 0, 0)
 
-[sub_resource type="Gradient" id="Gradient_hwib0"]
-interpolation_mode = 1
-offsets = PackedFloat32Array(0.0035971224, 0.9532374)
-colors = PackedColorArray(0, 0, 0, 0, 1, 1, 1, 1)
-
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_kif0f"]
-gradient = SubResource("Gradient_hwib0")
-fill = 2
-fill_from = Vector2(0.50427353, 0.4957265)
-fill_to = Vector2(1, 1)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hwib0"]
-transparency = 1
-cull_mode = 2
-albedo_texture = SubResource("GradientTexture2D_kif0f")
-uv1_triplanar = true
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_r8gmi"]
-material = SubResource("StandardMaterial3D_hwib0")
-top_radius = 0.0
-height = 0.415
-radial_segments = 4
-rings = 0
-
 [sub_resource type="BoxShape3D" id="BoxShape3D_uvku0"]
 size = Vector3(0.33007813, 0.5357666, 0.19665527)
 
-[node name="Skeleton3D" type="Skeleton3D" node_paths=PackedStringArray("left_foot_target", "right_foot_target", "left_foot_ik", "right_foot_ik", "right_hand_target", "left_hand_target", "weapon_attachment")]
+[node name="Skeleton3D" type="Skeleton3D" node_paths=PackedStringArray("left_foot_target", "right_foot_target", "right_hand_target", "left_hand_target", "weapon_attachment")]
 transform = Transform3D(-4.3711385e-08, -0.9999999, -4.371139e-08, 0, -4.3711385e-08, 1, -0.9999999, 4.3711385e-08, 1.9106855e-15, 0, 0, 0)
 bones/0/name = "_rootJoint"
 bones/0/parent = -1
@@ -940,8 +916,6 @@ bones/86/scale = Vector3(1, 1, 1)
 script = ExtResource("1_aq4gr")
 left_foot_target = NodePath("GodotIK/IK_rightleg")
 right_foot_target = NodePath("GodotIK/IK_rightleg")
-left_foot_ik = NodePath("")
-right_foot_ik = NodePath("")
 right_hand_target = NodePath("GodotIK/IK_rightarm")
 left_hand_target = NodePath("GodotIK/IK_leftarm")
 weapon_attachment = NodePath("RightShoulderAttachment")
@@ -1086,18 +1060,6 @@ bone_idx = 40
 transform = Transform3D(-0.002728768, 0.276487, 0.9610136, 0.9999963, 0.0007507739, 0.0026234225, 3.852377e-06, 0.96101725, -0.27648798, -0.007996986, 0.00014692565, 0.67479277)
 bone_name = "spine.006_07"
 bone_idx = 7
-
-[node name="Camera3D" type="Camera3D" parent="HeadAttachment"]
-transform = Transform3D(-1.0000001, 0, -8.742276e-08, 0, 1.0000001, 0, 8.742279e-08, 0, -1.0000004, 0, 0, 0.125)
-current = true
-near = 0.01
-far = 937.3
-
-[node name="LookTarget" type="MeshInstance3D" parent="HeadAttachment/Camera3D"]
-transform = Transform3D(0.70895535, -0.012308358, 0.7051457, 0.70525306, 0.012372989, -0.7088476, -1.2818429e-08, 0.9998473, 0.017452415, 8.921376e-09, 0, -0.20409742)
-visible = false
-mesh = SubResource("CylinderMesh_r8gmi")
-skeleton = NodePath("../BodyAlignment")
 
 [node name="LeftFeetAttachment" type="BoneAttachment3D" parent="."]
 transform = Transform3D(-0.036498792, 0.78562176, -0.617628, 0.9991607, 0.040160023, -0.007961869, 0.018548962, -0.61739933, -0.78643036, -0.12516901, 0.20590024, -0.7703812)
