@@ -13,7 +13,7 @@ static func _on_player_crouched(player: PlayerController, reverse: bool = false)
   var tween = player.create_tween()
   var duration = player.config.crouch_time
   var change_height = player.config.crouch_height if not reverse else player.config.stand_height
-  tween.tween_property(player.skeleton, "position:y", change_height, duration)
+  tween.tween_property(player.skeleton, "position:y", player.config.stand_height - change_height, duration)
 
 static func _on_player_proned(player: PlayerController, reverse: bool = false) -> void:
   var tween = player.create_tween()
@@ -21,15 +21,14 @@ static func _on_player_proned(player: PlayerController, reverse: bool = false) -
   var change_height = player.config.prone_height if not reverse else player.config.stand_height
   var change_head_rotation = deg_to_rad(100) if not reverse else  deg_to_rad(0)
   var change_body_rotation = deg_to_rad(-70) if not reverse else  deg_to_rad(0)
-  tween.tween_property(player.head, "position:y", change_height, duration)
-  tween.tween_property(player.skeleton, "position:y", change_height/2, duration)
-  tween.tween_property(player.shoulder, "position:y", change_height * ((( 1 - 0.5 ) / 2 ) + 0.5), duration)
+  tween.tween_property(player.skeleton, "position:y", change_height, duration)
 
 static func _on_player_leaned(player: PlayerController, direction: int = 0) -> void:
   var tween = player.create_tween()
   var duration = player.config.lean_time
-  var change = direction * player.current_lean_angle
-  tween.tween_property(player, "rotation:z", change, duration)
+
+  var change = -direction * cos(player.current_lean_angle)
+  tween.tween_property(player.head, "position:x", change, duration)
 
 static func _on_player_focused(player: PlayerController, reverse: bool = false) -> void:
   var tween = player.create_tween()

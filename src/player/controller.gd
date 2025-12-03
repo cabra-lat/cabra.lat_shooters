@@ -173,7 +173,7 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
     new_vm.name = VIEW_MODEL_NAME
     new_vm.data = weapon
     get_tree().current_scene.add_child(new_vm)
-    new_vm.global_position = hand.global_position
+    new_vm.global_position = shoulder.global_position
     var attractors: Array[Node3D] = [shoulder, hand, other_hand]
     new_vm.grab(attractors)
     current_hands = new_vm
@@ -324,9 +324,9 @@ func _handle_camera_rotation():
   var mouse_delta = input.consume_mouse_delta()
   if mouse_delta.length_squared() > 0:
     rotation_degrees.y -= mouse_delta.x * config.mouse_sensitivity / 10
-    head.rotation_degrees.x = clamp(head.rotation_degrees.x - mouse_delta.y * config.mouse_sensitivity / 10, -90, 90)
-    shoulder.rotation_degrees.x = head.rotation_degrees.x
-
+    head.rotation_degrees.x -= mouse_delta.y * config.mouse_sensitivity / 10
+    head.rotation_degrees.x = clamp(head.rotation_degrees.x, -90, 90)
+    head.position.z = 10 * sin(head.rotation.x)
 func _calculate_movement_direction():
   if not input or not camera:
     return
@@ -416,7 +416,10 @@ func _update_movement_parameters():
   if camera:
     camera.fov = lerp(camera.fov, current_camera_fov, 0.1)
   if head:
-    head.position.y = lerp(head.position.y, current_camera_height, 0.1)
+    head.position.y = lerp(head.position.y, current_camera_height - 0.05, 0.1)
+  if shoulder:
+    shoulder.position.y = lerp(shoulder.position.y, -0.4, 0.1)
+    shoulder.position.z = lerp(shoulder.position.z, -0.5, 0.1)
 
 func _handle_state_logic():
   # Handle sprint blocking when firing

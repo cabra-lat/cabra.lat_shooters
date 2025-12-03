@@ -1,24 +1,57 @@
-[gd_scene load_steps=17 format=3 uid="uid://dtos2h0yuxxh8"]
+[gd_scene load_steps=28 format=3 uid="uid://dtos2h0yuxxh8"]
 
 [ext_resource type="Script" uid="uid://dv1ghtrg8ero0" path="res://addons/cabra.lat_shooters/src/player/ik.gd" id="1_aq4gr"]
-[ext_resource type="Texture2D" uid="uid://d2du7uv0221qf" path="res://assets/dummy_target.jpg" id="2_ocffs"]
 [ext_resource type="Shader" uid="uid://caen77yke1bv" path="res://shaders/psx/psx_lit_alpha-scissor.gdshader" id="2_uvku0"]
 [ext_resource type="Script" uid="uid://df7j0ab7lmhoy" path="res://addons/libik/script/pole_bone_constraint.gd" id="3_kif0f"]
 [ext_resource type="Texture2D" uid="uid://yv0lgb5wkbdh" path="res://assets/models/container_backpack/decal.png" id="3_uvku0"]
 [ext_resource type="ArrayMesh" uid="uid://c58vxdyo33v2g" path="res://addons/cabra.lat_shooters/src/player/scenes/player_mesh.tres" id="4_uvku0"]
 [ext_resource type="PackedScene" uid="uid://cp8wg4h537gp8" path="res://addons/cabra.lat_shooters/src/player/scenes/backpack.tscn" id="6_ocffs"]
 
+[sub_resource type="SphereMesh" id="SphereMesh_ocffs"]
+radius = 0.15
+height = 0.19
+radial_segments = 4
+rings = 1
+is_hemisphere = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ocffs"]
+albedo_color = Color(0, 0, 1, 1)
+
+[sub_resource type="QuadMesh" id="QuadMesh_kif0f"]
+material = SubResource("StandardMaterial3D_ocffs")
+
+[sub_resource type="QuadMesh" id="QuadMesh_b8yl2"]
+material = SubResource("StandardMaterial3D_ocffs")
+flip_faces = true
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kif0f"]
-albedo_texture = ExtResource("2_ocffs")
-billboard_mode = 1
+albedo_color = Color(0, 1, 0, 1)
 
 [sub_resource type="QuadMesh" id="QuadMesh_r8gmi"]
 material = SubResource("StandardMaterial3D_kif0f")
+orientation = 0
+
+[sub_resource type="QuadMesh" id="QuadMesh_ocffs"]
+material = SubResource("StandardMaterial3D_kif0f")
+flip_faces = true
+orientation = 0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_r8gmi"]
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="QuadMesh" id="QuadMesh_rha7b"]
+material = SubResource("StandardMaterial3D_r8gmi")
+flip_faces = true
+orientation = 1
+
+[sub_resource type="QuadMesh" id="QuadMesh_3proo"]
+material = SubResource("StandardMaterial3D_r8gmi")
+orientation = 1
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_kif0f"]
 render_priority = 0
 shader = ExtResource("2_uvku0")
-shader_parameter/modulate_color = Color(1, 1, 1, 1)
+shader_parameter/modulate_color = Color(1, 1, 1, 0)
 shader_parameter/albedoTex = ExtResource("3_uvku0")
 shader_parameter/uv_scale = Vector2(1, -1)
 shader_parameter/uv_offset = Vector2(0.5, 1.445)
@@ -301,7 +334,7 @@ bind/86/pose = Transform3D(99.99999, 0, 0, 0, 100, 0, 0, 0, 99.99999, 0, 0, 0)
 
 [sub_resource type="Gradient" id="Gradient_hwib0"]
 interpolation_mode = 1
-offsets = PackedFloat32Array(0.0035971224, 0.9532374)
+offsets = PackedFloat32Array(0.9532374, 1)
 colors = PackedColorArray(0, 0, 0, 0, 1, 1, 1, 1)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_kif0f"]
@@ -323,10 +356,43 @@ height = 0.415
 radial_segments = 4
 rings = 0
 
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_ocffs"]
+bounce = 0.5
+absorbent = true
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_uvku0"]
 size = Vector3(0.33007813, 0.5357666, 0.19665527)
 
-[node name="Skeleton3D" type="Skeleton3D" node_paths=PackedStringArray("left_foot_target", "right_foot_target", "left_foot_ik", "right_foot_ik", "right_hand_target", "left_hand_target", "weapon_attachment")]
+[sub_resource type="Animation" id="Animation_kif0f"]
+length = 0.001
+loop_mode = 1
+tracks/0/type = "position_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("LookTarget")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array(0, 1, 0, 0, 0)
+
+[sub_resource type="Animation" id="Animation_ocffs"]
+resource_name = "test_look_target"
+length = 10.0
+loop_mode = 1
+tracks/0/type = "position_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("LookTarget")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array(0.76666665, 1, -3, 0, 0.5, 1.7121763, 1, 0, 0, 3, 2.5666666, 1, 0, 0, 3, 3.6999998, 1, 0, 0, -0.5, 4.766667, 1, 3, 0, 0.5, 5.9666667, 1, 0, 3, 0.5, 7.9, 1, 0, -3, 0.5)
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_r8gmi"]
+_data = {
+&"RESET": SubResource("Animation_kif0f"),
+&"test_look_target": SubResource("Animation_ocffs")
+}
+
+[node name="Skeleton3D" type="Skeleton3D" node_paths=PackedStringArray("left_foot_target", "right_foot_target", "right_hand_target", "left_hand_target", "weapon_attachment")]
 transform = Transform3D(-4.3711385e-08, -0.9999999, -4.371139e-08, 0, -4.3711385e-08, 1, -0.9999999, 4.3711385e-08, 1.9106855e-15, 0, 0, 0)
 bones/0/name = "_rootJoint"
 bones/0/parent = -1
@@ -940,16 +1006,43 @@ bones/86/scale = Vector3(1, 1, 1)
 script = ExtResource("1_aq4gr")
 left_foot_target = NodePath("GodotIK/IK_rightleg")
 right_foot_target = NodePath("GodotIK/IK_rightleg")
-left_foot_ik = NodePath("")
-right_foot_ik = NodePath("")
 right_hand_target = NodePath("GodotIK/IK_rightarm")
 left_hand_target = NodePath("GodotIK/IK_leftarm")
 weapon_attachment = NodePath("RightShoulderAttachment")
 
 [node name="LookTarget" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.9999998, 0, 1.12231866e-20, 0, 0.9999996, -4.0500936e-13, 2.4140439e-20, 8.3518686e-23, 1, 1.8643552, 0.0052582347, 0.13610864)
-visible = false
+transform = Transform3D(1, 2.842171e-14, 6.352747e-22, -2.842171e-14, 1, -2.842171e-14, 0, 2.842171e-14, 1, 0, 0, 0)
+mesh = SubResource("SphereMesh_ocffs")
+skeleton = NodePath("../BodyAlignment")
+
+[node name="LookTarget2" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9999998, 0, -2.9646153e-20, 0, 0.9999996, -3.5527137e-15, 2.985791e-20, 8.3518686e-23, 1, 0, 0, -0.85)
+mesh = SubResource("QuadMesh_kif0f")
+skeleton = NodePath("../BodyAlignment")
+
+[node name="LookTarget7" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9999998, 0, -2.9434395e-20, 0, 0.9999996, -7.1054274e-15, 3.006967e-20, 8.3518686e-23, 1, 0, 0, 3.535)
+mesh = SubResource("QuadMesh_b8yl2")
+skeleton = NodePath("../BodyAlignment")
+
+[node name="LookTarget3" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9999998, 0, -2.901088e-20, 0, 0.9999996, -2.842171e-14, 3.134022e-20, 8.3518686e-23, 1, -3.7286773, 1.1187242e-07, 0.40123338)
 mesh = SubResource("QuadMesh_r8gmi")
+skeleton = NodePath("../BodyAlignment")
+
+[node name="LookTarget5" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9999998, 0, -2.879912e-20, 0, 0.9999996, -3.1974423e-14, 3.1551977e-20, 8.3518686e-23, 1, 3.7057729, -2.1309774e-07, 0.40123338)
+mesh = SubResource("QuadMesh_ocffs")
+skeleton = NodePath("../BodyAlignment")
+
+[node name="LookTarget4" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9999995, 2.1316282e-14, -5.759824e-20, -1.7763568e-14, 0.99999905, -6.039613e-14, 6.119813e-20, 1.4210855e-14, 1, 1.5202767e-07, 3.477987, 0.4253203)
+mesh = SubResource("QuadMesh_rha7b")
+skeleton = NodePath("../BodyAlignment")
+
+[node name="LookTarget6" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9999995, 2.4868996e-14, -5.759824e-20, -2.1316282e-14, 0.99999905, -6.3948846e-14, 6.119813e-20, 1.7763568e-14, 1, -1.5817402e-07, -3.6186001, 0.42532)
+mesh = SubResource("QuadMesh_3proo")
 skeleton = NodePath("../BodyAlignment")
 
 [node name="LegsAlignment" type="LookAtModifier3D" parent="."]
@@ -960,7 +1053,7 @@ bone = 1
 use_secondary_rotation = false
 use_angle_limitation = true
 symmetry_limitation = true
-primary_limit_angle = 0.7853982
+primary_limit_angle = 1.2163199
 primary_damp_threshold = 1.0
 
 [node name="BodyAlignment" type="LookAtModifier3D" parent="."]
@@ -970,25 +1063,27 @@ bone = 3
 duration = 0.33
 use_angle_limitation = true
 symmetry_limitation = true
-primary_limit_angle = 1.9746655
+primary_limit_angle = 1.4718362
 primary_damp_threshold = 1.0
-secondary_limit_angle = 6.2831855
+secondary_limit_angle = 1.2964306
 secondary_damp_threshold = 1.0
 
 [node name="LeftHandAlignment" type="LookAtModifier3D" parent="."]
+target_node = NodePath("../GodotIK/IK_rightarm")
 bone_name = "hand.L_011"
 bone = 12
 forward_axis = 0
 primary_rotation_axis = 2
-origin_offset = Vector3(2.11, 0.065, 1.285)
 
 [node name="RightHandAlignment" type="LookAtModifier3D" parent="."]
+target_node = NodePath("../GodotIK/IK_leftarm")
 bone_name = "hand.R_034"
 bone = 40
 
 [node name="RightShoulderAlignment" type="LookAtModifier3D" parent="."]
 transform = Transform3D(1, 3.5527137e-15, 0, -3.5527137e-15, 1, -3.5527137e-15, 0, 3.5527137e-15, 1, 0, 0, 0)
-origin_offset = Vector3(0, -0.49, 0)
+bone_name = "shoulder.R_031"
+bone = 37
 
 [node name="HeadAlignment" type="LookAtModifier3D" parent="."]
 transform = Transform3D(1, 3.5527137e-15, 0, -3.5527137e-15, 1, -3.5527137e-15, 0, 3.5527137e-15, 1, 0, 0, 0)
@@ -997,24 +1092,25 @@ bone_name = "spine.006_07"
 bone = 7
 use_angle_limitation = true
 symmetry_limitation = true
-primary_limit_angle = 2.6389377
+primary_limit_angle = 1.7432349
 primary_damp_threshold = 1.0
-secondary_limit_angle = 3.1180308
+secondary_limit_angle = 0.9649925
 secondary_damp_threshold = 1.0
 
 [node name="GodotIK" type="GodotIK" parent="."]
-transform = Transform3D(0.6433507, -0.7641936, 0.04594827, 0.7645772, 0.6444162, 0.0123552615, -0.039051507, 0.027182216, 0.99887115, -0.34937087, 0.5853009, 1.3738916)
+use_global_rotation_poles = true
+transform = Transform3D(1.0000017, 0, 0, 0, 1.0000014, 0, 0, 0, 1.0000037, 0, 0, 0)
 
 [node name="IK_leftarm" type="GodotIKEffector" parent="GodotIK"]
 bone_name = "hand.L_011"
 bone_idx = 12
 chain_length = 3
 transform_mode = 3
-transform = Transform3D(-0.010250446, -0.24928826, 0.9683725, 0.046693273, -0.9674851, -0.24856642, 0.99885476, 0.042668685, 0.021558011, 0.037954867, -1.1243877, -1.1720017)
+transform = Transform3D(-0.047753774, 0.86964655, 0.49135295, 0.0022180355, -0.4918199, 0.8706912, 0.99885476, 0.04266865, 0.021557417, 0.565, 0, 0.399)
 
 [node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_leftarm"]
-bone_name = "upper_arm.L_09"
-bone_idx = 10
+bone_name = "forearm.L_010"
+bone_idx = 11
 script = ExtResource("3_kif0f")
 pole_direction = Vector3(-1, 1, 1)
 metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
@@ -1024,13 +1120,13 @@ bone_name = "hand.R_034"
 bone_idx = 40
 chain_length = 3
 transform_mode = 3
-transform = Transform3D(-0.68037343, 0.72682405, -0.09390903, -0.73105216, -0.6821041, 0.017239116, -0.051525906, 0.08038135, 0.995432, -0.17578821, -0.84971035, -1.0137881)
+transform = Transform3D(0.06597495, 0.53192115, 0.8442203, -0.92862964, -0.27683648, 0.24699913, 0.36509487, -0.80026335, 0.4756937, 0.264, 0, 0.467)
 
 [node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_rightarm"]
-bone_name = "forearm.R_033"
-bone_idx = 39
+bone_name = "upper_arm.R_032"
+bone_idx = 38
 script = ExtResource("3_kif0f")
-pole_direction = Vector3(1, -1, -1)
+pole_direction = Vector3(-1, 0, 1)
 metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
 
 [node name="IK_leftleg" type="GodotIKEffector" parent="GodotIK"]
@@ -1038,7 +1134,7 @@ bone_name = "foot.L_059"
 bone_idx = 75
 chain_length = 3
 transform_mode = 3
-transform = Transform3D(0.7397269, 0.56024367, -0.37272522, 0.67226964, -0.5912678, 0.44547743, 0.029195612, -0.58010393, -0.81401473, -0.05, -0.439, -2.343)
+transform = Transform3D(0.7397269, 0.56024367, -0.37272522, 0.67226964, -0.5912678, 0.44547743, 0.029195612, -0.58010393, -0.81401473, 0.18914588, 0.09113774, -0.77221036)
 
 [node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_leftleg"]
 bone_name = "shin.L_058"
@@ -1052,7 +1148,7 @@ bone_name = "foot.R_064"
 bone_idx = 82
 chain_length = 3
 transform_mode = 3
-transform = Transform3D(0.7956068, 0.4835031, -0.36500305, 0.6006419, -0.708087, 0.37126195, -0.078947626, -0.5146164, -0.8537749, -0.325, -0.665, -2.19)
+transform = Transform3D(0.7956068, 0.4835031, -0.36500305, 0.6006419, -0.708087, 0.37126195, -0.078947626, -0.5146164, -0.8537749, -0.085854106, -0.13486233, -0.76420265)
 
 [node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_rightleg"]
 bone_name = "shin.R_063"
@@ -1061,6 +1157,13 @@ script = ExtResource("3_kif0f")
 pole_direction = Vector3(1, -1, 1)
 metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
 
+[node name="IK_head" type="GodotIKEffector" parent="GodotIK"]
+bone_name = "spine.006_end_067"
+bone_idx = 8
+chain_length = 6
+transform_mode = 3
+transform = Transform3D(0.999998, -1.0658141e-14, 6.352747e-22, 1.0658141e-14, 0.9999961, 1.0658141e-14, -4.2351647e-22, -1.0658141e-14, 0.9999976, 0, 0, 1)
+
 [node name="MESH" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, -3.552714e-15, -4.3711395e-08, 0, 1, -4.3711385e-08, 4.3711392e-08, 4.3711385e-08, 1, 0, 0.0017259719, 0)
 material_overlay = SubResource("ShaderMaterial_kif0f")
@@ -1068,58 +1171,56 @@ mesh = ExtResource("4_uvku0")
 skin = SubResource("Skin_pk55j")
 
 [node name="RightShoulderAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(-0.84311646, -0.5259693, 0.11185011, 0.53692603, -0.83481747, 0.12161548, 0.029408433, 0.16259123, 0.9862551, 0.044483516, -0.018009355, 0.51277584)
+transform = Transform3D(-0.84778607, -0.5095994, 0.14685768, 0.526798, -0.8411381, 0.12235304, 0.061176613, 0.18109372, 0.9815612, 0.056169286, -0.016902948, 0.5085178)
 bone_name = "shoulder.R_031"
 bone_idx = 37
 
 [node name="LeftHandAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(-0.25647897, 0.7396389, 0.6222131, 0.32724994, -0.5392744, 0.7759436, 0.9094662, 0.40263125, -0.103734165, 0.41391015, -0.007087171, 0.36776716)
+transform = Transform3D(0.060640834, 0.8742698, 0.48163387, 0.06669155, -0.4849918, 0.87197036, 0.99593085, -0.020755976, -0.08771685, 0.4401162, 0.029614411, 0.378038)
 bone_name = "hand.L_011"
 bone_idx = 12
 
 [node name="RightHandAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(0.11857944, 0.9925556, -0.027852237, -0.99193686, 0.11714734, -0.04839339, -0.044769995, 0.03336583, 0.99844426, 0.1402967, -0.10919711, 0.34501582)
+transform = Transform3D(-0.19977854, 0.53414285, 0.8214531, -0.9798061, -0.11614987, -0.16276558, 0.008471519, -0.8373809, 0.5465595, 0.26555663, -0.0424318, 0.47910324)
 bone_name = "hand.R_034"
 bone_idx = 40
 
 [node name="HeadAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(-0.002728768, 0.276487, 0.9610136, 0.9999963, 0.0007507739, 0.0026234225, 3.852377e-06, 0.96101725, -0.27648798, -0.007996986, 0.00014692565, 0.67479277)
+transform = Transform3D(-0.0145327505, 0.08242566, 0.996491, 0.9998936, 2.7506974e-05, 0.014579991, 0.001174247, 0.9965971, -0.08241741, -0.026311561, -8.7929075e-06, 0.6818718)
 bone_name = "spine.006_07"
 bone_idx = 7
 
 [node name="Camera3D" type="Camera3D" parent="HeadAttachment"]
-transform = Transform3D(-1.0000001, 0, -8.742276e-08, 0, 1.0000001, 0, 8.742279e-08, 0, -1.0000004, 0, 0, 0.125)
+transform = Transform3D(-1.0000005, 0, -8.7422784e-08, 0, 1.0000004, 0, 8.742282e-08, 0, -1.0000001, -0.0037137244, 0.013204217, 0.21912527)
 current = true
-near = 0.01
-far = 937.3
+near = 0.036
 
 [node name="LookTarget" type="MeshInstance3D" parent="HeadAttachment/Camera3D"]
-transform = Transform3D(0.70895535, -0.012308358, 0.7051457, 0.70525306, 0.012372989, -0.7088476, -1.2818429e-08, 0.9998473, 0.017452415, 8.921376e-09, 0, -0.20409742)
-visible = false
+transform = Transform3D(0.7089553, -0.012308359, 0.70514566, 0.705253, 0.012373, -0.7088475, 0, 0.9998473, 0.01745236, 1.4901161e-08, 0, -0.20409745)
 mesh = SubResource("CylinderMesh_r8gmi")
 skeleton = NodePath("../BodyAlignment")
 
 [node name="LeftFeetAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(-0.036498792, 0.78562176, -0.617628, 0.9991607, 0.040160023, -0.007961869, 0.018548962, -0.61739933, -0.78643036, -0.12516901, 0.20590024, -0.7703812)
+transform = Transform3D(0.7397283, 0.56024516, -0.37272722, 0.6722708, -0.59126824, 0.44547924, 0.029195696, -0.5801064, -0.81401706, 0.18519484, 0.0922147, -0.7538216)
 bone_name = "foot.L_059"
 bone_idx = 75
 
 [node name="RightFeetAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(0.049220018, 0.8285319, -0.5577727, 0.9943906, -0.09298531, -0.050374325, -0.09360136, -0.5521645, -0.82846403, -0.1432403, -0.11820443, -0.7748147)
+transform = Transform3D(0.7956082, 0.4835044, -0.36500514, 0.6006429, -0.7080877, 0.37126425, -0.07894794, -0.5146185, -0.8537768, -0.08753498, -0.13443993, -0.7741022)
 bone_name = "foot.R_064"
 bone_idx = 82
 
 [node name="TorsoAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(-0.0027283104, 0.042062297, 0.99911106, 0.9999963, 0.000110975016, 0.002726022, 3.8004746e-06, 0.9991149, -0.042062443, -0.056887764, 1.4645182e-05, 0.38374805)
+transform = Transform3D(-0.014641708, 0.079046994, 0.99676335, 0.99989206, 1.5870377e-05, 0.014686305, 0.0011449812, 0.9968708, -0.07903883, -0.050120547, -1.4046864e-05, 0.38335228)
 bone_name = "spine.003_04"
 bone_idx = 4
 
-[node name="Backpack" parent="TorsoAttachment" node_paths=PackedStringArray("attractors") instance=ExtResource("6_ocffs")]
+[node name="Backpack" parent="TorsoAttachment" instance=ExtResource("6_ocffs")]
 physics_interpolation_mode = 1
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.14)
-collision_mask = 8
+collision_layer = 0
+collision_mask = 0
 auto_disable_physics = true
-attractors = [NodePath("..")]
 spring_constant = Vector3(1000, 1000, 1000)
 angular_spring_constant = Vector3(1000, 1000, 1000)
 attachment_mode = 1
@@ -1127,8 +1228,9 @@ enable_attachment = true
 
 [node name="StaticBody3D" type="StaticBody3D" parent="TorsoAttachment"]
 physics_interpolation_mode = 1
-collision_layer = 8
-collision_mask = 8
+collision_layer = 2
+collision_mask = 2
+physics_material_override = SubResource("PhysicsMaterial_ocffs")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="TorsoAttachment/StaticBody3D"]
 transform = Transform3D(1, -1.1226575e-12, -4.49063e-12, -1.0658141e-14, 1, 0, -1.2221335e-12, 0, 1, 0.0019531623, -0.12762469, 0.04473877)
@@ -1151,3 +1253,8 @@ physics_interpolation_mode = 1
 transform = Transform3D(1.0000014, 0, 0, 0, 1.000002, -4.4703484e-08, -9.313226e-10, -4.4703484e-08, 1.000001, -0.0023936497, -0.12738493, -0.11549174)
 node_a = NodePath("../StaticBody3D")
 node_b = NodePath("../Backpack")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+&"": SubResource("AnimationLibrary_r8gmi")
+}
