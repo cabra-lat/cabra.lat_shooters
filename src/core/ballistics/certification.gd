@@ -105,9 +105,9 @@ static func get_certified_threats(standard: Standard, level: int) -> Array:
     Standard.NIJ:
       match level:
         # NIJ 0101.06 (old standard)
-        1: return [ # .22 LR & .380 ACP
+        1: return [ # .22 LR & .380 Auto
           {"type": Ammo.Type.FMJ, "energy": E(2.6, 329), "caliber": ".22 LR"},
-          {"type": Ammo.Type.FMJ, "energy": E(6.2, 322), "caliber": ".380 ACP"}
+          {"type": Ammo.Type.FMJ, "energy": E(6.2, 322), "caliber": ".380 Auto"}
         ]
         2: return [ # 9mm
           {"type": Ammo.Type.FMJ, "energy": E(8.0, 373), "caliber": "9x19mm"}

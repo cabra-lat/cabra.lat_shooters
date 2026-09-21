@@ -19,12 +19,16 @@ static func parse(cal: String) -> Dictionary:
 	# Handle common pistol calibers with regex
 	var common_calibers = {
 		"^\\.45\\s*ACP": {"bore_mm": 11.43, "case_mm": 22.8, "rimmed": false},
+		"^\\.45\\s*Auto": {"bore_mm": 11.43, "case_mm": 22.8, "rimmed": false},
 		"^\\.40\\s*S&W": {"bore_mm": 10.16, "case_mm": 21.6, "rimmed": false},
+		"^\\.40\\s*Auto": {"bore_mm": 10.16, "case_mm": 21.6, "rimmed": false},
 		"^\\.22\\s*LR": {"bore_mm": 5.56, "case_mm": 15.6, "rimmed": true},
 		"^\\.44\\s*Magnum": {"bore_mm": 10.9, "case_mm": 32.6, "rimmed": true},
 		"^\\.357\\s*Magnum": {"bore_mm": 9.07, "case_mm": 33.0, "rimmed": true},
 		"^\\.357\\s*SIG": {"bore_mm": 9.02, "case_mm": 21.9, "rimmed": false},
+		"^\\.357\\s*Auto": {"bore_mm": 9.02, "case_mm": 21.9, "rimmed": false},
 		"^\\.380\\s*ACP": {"bore_mm": 9.65, "case_mm": 17.3, "rimmed": false},
+		"^\\.380\\s*Auto": {"bore_mm": 9.65, "case_mm": 17.3, "rimmed": false},
 		"^9mm": {"bore_mm": 9.0, "case_mm": 19.0, "rimmed": false},
 	}
 	
