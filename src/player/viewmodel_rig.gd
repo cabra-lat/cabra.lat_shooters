@@ -289,13 +289,7 @@ func _mount_attachment(point: int, attachment: Attachment) -> void:
 	_refresh_ads_after_change()
 
 func _unmount_attachment(point: int) -> void:
-	if _mounted_attachments.has(point):
-		var old = _mounted_attachments[point]
-		if is_instance_valid(old):
-			old.queue_free()
-		_mounted_attachments.erase(point)
-	if point == Weapon.AttachmentPoint.TOP_RAIL:
-		Weapon3D.restore_baked_marker_siblings(_baked_optics_hidden)
+	Weapon3D.unmount_attachment_entry(_mounted_attachments, point, _baked_optics_hidden)
 	_refresh_ads_after_change()
 
 ## Shared tail of mount/unmount: re-resolve eye alignment (an optic reticle may

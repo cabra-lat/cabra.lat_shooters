@@ -46,6 +46,18 @@ static func restore_baked_marker_siblings(store: Dictionary) -> void:
                     (c as Node3D).visible = true
     store.clear()
 
+## Shared unmount bookkeeping: free the mounted node for `point`, drop the
+## entry, and restore the marker's baked siblings. Lane-specific cleanup
+## (magazine visibility, ADS refresh) stays in the caller.
+static func unmount_attachment_entry(mounted: Dictionary, point: int, hidden_store: Dictionary) -> void:
+    if mounted.has(point):
+        var old = mounted[point]
+        if is_instance_valid(old):
+            old.queue_free()
+        mounted.erase(point)
+    if point == Weapon.AttachmentPoint.TOP_RAIL:
+        Weapon3D.restore_baked_marker_siblings(hidden_store)
+
 var firerate_timer: Timer
 var casing_ejection: bool = true
 var magazine_3d: Magazine3D = null
@@ -226,13 +238,7 @@ func _mount_attachment(point: int, attachment: Attachment) -> void:
         magazine_3d.visible = false
 
 func _unmount_attachment(point: int) -> void:
-    if _mounted_attachments.has(point):
-        var old = _mounted_attachments[point]
-        if is_instance_valid(old):
-            old.queue_free()
-        _mounted_attachments.erase(point)
-    if point == Weapon.AttachmentPoint.TOP_RAIL:
-        Weapon3D.restore_baked_marker_siblings(_baked_optics_hidden)
+    Weapon3D.unmount_attachment_entry(_mounted_attachments, point, _baked_optics_hidden)
     if point == Weapon.MAGAZINE_POINT and magazine_3d and is_instance_valid(magazine_3d):
         magazine_3d.visible = true
 
