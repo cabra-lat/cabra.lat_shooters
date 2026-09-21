@@ -1,3 +1,10 @@
+# res://addons/cabra.lat_shooters/src/player/ik.gd
+# Foot IK for the PLAYER rig (`player_ik.tscn`), which owns the GodotIK effectors.
+#
+# M1 DEBT (coordinator 2026-09-21): the skeleton in `player_ik.tscn` is a COPY of
+# `humanoid_rig.tscn` (the SINGLE SOURCE). They must stay in sync until the dedupe
+# (merge this foot IK into `HumanoidRig.set_foot_ik` and make the player instance
+# the shared scene). Drift is guarded by an invariant (bone count + names/order).
 extends Skeleton3D
 
 @export_category("Foot IK Settings")

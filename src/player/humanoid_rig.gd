@@ -19,6 +19,13 @@ extends Skeleton3D
 ## that resolves to a CHILD named "Skeleton3D", which does not exist, so the clip
 ## plays and moves nothing (silently). Set `root_node` explicitly, or name the rig
 ## node "Skeleton3D" and keep the player above it (what npc-body's bot.tscn does).
+##
+## M1 DEBT (coordinator decision 2026-09-21): `humanoid_rig.tscn` is the SINGLE
+## SOURCE of the skeleton, but the player (`player_ik.tscn`) still carries a COPY
+## of the same 87 bones (it needs `ik.gd`'s foot IK on the root). They must stay
+## in sync until the dedupe lands: merge foot IK into HumanoidRig (`set_foot_ik`)
+## and make the player instance this scene. Drift is guarded by an invariant
+## (bone count + names/order) until then.
 
 const VISIBLE_LAYER := 1
 
