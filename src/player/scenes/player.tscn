@@ -177,6 +177,7 @@ transform = Transform3D(0.9999999, 0, 0, 0, 0.99999946, 0, 0, 0, 0.99999976, 0, 
 remote_path = NodePath("../Skeleton3D/GodotIK/IK_head")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 0.024833467, -0.9996916, 0, 0.9996916, 0.024833467, -0.006, 0.8585762, 0.020812184)
 shape = SubResource("BoxShape3D_hwib0")
 debug_color = Color(0.6745098, 0.7019608, 0, 0.41960785)

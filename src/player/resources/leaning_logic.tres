@@ -1,4 +1,4 @@
-[gd_resource type="AnimationNodeStateMachine" load_steps=11 format=3 uid="uid://b670t66ds4lnh"]
+[gd_resource type="AnimationNodeStateMachine" format=3 uid="uid://b670t66ds4lnh"]
 
 [sub_resource type="AnimationNodeStateMachine" id="AnimationNodeStateMachine_gsogp"]
 

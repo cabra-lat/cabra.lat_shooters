@@ -392,7 +392,7 @@ _data = {
 &"test_look_target": SubResource("Animation_ocffs")
 }
 
-[node name="Skeleton3D" type="Skeleton3D" node_paths=PackedStringArray("left_foot_target", "right_foot_target", "right_hand_target", "left_hand_target", "weapon_attachment")]
+[node name="Skeleton3D" type="Skeleton3D" node_paths=PackedStringArray("left_foot_target", "right_foot_target")]
 transform = Transform3D(-4.3711385e-08, -0.9999999, -4.371139e-08, 0, -4.3711385e-08, 1, -0.9999999, 4.3711385e-08, 1.9106855e-15, 0, 0, 0)
 bones/0/name = "_rootJoint"
 bones/0/parent = -1
@@ -1004,11 +1004,8 @@ bones/86/position = Vector3(1.3877788e-17, 0.08, 0)
 bones/86/rotation = Quaternion(-6.617445e-24, 2.389507e-24, 1.323489e-23, 1)
 bones/86/scale = Vector3(1, 1, 1)
 script = ExtResource("1_aq4gr")
-left_foot_target = NodePath("GodotIK/IK_rightleg")
+left_foot_target = NodePath("GodotIK/IK_leftleg")
 right_foot_target = NodePath("GodotIK/IK_rightleg")
-right_hand_target = NodePath("GodotIK/IK_rightarm")
-left_hand_target = NodePath("GodotIK/IK_leftarm")
-weapon_attachment = NodePath("RightShoulderAttachment")
 
 [node name="LookTarget" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 2.842171e-14, 6.352747e-22, -2.842171e-14, 1, -2.842171e-14, 0, 2.842171e-14, 1, 0, 0, 0)
@@ -1192,7 +1189,7 @@ bone_idx = 7
 
 [node name="Camera3D" type="Camera3D" parent="HeadAttachment"]
 transform = Transform3D(-1.0000005, 0, -8.7422784e-08, 0, 1.0000004, 0, 8.742282e-08, 0, -1.0000001, -0.0037137244, 0.013204217, 0.21912527)
-current = true
+current = false
 near = 0.036
 
 [node name="LookTarget" type="MeshInstance3D" parent="HeadAttachment/Camera3D"]

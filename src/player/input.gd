@@ -20,6 +20,17 @@ extends MultiplayerSynchronizer
 @export var lean_right := false
 @export var weapon_equip := false
 @export var weapon_drop := false
+@export var clear_malfunction := false
+
+# Equipment mirror: scenes (arena/debug_range) equip programmatically, so the
+# aiming SM would sit in BareHanded forever waiting for the weapon_slot1 key
+# edge. Assigned by the controller in _ready; flags below OR it in.
+var equipment_source: Equipment = null
+
+# Physical gates written by the controller (survival): a tired or overloaded
+# player cannot start a sprint or a jump, using the SM's own transitions.
+var sprint_allowed: bool = true
+var jump_allowed: bool = true
 
 # Mouse look
 @export var mouse_delta := Vector2()
@@ -42,8 +53,8 @@ func _process(_delta: float) -> void:
     Input.get_action_strength("forward") - Input.get_action_strength("back")
   )
 
-  jump_pressed    = Input.is_action_just_pressed("jump")
-  sprint_held     = Input.is_action_pressed("sprint")
+  jump_pressed    = Input.is_action_just_pressed("jump") and jump_allowed
+  sprint_held     = Input.is_action_pressed("sprint") and sprint_allowed
 
   # Capture raw input
   var crouch_toggle_pressed = Input.is_action_just_pressed("crouch_toggle")
@@ -105,6 +116,22 @@ func _process(_delta: float) -> void:
   lean_right      = Input.is_action_pressed("lean_right")
   weapon_equip    = Input.is_action_just_pressed("weapon_slot1")
   weapon_drop     = Input.is_action_just_pressed("weapon_drop")
+  clear_malfunction = InputMap.has_action("clear_malfunction") \
+    and Input.is_action_just_pressed("clear_malfunction")
+  sync_equip_flags()
+
+## Fold real equipment state into the SM edge flags (called every frame
+## from _process; also directly testable headless).
+func sync_equip_flags() -> void:
+  var armed := _weapon_equipped()
+  weapon_equip = weapon_equip or armed
+  weapon_drop = weapon_drop or not armed
+
+func _weapon_equipped() -> bool:
+  if equipment_source == null:
+    return false
+  return equipment_source.is_equipped("primary") \
+    or equipment_source.is_equipped("secondary")
 
 func _input(event: InputEvent) -> void:
   if not is_multiplayer_authority():

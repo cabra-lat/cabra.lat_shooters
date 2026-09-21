@@ -1,4 +1,4 @@
-[gd_resource type="AnimationNodeStateMachine" load_steps=13 format=3 uid="uid://cqkqs2q5t0o2s"]
+[gd_resource type="AnimationNodeStateMachine" format=3 uid="uid://cqkqs2q5t0o2s"]
 
 [sub_resource type="AnimationNodeStateMachine" id="s_aiming"]
 states/End/position = Vector2(696, 130.025)
