@@ -286,8 +286,7 @@ func _mount_attachment(point: int, attachment: Attachment) -> void:
 	_mounted_attachments[point] = inst
 	if point == Weapon.AttachmentPoint.TOP_RAIL:
 		_hide_baked_optics(marker, inst)
-	# An optic reticle may have appeared; re-resolve eye alignment.
-	_ads_offset = resolve_ads_offset(_gun)
+	_refresh_ads_after_change()
 
 func _unmount_attachment(point: int) -> void:
 	if _mounted_attachments.has(point):
@@ -297,6 +296,11 @@ func _unmount_attachment(point: int) -> void:
 		_mounted_attachments.erase(point)
 	if point == Weapon.AttachmentPoint.TOP_RAIL:
 		_restore_baked_optics()
+	_refresh_ads_after_change()
+
+## Shared tail of mount/unmount: re-resolve eye alignment (an optic reticle may
+## have appeared or gone).
+func _refresh_ads_after_change() -> void:
 	if is_instance_valid(_gun):
 		_ads_offset = resolve_ads_offset(_gun)
 

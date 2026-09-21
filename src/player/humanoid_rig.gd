@@ -29,12 +29,10 @@ extends Skeleton3D
 
 const VISIBLE_LAYER := 1
 
-## Body reference bones/offsets with NUMERIC PARITY to NpcBot (M7): the body
-## swap must not change shot/eye resolution.
-const HEAD_BONE := "spine.006_07"
-const CHEST_BONE := "spine.003_04"
-const EYE_HEIGHT := 1.5
-const CHEST_HEIGHT := 1.2
+## Body reference (M7): the body swap must not change shot/eye resolution. The
+## reference bones are `spine.006_07` (head/eye) and `spine.003_04` (chest);
+## consumers keep their OWN numeric eye/chest heights (NpcBot: 1.5 / 1.2,
+## root-relative), so this rig exposes no accessors/constants for them.
 ## Feet-on-ground placement (C2): the same skeleton the player uses sits at
 ## y=0.851 (player.tscn), so the ankle (local z=-0.784) lands ~0.067 m up =
 ## the sole thickness. A world consumer places the rig node at this Y to put
@@ -167,18 +165,8 @@ func anim_names() -> PackedStringArray:
 	return a.get_animation_list() if a != null else PackedStringArray()
 
 # ─── BODY REFERENCE BONES (M7) ─────────────────────────────────────────────────
-func head_bone_index() -> int:
-	return find_bone(HEAD_BONE)
-
-func chest_bone_index() -> int:
-	return find_bone(CHEST_BONE)
-
-## World-space origin of a named bone (eye/chest/hand), for LOS/aim. M7.
-func bone_global_position(bone_name: String) -> Vector3:
-	var idx := find_bone(bone_name)
-	if idx < 0:
-		return global_position
-	return global_transform * get_bone_global_rest(idx).origin
+# (M7 body-reference accessors removed: no consumer — NpcBot reads its own bones
+# and keeps its own 1.5/1.2 heights, so these were dead API.)
 
 ## Lazy + recursive (F3): the AnimationPlayer may be nested, and play() can be
 ## called before _ready().
