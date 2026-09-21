@@ -53,6 +53,7 @@ func _run() -> void:
 	_inv21_roles_swap_conserves_mass()
 	_inv22_roles_kia_forfeits_only_active_kit()
 	_inv23_skeletons_in_sync()
+	_inv24_spawn_picks_are_distinct()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -556,6 +557,31 @@ func _find_skeleton(n: Node) -> Skeleton3D:
 		if s != null:
 			return s
 	return null
+
+# ─── INV-24: no two participants get the same spawn point (launched bots) ─
+# ORIGIN (spotter + npc-body, 2026-09-21): `GameMode._pick_spawn()` used `randi()`,
+# so two bots could be created on the SAME point; physics depenetration then pushed
+# them apart UPWARDS and launched them to y ~135-143 m before they fell back
+# (intermittent, ~1 in 3-6 boots). Fix `de32b91`: a deterministic per-team cursor
+# walks the points and wraps. Assert the first `spawn_points.size()` picks are
+# pairwise DISTINCT — the exact property that was missing, and deterministic (no
+# 700-frame boot, no flakiness).
+func _inv24_spawn_picks_are_distinct() -> void:
+	var gm := GameMode.new()
+	var pts: Array[Vector3] = []
+	for i in 8:
+		pts.append(Vector3(float(i) * 3.0, 0.0, 0.0))
+	gm.setup(pts)
+	var seen := {}
+	var dupes := 0
+	for i in pts.size():
+		var p: Vector3 = gm._pick_spawn(0)
+		if seen.has(p):
+			dupes += 1
+		seen[p] = true
+	_check("INV-24", "spawn_picks_are_distinct", pts.size() > 0 and dupes == 0,
+		"picks=%d distinct=%d dupes=%d" % [pts.size(), seen.size(), dupes],
+		"randi() handed the same spawn to two bots -> depenetration launched them (y~140 m)")
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
