@@ -101,7 +101,7 @@ static func timer(key: String, level: DEBUG_LEVEL = DEBUG_LEVEL.INFO) -> Callabl
   return func():
     var end_time = Time.get_ticks_usec()
     var duration = (end_time - start_time) / 1000.0
-    Debug.time(key, duration, level)
+    DebugSingleton.time(key, duration, level)
 
 # Clear all debug data
 static func clear():

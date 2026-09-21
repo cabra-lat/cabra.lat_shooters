@@ -700,19 +700,19 @@ func _handle_debug_flying(delta: float):
   move_and_slide()
 
   # Update debug info
-  Debug.add("fly_speed", current_fly_speed, "debug")
-  Debug.add("fly_velocity", velocity, "debug")
-  Debug.add("fly_position", global_position, "debug")
+  DebugSingleton.add("fly_speed", current_fly_speed, "debug")
+  DebugSingleton.add("fly_velocity", velocity, "debug")
+  DebugSingleton.add("fly_position", global_position, "debug")
 
 # ─── MAIN PHYSICS PROCESS ──────────────────────────────────────────────────────
 
 func _physics_process(delta: float) -> void:
   # Clear previous frame's debug data
-  Debug.clear_category("player")
-  Debug.clear_category("timing")
+  DebugSingleton.clear_category("player")
+  DebugSingleton.clear_category("timing")
 
   # Add debug flying state to debug display
-  Debug.add("debug_flying", debug_flying, "debug")
+  DebugSingleton.add("debug_flying", debug_flying, "debug")
 
   # Handle debug flying mode
   if debug_flying:
@@ -720,14 +720,14 @@ func _physics_process(delta: float) -> void:
     return  # Skip normal physics processing when flying
 
   # Time entire frame
-  var frame_timer = Debug.timer("frame")
+  var frame_timer = DebugSingleton.timer("frame")
 
   # Time each section
-  var camera_timer = Debug.timer("camera")
+  var camera_timer = DebugSingleton.timer("camera")
   _handle_camera_rotation()
   camera_timer.call()
 
-  var movement_timer = Debug.timer("move")
+  var movement_timer = DebugSingleton.timer("move")
   _calculate_movement_direction()
   movement_timer.call()
 
@@ -747,11 +747,11 @@ func _physics_process(delta: float) -> void:
 
   _update_survival(delta)
 
-  var states_timer = Debug.timer("state")
+  var states_timer = DebugSingleton.timer("state")
   _read_states_and_apply(delta)
   states_timer.call()
 
-  var physics_timer = Debug.timer("physics")
+  var physics_timer = DebugSingleton.timer("physics")
   _apply_movement_and_physics(delta)
   physics_timer.call()
 
@@ -761,23 +761,23 @@ func _physics_process(delta: float) -> void:
   frame_timer.call()
 
   # Add state data
-  Debug.add("moving_state", moving.state, "player")
-  Debug.add("crouching_state", crouching.state, "player")
-  Debug.add("leaning_state", leaning.state, "player")
-  Debug.add("aiming_state", aiming.state, "player")
-  Debug.add("firing_state", firing.state, "player")
+  DebugSingleton.add("moving_state", moving.state, "player")
+  DebugSingleton.add("crouching_state", crouching.state, "player")
+  DebugSingleton.add("leaning_state", leaning.state, "player")
+  DebugSingleton.add("aiming_state", aiming.state, "player")
+  DebugSingleton.add("firing_state", firing.state, "player")
 
   # Add movement data
-  Debug.add("speed", current_speed, "movement")
-  Debug.add("direction", current_direction, "movement")
-  Debug.add("velocity", velocity, "movement")
-  Debug.add("on_ground", is_on_floor(), "movement")
+  DebugSingleton.add("speed", current_speed, "movement")
+  DebugSingleton.add("direction", current_direction, "movement")
+  DebugSingleton.add("velocity", velocity, "movement")
+  DebugSingleton.add("on_ground", is_on_floor(), "movement")
 
   # Add input data
-  Debug.add("trying_move", input.motion, "input")
-  Debug.add("is_aim_held", input.aim_held, "input")
-  Debug.add("is_fire_held", input.fire_held, "input")
-  Debug.add("is_sprint_held", input.sprint_held, "input")
+  DebugSingleton.add("trying_move", input.motion, "input")
+  DebugSingleton.add("is_aim_held", input.aim_held, "input")
+  DebugSingleton.add("is_fire_held", input.fire_held, "input")
+  DebugSingleton.add("is_sprint_held", input.sprint_held, "input")
 
 
 func _handle_camera_rotation():
