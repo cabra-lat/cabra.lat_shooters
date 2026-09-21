@@ -74,6 +74,11 @@ signal weapon_modify_requested(weapon: Weapon)
 # ─── MOVEMENT VARIABLES ────────────────────────────────────────────────────────
 var max_velocity: float = 0.0
 var current_weapon: Weapon = null
+## Active weapon slot, OWNED BY THE ARENA (set via set_active_weapon_slot).
+## `current_weapon` is ALWAYS resolved from this slot, so a drop / equip /
+## quick-switch (whatever the path) can never leave a stale gun for the gunsmith
+## or the HUD.
+var active_weapon_slot: String = "primary"
 var current_hands: Item3D = null
 var viewmodel_rig: ViewmodelRig = null
 var last_look_delta := Vector2.ZERO
@@ -231,18 +236,14 @@ func _connect_state_machine_signals():
 func _on_equipment_equipped(item: Item, slot_name: String):
   var weapon_item = item
   if weapon_item and weapon_item.extra is Weapon:
+    # Legacy (signal-driven) path, kept until the arena opts into
+    # set_active_weapon_slot(): last equipped wins, so the arena's
+    # "equip the active slot last" switch keeps working unchanged.
     current_weapon = weapon_item.extra as Weapon
-
-    # Setup viewmodel on hand
     _setup_viewmodel_on_hand(current_weapon)
-
-    # Stealth: firing is loud. Listen alongside the resolver/rig (multiple
-    # listeners are fine); disconnect the previous weapon so drops stay quiet
-    # for the AI too.
     if not current_weapon.cartridge_fired.is_connected(_on_cartridge_fired_noise):
       current_weapon.cartridge_fired.connect(_on_cartridge_fired_noise)
-
-    print("Weapon %s equipped at %s" % [current_weapon.name, slot_name ])
+    print("Weapon %s equipped at %s" % [current_weapon.name, slot_name])
 
 func _on_cartridge_fired_noise(weapon: Weapon, _cartridge: Ammo) -> void:
   if weapon != current_weapon:
@@ -273,6 +274,28 @@ func _on_equipment_unequiped(item: Item, slot_name: String):
     _remove_viewmodel_from_hand()
     current_weapon = null
     print("Weapon unequipped from %s - viewmodel released" % slot_name)
+
+## current_weapon is ALWAYS the weapon equipped in the active slot: the arena
+## tells us the slot (set_active_weapon_slot) and any equip/unequip routes here,
+## so a dropped/switched gun never lingers for the gunsmith or HUD.
+func _refresh_current_weapon() -> void:
+  var w: Weapon = null
+  if equipment != null and active_weapon_slot != "":
+    var items := equipment.get_equipped(active_weapon_slot)
+    if not items.is_empty():
+      w = items[0].extra as Weapon
+  if w == current_weapon:
+    return
+  current_weapon = w
+  _setup_viewmodel_on_hand(w)
+  if w != null and not w.cartridge_fired.is_connected(_on_cartridge_fired_noise):
+    w.cartridge_fired.connect(_on_cartridge_fired_noise)
+
+## The arena owns the active slot; it calls this on switch/drop so current_weapon
+## follows (drop included, whatever the removal path).
+func set_active_weapon_slot(slot: String) -> void:
+  active_weapon_slot = slot
+  _refresh_current_weapon()
 
 func _setup_viewmodel_on_hand(weapon: Weapon):
   # Always drop the previous viewmodel first. It is parented to
