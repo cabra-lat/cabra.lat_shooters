@@ -46,6 +46,7 @@ func _run() -> void:
 	await _inv17_world_mode_tags_no_npcs()
 	await _inv18_rig_sole_on_ground()
 	await _inv19_rig_body_material_supports_flash()
+	await _inv20_every_clip_drives_the_rig()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -322,6 +323,40 @@ func _inv19_rig_body_material_supports_flash() -> void:
 	_check("INV-19", "rig_body_material_supports_flash", ok,
 		"uniforms=%d has_modulate=%s has_flash=%s" % [uniforms.size(), str(uniforms.has("modulate_color")), str(uniforms.has("flash_amount"))],
 		"F6: the body shader lacked flash_amount, so set_flash() was a silent no-op")
+	rig.queue_free()
+
+# ─── INV-20: every animation clip drives at least one rig bone (F9) ──
+# ORIGIN (npc-body rig acceptance + player-rig retarget, 2026-09-21): the lib's
+# clips used Mixamo names (Hips/LeftLeg/...) that do NOT exist on the rig
+# (spine_01/thigh.L_057/...), so 0 of 3577 tracks matched and the bodies were a
+# T-pose. `e327af3` retargeted the .tres clips; `19afb28` fixed the EMBEDDED
+# `reset` sub_resource (not a .tres, so the per-file retarget skipped it) and
+# dropped Mixamo-only bones. Assert EVERY clip has >=1 track resolving to a rig
+# bone — the assertion that was held until 24/24 clips matched.
+func _inv20_every_clip_drives_the_rig() -> void:
+	var ps := load("res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn") as PackedScene
+	var lib := load("res://addons/cabra.lat_shooters/src/player/humanoid_body_anims.res") as AnimationLibrary
+	if ps == null or lib == null:
+		_check("INV-20", "every_clip_drives_a_rig_bone", false, "rig or anim lib missing", "F9: clips did not drive the rig")
+		return
+	var rig = ps.instantiate()
+	root.add_child(rig)
+	await process_frame
+	var clips := lib.get_animation_list()
+	var dead: Array[String] = []
+	for name in clips:
+		var anim: Animation = lib.get_animation(name)
+		var matches := 0
+		for t in range(anim.get_track_count()):
+			var parts := str(anim.track_get_path(t)).split(":")
+			if parts.size() == 2 and rig.find_bone(parts[1]) >= 0:
+				matches += 1
+		if matches == 0:
+			dead.append(String(name))
+	var ok: bool = clips.size() > 0 and dead.is_empty()
+	_check("INV-20", "every_clip_drives_a_rig_bone", ok,
+		"clips=%d without_a_match=%d %s" % [clips.size(), dead.size(), str(dead)],
+		"F9: clips used Mixamo bone names absent from the rig, so bodies were a T-pose")
 	rig.queue_free()
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
