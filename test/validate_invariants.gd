@@ -56,6 +56,7 @@ func _run() -> void:
 	_inv24_spawn_picks_are_distinct()
 	await _inv25_26_npc_spawn_and_corpse()
 	await _inv28_npc_teams_contract()
+	await _inv29_patrol_survives_loot_window()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -743,6 +744,49 @@ func _inv28_spawn(world: Node3D, ps: PackedScene, at: Vector3, team: int) -> Nod
 func _inv28_tint(bot: Node) -> Color:
 	var rig = bot.get_node("Skeleton3D")
 	return rig.own_materials()[0].get_shader_parameter("modulate_color") as Color
+
+# ─── INV-29: an idle bot KEEPS PATROLLING after the loot window (no loot) ───
+# ORIGIN (npc-body, 2026-09-21): the loot branch swallowed the patrol branch —
+# with `loot_enabled=true` and nothing in range, the bot stopped patrolling
+# forever after `loot_idle_delay` (the loot `elif` never fell through to patrol).
+# That is the "walks 7.8 m then stops at vel=0" the spotter saw in the strip. Fix:
+# fall through to `_patrol_dir()`. Deterministic: 1 body + a floor, no arena.
+func _inv29_patrol_survives_loot_window() -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	var floor := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	cs.shape = WorldBoundaryShape3D.new()
+	floor.add_child(cs)
+	world.add_child(floor)
+	var bot_ps := load("res://src/npcs/bot/bot.tscn") as PackedScene
+	if bot_ps == null:
+		_check("INV-29", "patrol_survives_loot_window", false, "bot.tscn missing", "loot branch swallowed patrol")
+		world.queue_free()
+		return
+	var bot = bot_ps.instantiate()
+	world.add_child(bot)
+	bot.global_position = Vector3(0, 1.2, 0)
+	bot.setup([Vector3(0, 0, -14), Vector3(0, 0, 14)])
+	bot.loot_enabled = true
+	bot.loot_idle_delay = 0.05
+	bot.loot_radius = 1.0            # nothing to loot in this scene
+	await physics_frame
+	await physics_frame
+	var start: Vector3 = bot.global_position
+	for i in 58:
+		await physics_frame
+	var mid: Vector3 = bot.global_position
+	var moved_first: float = (mid - start).length()
+	var moving_after: bool = bool(bot._moving)
+	for i in 80:
+		await physics_frame
+	var moved_second: float = (bot.global_position - mid).length()
+	_check("INV-29", "patrol_survives_loot_window",
+		moved_first > 0.5 and moving_after and moved_second > 0.5,
+		"first=%.2f moving_after_loot=%s second=%.2f" % [moved_first, str(moving_after), moved_second],
+		"with loot enabled and nothing to loot, the bot froze after loot_idle_delay")
+	world.queue_free()
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
