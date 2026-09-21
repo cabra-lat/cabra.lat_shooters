@@ -39,6 +39,7 @@ func _run() -> void:
 	_inv16_attachment_wiring()
 	await _inv17_world_mode_tags_no_npcs()
 	await _inv18_rig_sole_on_ground()
+	await _inv19_rig_body_material_supports_flash()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -286,6 +287,35 @@ func _inv18_rig_sole_on_ground() -> void:
 	_check("INV-18", "rig_sole_on_ground_at_offset", ok,
 		"sole_min_y=%.4f (GROUND_PLACEMENT_Y=%.3f)" % [lo, ground_y],
 		"F7: the shared rig sank 4.2 cm when placed at GROUND_PLACEMENT_Y")
+	rig.queue_free()
+
+# ─── INV-19: the rig's EFFECTIVE body material supports tint + damage flash (F6) ─
+# ORIGIN (npc-body rig acceptance, 2026-09-21): the body shader must declare the
+# uniforms the consumer drives (`set_tint`/`set_flash`), or the damage flash is a
+# silent no-op. TRAP: read the EFFECTIVE material — call `own_materials()` FIRST.
+# `get_active_material(0)` before that returns the SHARED `player_mesh.tres`
+# surface (psx_lit_alpha-scissor, no `flash_amount`) and gives a FALSE red
+# (npc-body measured the wrong object; this assert encodes the fix).
+func _inv19_rig_body_material_supports_flash() -> void:
+	var ps := load("res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn") as PackedScene
+	if ps == null:
+		_check("INV-19", "rig_body_material_supports_flash", false, "rig scene missing", "F6: damage flash a no-op")
+		return
+	var rig = ps.instantiate()
+	root.add_child(rig)
+	await process_frame
+	rig.own_materials()   # installs the effective (forked) material
+	var uniforms: Array[String] = []
+	var mesh: MeshInstance3D = rig.get_body_mesh()
+	if mesh != null:
+		var mat := mesh.get_active_material(0) as ShaderMaterial
+		if mat != null and mat.shader != null:
+			for u in mat.shader.get_shader_uniform_list():
+				uniforms.append(String(u["name"]))
+	var ok: bool = uniforms.has("modulate_color") and uniforms.has("flash_amount")
+	_check("INV-19", "rig_body_material_supports_flash", ok,
+		"uniforms=%d has_modulate=%s has_flash=%s" % [uniforms.size(), str(uniforms.has("modulate_color")), str(uniforms.has("flash_amount"))],
+		"F6: the body shader lacked flash_amount, so set_flash() was a silent no-op")
 	rig.queue_free()
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
