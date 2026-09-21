@@ -18,6 +18,9 @@ extends SceneTree
 const PLAYER_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player.tscn"
 const WEAPON_PATH := "res://resources/weapons/M4_Carbine.tres"
 const ARMOR_PATH := "res://resources/armor/GOST_BR4.tres"
+const BANDAGE_PATH := "res://resources/medical/army_bandage.tres"
+const META_TEST_DIR := "user://inv_meta_test"
+const META_SAVE := "user://inv_meta_test/profile.save"
 
 var _pass := 0
 var _fail := 0
@@ -33,6 +36,14 @@ func _run() -> void:
 	_inv06_wrapped_item_mass()
 	_inv07_undefined_cert_level()
 	_inv11_container_grid_dims()
+
+	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
+	_meta_cleanup()
+	DirAccess.make_dir_recursive_absolute(META_TEST_DIR)
+	_inv12_save_atomicity_and_quarantine()
+	_inv13_escrow_moves_item_by_mass()
+	_inv14_listing_expires_on_raid_counter()
+	_inv15_listing_fee_floor()
 
 	await _run_player_invariants()
 
@@ -362,3 +373,151 @@ func _inv10_held_viewmodel(player) -> void:
 	_check("INV-10", "held_viewmodel_has_no_collision", ok,
 		"equipped=%s hands=%s collision_layer=%d" % [str(equipped), str(hands != null), layer],
 		"held gun kept live collision -> resolver self-hit")
+
+# ─── INV-12: a published save is COMPLETE, a bad save is quarantined ─
+# ORIGIN: a crash mid-write could truncate the save in place (spotter proved
+# 28/28 SIGKILL runs land on a complete file, and 2/28 landed between the .tmp
+# write and the rename). A corrupt/unknown-version save must boot CLEAN with the
+# bad file set aside, never crash and never carry garbage forward.
+func _inv12_save_atomicity_and_quarantine() -> void:
+	# (a) happy path: no .tmp residue, published bytes are complete and versioned.
+	var p := MetaProfile.new()
+	p.raids = 7
+	p.stash.deposit(ItemCodec.item_from_path(BANDAGE_PATH))
+	var err := ProfileStore.save(p, META_SAVE)
+	var tmp_left := FileAccess.file_exists(META_SAVE + ".tmp")
+	var parsed_ok := false
+	var version_ok := false
+	if FileAccess.file_exists(META_SAVE):
+		var f := FileAccess.open(META_SAVE, FileAccess.READ)
+		var text := f.get_as_text()
+		f.close()
+		var j := JSON.new()
+		parsed_ok = j.parse(text) == OK and (j.data is Dictionary)
+		if parsed_ok:
+			version_ok = int((j.data as Dictionary).get("version", -1)) == MetaProfile.VERSION
+	var reload_ok := ProfileStore.load_profile(META_SAVE).raids == 7
+	_check("INV-12a", "save_publishes_complete_file",
+		err == OK and not tmp_left and parsed_ok and version_ok and reload_ok,
+		"err=%d tmp_left=%s parsed=%s version_ok=%s reload=%s" % [err, str(tmp_left), str(parsed_ok), str(version_ok), str(reload_ok)],
+		"crash mid-write could truncate the save; the published file must be complete + versioned")
+
+	# (b) garbage / truncated / unknown version => fresh profile + .corrupt backup.
+	var default_currency := MetaProfile.new().currency
+	var cases := {
+		"garbage": "{ this is not json",
+		"truncated": '{"version": 1, "stash": {',
+		"unknown_version": '{"version": 999, "raids": 5, "currency": 1}',
+	}
+	var clean := true
+	var quarantined := true
+	for label in cases:
+		var f := FileAccess.open(META_SAVE, FileAccess.WRITE)
+		f.store_string(String(cases[label]))
+		f.close()
+		var loaded := ProfileStore.load_profile(META_SAVE)
+		if loaded == null or loaded.raids != 0 or loaded.currency != default_currency:
+			clean = false
+		if FileAccess.file_exists(META_SAVE) or not _has_corrupt_backup():
+			quarantined = false
+	_check("INV-12b", "bad_save_boots_clean_and_quarantined",
+		clean and quarantined,
+		"fresh=%s quarantined=%s (cases: %s)" % [str(clean), str(quarantined), str(cases.keys())],
+		"corrupt/unknown save must boot clean with a .corrupt backup, never crash")
+
+# ─── INV-13: escrow/buy must move the ITEM (measured by MASS) ───────
+# ORIGIN: escrow and buy were only ever asserted with item COUNTS, which pass
+# even when the item is duplicated (in the stash AND escrowed), lost, or
+# replaced. Mass is the only check that proves the exact item moved. SENSITIVITY
+# PROVEN by meta: a generated copy of flea_market.gd with the escrow's
+# `TradeOps.take_from_stash(...)` line removed keeps the mass at 3.5 instead of
+# 0.0, i.e. this assert catches the bug class (a count check cannot).
+func _inv13_escrow_moves_item_by_mass() -> void:
+	var p := MetaProfile.new()
+	p.market.load_dir()
+	p.flea.seed_from_market(p.market)
+	var weapon := ItemCodec.item_from_path(WEAPON_PATH)
+	var item_mass := weapon.get_mass()
+	p.stash.deposit(weapon)
+	var deposited := p.stash.get_total_mass()
+
+	var listed := p.flea.list_from_stash(WEAPON_PATH, 100000)
+	var listing: FleaListing = listed.get("listing")
+	var escrowed := p.stash.get_total_mass()
+	var cancel_ok := false
+	var restored := -1.0
+	if listing != null:
+		cancel_ok = p.flea.cancel(listing.id).get("ok", false)
+		restored = p.stash.get_total_mass()
+
+	var target: FleaListing = null
+	for l in p.flea.active_listings():
+		if l.seller != FleaMarket.PLAYER_SELLER and (target == null or l.price < target.price):
+			target = l
+	var buy_delta := -1.0
+	var buy_expected := -1.0
+	if target != null:
+		var before_buy := p.stash.get_total_mass()
+		if p.flea.buy(target.id).get("ok", false):
+			buy_delta = p.stash.get_total_mass() - before_buy
+			var got := ItemCodec.decode_item(target.item)
+			buy_expected = got.get_mass() if got != null else -1.0
+
+	_check("INV-13", "escrow_moves_item_by_mass",
+		listed.get("ok", false) and is_equal_approx(deposited, item_mass)
+			and is_equal_approx(escrowed, 0.0) and cancel_ok and is_equal_approx(restored, deposited)
+			and target != null and buy_delta > 0.0 and is_equal_approx(buy_delta, buy_expected),
+		"item=%.3f deposited=%.3f escrow=%.3f restored=%.3f buy_delta=%.3f expected=%.3f" % [
+			item_mass, deposited, escrowed, restored, buy_delta, buy_expected],
+		"escrow/buy asserted only by COUNT: a duplicated/lost item still passed")
+
+# ─── INV-14: a listing expires on the RAID COUNTER, exactly once ────
+# ORIGIN: expiry rides the raid counter (the game's unit of time). An off-by-one
+# either destroys escrowed loot a raid early or immortalises it forever.
+func _inv14_listing_expires_on_raid_counter() -> void:
+	var p := MetaProfile.new()
+	p.stash.deposit(ItemCodec.item_from_path(BANDAGE_PATH))
+	var before := p.stash.get_total_mass()
+	var listing: FleaListing = p.flea.list_from_stash(BANDAGE_PATH, 100000).get("listing")
+	if listing == null:
+		_check("INV-14", "listing_expires_on_raid_counter", false, "no listing", "expiry rides the raid counter")
+		return
+	var due := listing.expires_at_raid() # listed_raid + expiry_raids
+	p.raids = due - 1
+	p.flea.on_raid_resolved()
+	var early_active := listing.status == FleaListing.Status.ACTIVE
+	p.raids = due
+	p.flea.on_raid_resolved()
+	var expired := listing.status == FleaListing.Status.EXPIRED
+	var returned := is_equal_approx(p.stash.get_total_mass(), before)
+	_check("INV-14", "listing_expires_on_raid_counter",
+		early_active and expired and returned,
+		"due=%d active_at_due-1=%s expired_at_due=%s mass_back=%.3f" % [
+			due, str(early_active), str(expired), p.stash.get_total_mass()],
+		"raid-counter expiry off-by-one destroys or immortalises escrowed loot")
+
+# ─── INV-15: the listing fee is 5% with a 100 floor ─────────────────
+# ORIGIN: the fee is the flea sink's price floor; it is charged on listing and
+# never refunded, so its formula is economy-critical.
+func _inv15_listing_fee_floor() -> void:
+	var f := MetaProfile.new().flea
+	var ok := f.listing_fee(1000) == 100 and f.listing_fee(0) == 100 and f.listing_fee(100000) == 5000
+	_check("INV-15", "listing_fee_rate_and_floor", ok,
+		"fee(1000)=%d fee(0)=%d fee(100000)=%d" % [f.listing_fee(1000), f.listing_fee(0), f.listing_fee(100000)],
+		"listing fee formula is the flea sink's floor (5%, min 100)")
+
+func _has_corrupt_backup() -> bool:
+	var d := DirAccess.open(META_TEST_DIR)
+	if d == null:
+		return false
+	for f in d.get_files():
+		if f.contains(".corrupt-"):
+			return true
+	return false
+
+func _meta_cleanup() -> void:
+	var d := DirAccess.open(META_TEST_DIR)
+	if d == null:
+		return
+	for f in d.get_files():
+		d.remove(f)
