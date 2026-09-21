@@ -147,14 +147,24 @@ func add_item(item: InventoryItem, position: Vector2i = Vector2i(-1, -1)) -> boo
     print("DEBUG: Area not free at target position: ", target_pos)
     return false
 
-    # Handle stacking
+    # Handle stacking. `merge()` is a whole-stack merge (returns bool); the
+    # old code treated it as a remaining-count and compared a bool to 0, which
+    # errored at runtime. Move what fits, keep the overflow as a new slot.
   for existing_item in items:
+    if existing_item == item:
+      continue
     if existing_item.can_stack_with(item):
-      var remaining = existing_item.merge(item)
-      if remaining <= 0:
-        print("DEBUG: Item stacked with existing")
-        return true
-      item.stack_count = remaining
+      var room := existing_item.max_stack - existing_item.stack_count
+      if room > 0:
+        var want := item.stack_count
+        var moved := mini(room, want)
+        existing_item.stack_count += moved
+        if moved >= want:
+          # Fully absorbed. stack_count cannot hold 0 (the setter clamps to 1),
+          # so signal success here instead of testing for 0.
+          item.stack_count = 1
+          return true
+        item.stack_count = want - moved
 
     # Add as new item
   item.position = target_pos
@@ -228,6 +238,95 @@ func get_free_area() -> int:
   var free = width * height - get_used_area()
   print("DEBUG: Free area: ", free, "/", width * height)
   return free
+
+# ─── TETRIS UX (rotation / swap) ────────────────────
+# Free-space search for an arbitrary size, optionally ignoring one item's own
+# cells (used by rotation so the rotated footprint can overlap the original).
+func find_free_space_for_dims(dims: Vector2i, ignore: InventoryItem = null) -> Vector2i:
+  var prev = _temp_ignored_item
+  _temp_ignored_item = ignore
+  var found := Vector2i(-1, -1)
+  for y in range(height - dims.y + 1):
+    for x in range(width - dims.x + 1):
+      if is_area_free(Vector2i(x, y), dims):
+        found = Vector2i(x, y)
+        break
+    if found != Vector2i(-1, -1):
+      break
+  _temp_ignored_item = prev
+  return found
+
+## Bounds + occupancy only (no temp-ignore). Used by swap.
+func _raw_free(position: Vector2i, size: Vector2i) -> bool:
+  if position.x < 0 or position.y < 0 or position.x + size.x > width or position.y + size.y > height:
+    return false
+  for y in range(size.y):
+    for x in range(size.x):
+      if _occupancy_grid[position.y + y][position.x + x] != -1:
+        return false
+  return true
+
+## Rotate 90° in place when the swapped `dimensions` still fit, else relocate to
+## the first free spot of the rotated size. Returns false and leaves the item
+## untouched when neither is possible. Square items are a no-op.
+func rotate_item(item: InventoryItem) -> bool:
+  var index = items.find(item)
+  if index == -1:
+    return false
+  var rotated := Vector2i(item.dimensions.y, item.dimensions.x)
+  if rotated == item.dimensions:
+    return false
+  _temp_ignored_item = item
+  var in_place := is_area_free(item.position, rotated)
+  _temp_ignored_item = null
+  if in_place:
+    free_area(item.position, item.dimensions)
+    item.dimensions = rotated
+    occupy_area(item.position, rotated, index)
+    return true
+  var spot := find_free_space_for_dims(rotated, item)
+  if spot == Vector2i(-1, -1):
+    return false
+  free_area(item.position, item.dimensions)
+  item.dimensions = rotated
+  item.position = spot
+  occupy_area(spot, rotated, index)
+  return true
+
+## Swap two items inside this grid (drop item A onto item B's footprint).
+## Rolls back completely if either item does not fit in the other's place.
+func swap_items(a: InventoryItem, b: InventoryItem) -> bool:
+  var ai = items.find(a)
+  var bi = items.find(b)
+  if ai == -1 or bi == -1 or a == b:
+    return false
+  var a_pos = a.position
+  var b_pos = b.position
+  var a_dims = a.dimensions
+  var b_dims = b.dimensions
+  free_area(a_pos, a_dims)
+  free_area(b_pos, b_dims)
+  if not _raw_free(b_pos, a_dims) or not _raw_free(a_pos, b_dims):
+    occupy_area(a_pos, a_dims, ai)
+    occupy_area(b_pos, b_dims, bi)
+    return false
+  occupy_area(b_pos, a_dims, ai)
+  if not _raw_free(a_pos, b_dims):
+    free_area(b_pos, a_dims)
+    occupy_area(a_pos, a_dims, ai)
+    occupy_area(b_pos, b_dims, bi)
+    return false
+  occupy_area(a_pos, b_dims, bi)
+  a.position = b_pos
+  b.position = a_pos
+  return true
+
+## Dry-run a swap: performs it and undoes it, so callers can validate a drop.
+func can_swap_items(a: InventoryItem, b: InventoryItem) -> bool:
+  if not swap_items(a, b):
+    return false
+  swap_items(a, b)
+  return true
 
 # Add to inventory_grid.gd
 func debug_print_grid():
