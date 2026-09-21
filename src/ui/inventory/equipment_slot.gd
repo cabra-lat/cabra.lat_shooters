@@ -14,15 +14,19 @@ func _validate_drop(item: InventoryItem) -> bool:
     return _is_item_compatible(item)
 
 func _is_item_compatible(item: InventoryItem) -> bool:
+    if item == null or item.extra == null:
+        return false
+    # slot_type is the core Equipment key (head/torso/...), see
+    # EquipmentUI._initialize_slots_dict.
     match slot_type:
         "back":
             return item.extra is Backpack
         "primary", "secondary":
             return item.extra is Weapon
-        "helmet":
-            return item.extra is Armor and (item.extra as Armor).slot == "head"
-        "vest":
-            return item.extra is Armor and (item.extra as Armor).slot == "torso"
+        "head":
+            return item.extra is Armor and (item.extra as Armor).type == Armor.ArmorType.HELMET
+        "torso":
+            return item.extra is Armor and (item.extra as Armor).type == Armor.ArmorType.VEST
         _:
             return false
 

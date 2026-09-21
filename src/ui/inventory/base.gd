@@ -9,6 +9,8 @@ signal drag_ended()
 signal request_unload_magazine(weapon: Weapon)
 signal request_extract_rounds(weapon: Item, number: int)
 signal request_cycle_action(weapon: Weapon)
+signal request_use_item(item: InventoryItem)
+signal request_modify_weapon(weapon: Weapon)
 
 var slot_size: int = 50
 var item_displays: Array[InventoryItemUI] = []
@@ -131,6 +133,8 @@ func show_context_menu(slot: InventorySlotUI):
     # For weapons
     if item.extra is Weapon:
         var weapon = item.extra as Weapon
+        # Primary action: open the gunsmith for this weapon (range's UI).
+        context_menu.add_item("Modificar", 105)
         context_menu.add_item("Unload Magazine", 101)
         if weapon.feed_type in [Firemode.PUMP, Firemode.BOLT]:
             context_menu.add_item("Cycle Action", 104)
@@ -144,6 +148,13 @@ func show_context_menu(slot: InventorySlotUI):
         if item.capacity > 0:
             context_menu.add_item("Unload All Ammo", 201)
             context_menu.add_item("Unload 1 Round", 202)
+
+    # Medical / provisions: use straight from the inventory (use_time is
+    # honoured by the player). 301 = consume.
+    if item.extra is MedicalItem:
+        var med := item.extra as MedicalItem
+        context_menu.add_item("Use %s" % item.name, 301)
+        context_menu.set_item_disabled(context_menu.get_item_count() - 1, not med.can_use())
 
     # Only show menu if there are items
     if context_menu.get_item_count() > 0:
@@ -175,12 +186,18 @@ func _on_context_menu_selected(id: int):
         104: # Cycle action
             if item.extra is Weapon:
                 request_cycle_action.emit(item.extra as Weapon)
+        105: # Open the gunsmith for this weapon
+            if item.extra is Weapon:
+                request_modify_weapon.emit(item.extra as Weapon)
         201: # Unload all ammo
             if item.extra is AmmoFeed:
                 request_extract_rounds.emit(item.extra as AmmoFeed, -1)
         202: # Unload one round
             if item.extra is AmmoFeed:
                 request_extract_rounds.emit(item.extra as AmmoFeed, 1)
+        301: # Use a medical / provision item
+            if item.extra is MedicalItem:
+                request_use_item.emit(item)
 
     currently_hovered_slot = null
 

@@ -9,6 +9,7 @@ signal equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI)
 
 var player_controller: PlayerController
 var slots: Dictionary = {}
+var _sfx: AudioStreamPlayer = null
 
 func setup_player(player: PlayerController):
     # Disconnect from previous equipment
@@ -30,6 +31,28 @@ func setup_player(player: PlayerController):
 func _on_equipment_changed(item: InventoryItem, slot_name: String):
     print("Equipment changed: %s in %s" % [item.name if item else "None", slot_name])
     _update_equipment_slot(slot_name)
+    _flash_slot(slot_name)
+    _play_equip_sound(item)
+
+## Brief highlight pulse so (un)equips read instantly.
+func _flash_slot(slot_name: String) -> void:
+    var slot = slots.get(slot_name) as Control
+    if slot == null or not is_inside_tree():
+        return
+    slot.modulate = Color(1.5, 1.5, 1.0)
+    var tw := create_tween()
+    tw.tween_property(slot, "modulate", Color.WHITE, 0.45)
+
+func _play_equip_sound(item: InventoryItem) -> void:
+    if item == null or item.equip_sound == null:
+        return
+    if not is_inside_tree():
+        return
+    if _sfx == null:
+        _sfx = AudioStreamPlayer.new()
+        add_child(_sfx)
+    _sfx.stream = item.equip_sound
+    _sfx.play()
 
 func _update_ui():
     # Still do full update initially, but incremental updates will use signals
@@ -42,8 +65,13 @@ func _ready():
     _setup_slots()
 
 func _initialize_slots_dict():
-    slots["helmet"] = slots_container.get_node("Front/helmet") as EquipmentSlotUI
-    slots["vest"] = slots_container.get_node("Front/vest") as EquipmentSlotUI
+    # Keys MUST match core Equipment.slots (head/torso/arms/legs/primary/
+    # secondary/back): EquipmentUI queries player.equipment.get_equipped(
+    # slot_name) and the equipped signal carries the core slot name, so
+    # helmet/vest keys here meant head/torso never displayed anything.
+    # (Scene node names stay Front/helmet and Front/vest.)
+    slots["head"] = slots_container.get_node("Front/helmet") as EquipmentSlotUI
+    slots["torso"] = slots_container.get_node("Front/vest") as EquipmentSlotUI
     slots["back"] = slots_container.get_node("Back/back") as EquipmentSlotUI
     slots["primary"] = slots_container.get_node("Loadout/primary") as EquipmentSlotUI
     slots["secondary"] = slots_container.get_node("Loadout/secondary") as EquipmentSlotUI
@@ -102,6 +130,7 @@ func _update_equipment_slot(slot_name: String):
             slot.icon.texture = equipped[0].icon
             slot.associated_item = equipped[0]
             slot.source_container = player_controller.equipment
+            slot.tooltip_text = InventoryTooltip.text_for(equipped[0])
             slot.icon.visible = true
 
 func _on_equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI):

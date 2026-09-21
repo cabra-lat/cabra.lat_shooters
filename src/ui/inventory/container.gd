@@ -3,6 +3,12 @@ class_name InventoryContainerUI
 extends BaseInventoryUI
 
 signal container_closed()
+signal quick_equip_requested(item: InventoryItem, source: InventoryContainer)
+# Double-clicking a nested rig/pack asks the main UI to open it (pack inside
+# backpack inside stash).
+signal container_open_requested(item: InventoryItem)
+
+const CONTEXT_ROTATE := 401
 
 @onready var foldable_panel: FoldableContainer = $Panel
 @onready var grid_background: Control = $Panel/GridBackground
@@ -56,6 +62,17 @@ func _setup_grid_size():
     )
     grid_background.size = grid_size
     items_container.size = grid_size
+    _update_stats()
+
+## Weight + free-space feedback lives in the foldable title: no extra layout
+## node, always visible, consistent with the shared HUD style.
+func _update_stats() -> void:
+    var container = current_inventory_source as InventoryContainer
+    if not container:
+        return
+    foldable_panel.title = "%s   %.1f/%.0f kg   %d cells free" % [
+        container.name, container.total_weight, container.max_weight,
+        container.get_free_space()]
 
 func _create_grid_slots():
     var container = current_inventory_source as InventoryContainer
@@ -87,6 +104,8 @@ func _setup_grid_slot(slot: InventorySlotUI, position: Vector2i):
         slot.mouse_exited.connect(_on_slot_mouse_exited.bind(slot))
     if not slot.slot_dropped.is_connected(_on_slot_dropped):
         slot.slot_dropped.connect(_on_slot_dropped)
+    if not slot.gui_input.is_connected(_on_slot_gui_input.bind(slot)):
+        slot.gui_input.connect(_on_slot_gui_input.bind(slot))
 
 func _get_display_items() -> Array[InventoryItem]:
     var container = current_inventory_source as InventoryContainer
@@ -103,15 +122,29 @@ func _update_slot_states():
     # Clear all slots first
     for slot in slot_displays:
         slot.set_occupied(false)
+        slot.associated_item = null
+        slot.tooltip_text = ""
 
-    # Mark occupied slots from items
+    # Mark occupied slots from items (topmost item wins the tooltip).
+    # NOTE: match on the slot's GRID position — get_slot_at_position() works
+    # in pixels, so feeding it grid cells collapsed every item onto slot 0.
     for item in _get_display_items():
         for y in range(item.dimensions.y):
             for x in range(item.dimensions.x):
                 var slot_pos = Vector2i(item.position.x + x, item.position.y + y)
-                var slot = get_slot_at_position(slot_pos)
+                var slot := get_slot_by_grid_position(slot_pos)
                 if slot:
                     slot.set_occupied(true)
+                    slot.associated_item = item
+                    slot.tooltip_text = InventoryTooltip.text_for(item)
+
+
+## Slot at a grid cell (see _update_slot_states).
+func get_slot_by_grid_position(cell: Vector2i) -> InventorySlotUI:
+    for slot in slot_displays:
+        if slot.grid_position == cell:
+            return slot
+    return null
 
 # Drop preview methods
 func _create_drop_preview():
@@ -155,6 +188,70 @@ func _on_drag_ended():
     hide_drop_preview()
     current_hovered_slot = null
 
+# Double-click a filled slot:
+#   * a nested container (rig/pack)  -> open it
+#   * anything else                 -> quick-equip into a free slot
+# A quick-move that is a no-op (no compatible/free equipment slot) is reported
+# by the main UI; the item is never silently dropped.
+func _on_slot_gui_input(event: InputEvent, slot: InventorySlotUI) -> void:
+    if event is InputEventMouseButton:
+        var mb := event as InputEventMouseButton
+        if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and mb.double_click:
+            if slot.associated_item != null and current_inventory_source is InventoryContainer:
+                if slot.associated_item.extra is InventoryContainer:
+                    container_open_requested.emit(slot.associated_item)
+                else:
+                    quick_equip_requested.emit(
+                        slot.associated_item,
+                        current_inventory_source as InventoryContainer)
+                get_viewport().set_input_as_handled()
+            return
+        # Right-click is handled by the base context menu. Left single click
+        # selects nothing (drag & drop is the interaction).
+
+# R rotates the item under the cursor (tetris rotation). Only when the
+# inventory UI is up, so the in-game bind cannot be stolen.
+func _unhandled_input(event: InputEvent) -> void:
+    if not is_visible_in_tree():
+        return
+    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R:
+        if current_hovered_slot != null and current_hovered_slot.associated_item != null:
+            if _rotate(current_hovered_slot.associated_item):
+                get_viewport().set_input_as_handled()
+
+func _rotate(item: InventoryItem) -> bool:
+    var container = current_inventory_source as InventoryContainer
+    if container == null or item == null:
+        return false
+    if item.dimensions.x == item.dimensions.y:
+        return false  # square: rotation is a no-op
+    if container.rotate_item(item):
+        _update_ui()
+        return true
+    return false
+
+## Add a Rotate action to the base right-click menu for non-square items.
+func show_context_menu(slot: InventorySlotUI) -> void:
+    super.show_context_menu(slot)
+    if context_menu == null or slot == null or slot.associated_item == null:
+        return
+    var item := slot.associated_item as InventoryItem
+    if item.dimensions.x == item.dimensions.y:
+        return
+    context_menu.add_item("Rotate (R)  %dx%d" % [item.dimensions.y, item.dimensions.x], CONTEXT_ROTATE)
+
+func _on_context_menu_selected(id: int) -> void:
+    if id == CONTEXT_ROTATE and currently_hovered_slot != null:
+        _rotate(currently_hovered_slot.associated_item)
+        currently_hovered_slot = null
+        return
+    super._on_context_menu_selected(id)
+
 func _on_close_button_pressed():
     container_closed.emit()
     hide()
+
+## Re-add the stats line whenever the grid changes.
+func _on_container_changed():
+    _update_stats()
+    super._on_container_changed()

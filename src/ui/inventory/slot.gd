@@ -55,8 +55,16 @@ func _validate_drop(item: InventoryItem) -> bool:
         # Temporarily ignore the dragged item for collision detection
         container.grid.set_temp_ignored_item(item)
         var can_place = container.grid.can_add_item(item, grid_position)
-        _show_drop_preview(item.dimensions, can_place)
-        return can_place
+        container.grid.clear_temp_ignored_item()
+        if can_place:
+            _show_drop_preview(item.dimensions, true)
+            return true
+        # Occupied cell: dropping here may SWAP the two items.
+        if container.can_swap_at(item, grid_position):
+            _show_drop_preview(item.dimensions, true, Color(1.0, 0.8, 0.2, 0.35))
+            return true
+        _show_drop_preview(item.dimensions, false)
+        return false
 
     return false
 
@@ -68,9 +76,9 @@ func _show_icon_after_drag():
     if icon:
         icon.visible = true
 
-func _show_drop_preview(dimensions: Vector2i, valid: bool):
+func _show_drop_preview(dimensions: Vector2i, valid: bool, color: Color = Color(0, 0, 0, 0)):
     if container_ui and container_ui.has_method("show_drop_preview"):
-        var preview_color = Color(0, 1, 0, 0.3) if valid else Color(1, 0, 0, 0.3)
+        var preview_color = color if color.a > 0.0 else (Color(0, 1, 0, 0.3) if valid else Color(1, 0, 0, 0.3))
         container_ui.show_drop_preview(grid_position, dimensions, preview_color)
 
 func _hide_drop_preview():

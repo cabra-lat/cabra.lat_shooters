@@ -21,6 +21,14 @@ func _ready():
     size_flags_horizontal = Control.SIZE_FILL
     size_flags_vertical = Control.SIZE_FILL
     mouse_filter = Control.MOUSE_FILTER_STOP
+    # Display-only children must not eat hover: the slot Panel owns input
+    # (drag/drop, double-click) AND the tooltip. A STOP-filter child with
+    # empty tooltip_text (e.g. the full-rect Icon) would swallow the hover
+    # and Godot would show no popup at all.
+    if icon:
+        icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    if label:
+        label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func setup(parent: BaseInventoryUI):
     parent_ui = parent

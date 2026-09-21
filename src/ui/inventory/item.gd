@@ -31,6 +31,21 @@ func setup(item: InventoryItem, container: BaseInventoryUI):
 
     add_child(texture_rect)
 
+    # Stack count (bottom-right corner), only for stacks > 1.
+    if item.stack_count > 1:
+        var count := Label.new()
+        count.text = "x%d" % item.stack_count
+        count.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+        count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+        count.add_theme_font_size_override("font_size", 14)
+        count.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+        count.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+        count.add_theme_constant_override("outline_size", 3)
+        count.position = Vector2(0, display_size.y - 18)
+        count.size = Vector2(display_size.x - 4, 16)
+        add_child(count)
+
     # Position to cover all occupied slots
     position = Vector2(item.position.x * slot_size, item.position.y * slot_size)
     size = display_size

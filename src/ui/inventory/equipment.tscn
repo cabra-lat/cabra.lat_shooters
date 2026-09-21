@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://b4nocuvgaea0x" path="res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn" id="1_n82b3"]
 [ext_resource type="Script" uid="uid://yhu4obd6r7aj" path="res://addons/cabra.lat_shooters/src/ui/inventory/equipment.gd" id="1_quol3"]
-[ext_resource type="Texture2D" uid="uid://bu52pdeq0jup2" path="res://addons/cabra.lat_shooters/assets/ui/inventory/player_body.png" id="2_fddp0"]
+[ext_resource type="Texture2D" uid="uid://bu52pdeq0jup2" path="res://assets/ui/inventory/player_body.png" id="2_fddp0"]
 [ext_resource type="Script" uid="uid://dfds0mlc4myq4" path="res://addons/cabra.lat_shooters/src/ui/inventory/equipment_slot.gd" id="3_adt6v"]
 
 [node name="PanelContainer" type="PanelContainer"]
@@ -95,6 +95,8 @@ layout_mode = 2
 metadata/_tab_index = 1
 
 [node name="back_body" type="TextureRect" parent="Equipment/TabContainer/Back"]
+visible = false
+editor_description = "PARKED: no rear body art exists. It used to reuse player_body.png (front), which mislabels the Back tab; hidden until a distinct back silhouette is authored."
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
