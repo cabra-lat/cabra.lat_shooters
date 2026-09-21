@@ -197,6 +197,11 @@ func _apply_recoil(cartridge: Ammo):
   if not cartridge or is_applying_recoil or recoil_cooldown_timer.time_left > 0:
     return
 
+  # AGENTS rule 5: held items are never physics-simulated. A held weapon is
+  # frozen; recoil pose is owned by ViewmodelRig (this would double it).
+  if freeze:
+    return
+
   is_applying_recoil = true
   recoil_cooldown_timer.start(0.1)  # Cooldown to prevent overlapping recoils
 
