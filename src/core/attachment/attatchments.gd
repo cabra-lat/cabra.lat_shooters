@@ -49,6 +49,7 @@ enum ReticleType {
 @export var reticle_color: Color = Color.RED
 @export var eye_relief: float = 3.0
 @export var zero_distance: float = 100.0
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var sight_height_over_bore: float = 0.06  # m, optic center above bore; authoritative over Weapon fallback when mounted
 
 @export_group("Muzzle Properties")
 @export var sound_suppression: float = 0.0

@@ -6,7 +6,7 @@ uniform sampler2D u_scope_texture;
 uniform sampler2D u_reticle_texture: hint_default_transparent;
 
 // --- Color Uniforms ---
-uniform vec4 u_reticle_tint : source_color = vec4(0.0, 1.0, 0.0, 1.0);
+uniform vec4 u_reticle_tint : source_color = vec4(1.0, 0.0, 0.0, 1.0);
 uniform vec4 u_bezel_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
 uniform vec4 u_front_tint_color : source_color = vec4(1.0, 0.58, 0.0, 0.757);
 uniform vec4 u_rear_tint_color : source_color = vec4(0.0, 1.0, 1.0, 0.298);
