@@ -41,6 +41,7 @@ func _run() -> void:
 	_meta_cleanup()
 	DirAccess.make_dir_recursive_absolute(META_TEST_DIR)
 	_inv12_save_atomicity_and_quarantine()
+	_inv12c_old_save_migrates()
 	_inv13_escrow_moves_item_by_mass()
 	_inv14_listing_expires_on_raid_counter()
 	_inv15_listing_fee_floor()
@@ -424,6 +425,75 @@ func _inv12_save_atomicity_and_quarantine() -> void:
 		clean and quarantined,
 		"fresh=%s quarantined=%s (cases: %s)" % [str(clean), str(quarantined), str(cases.keys())],
 		"corrupt/unknown save must boot clean with a .corrupt backup, never crash")
+
+# ─── INV-12c: an OLDER, migratable save is CONVERTED, never quarantined ─
+# ORIGIN (meta 2026-09-21, v1->v2): INV-12 covered the CURRENT version (a) and a
+# FUTURE/unsupported one (b), but NOT the older/migratable direction. Reverting
+# ProfileStore to `version != VERSION -> quarantine` (the pre-migration behavior)
+# would leave INV-12 GREEN while silently discarding every live v1 profile.
+func _inv12c_old_save_migrates() -> void:
+	var v1_path := META_TEST_DIR + "/profile_v1.save"
+	_remove_with_backups(v1_path)
+	var v1 := {
+		"version": 1,
+		"faction": 1,          # v1 stored the index of the old two-value enum
+		"team": 0,
+		"currency": 4242,
+		"inventory": {},
+		"raids": 3,
+		"survived": 0,
+		"kia": 0,
+		"total_exp": 0,
+		"progress": {},
+		"last_report": {},
+		"stash": {"width": 15, "height": 15, "max_weight": 100.0, "items": []},
+		"loadout": {},
+	}
+	var f := FileAccess.open(v1_path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(v1))
+	f.close()
+	var p := ProfileStore.load_profile(v1_path)
+	# index 1 -> "drifter" (NOT the default "contractor"): proves the translation
+	# actually ran instead of a silent fallback.
+	var migrated: bool = p != null and p.currency == 4242 and p.faction == "drifter" \
+		and not _has_corrupt_backup_for(v1_path)
+	var saved_version := -1
+	if p != null:
+		ProfileStore.save(p, v1_path)
+		var rf := FileAccess.open(v1_path, FileAccess.READ)
+		if rf != null:
+			var text := rf.get_as_text()
+			rf.close()
+			var j := JSON.new()
+			if j.parse(text) == OK and (j.data is Dictionary):
+				saved_version = int((j.data as Dictionary).get("version", -1))
+	_check("INV-12c", "old_save_migrates_not_quarantined",
+		migrated and saved_version == MetaProfile.VERSION,
+		"currency=%d faction=%s quarantined=%s resaved_version=%d" % [
+			p.currency if p != null else -1,
+			str(p.faction) if p != null else "nil",
+			str(_has_corrupt_backup_for(v1_path)),
+			saved_version],
+		"quarantining a readable OLDER save was silent data loss; v1->v2 must migrate")
+
+func _has_corrupt_backup_for(path: String) -> bool:
+	var d := DirAccess.open(path.get_base_dir())
+	if d == null:
+		return false
+	var base := path.get_file()
+	for f in d.get_files():
+		if f.begins_with(base + ".corrupt-"):
+			return true
+	return false
+
+func _remove_with_backups(path: String) -> void:
+	var d := DirAccess.open(path.get_base_dir())
+	if d == null:
+		return
+	var base := path.get_file()
+	for f in d.get_files():
+		if f == base or f.begins_with(base + "."):
+			d.remove(f)
 
 # ─── INV-13: escrow/buy must move the ITEM (measured by MASS) ───────
 # ORIGIN: escrow and buy were only ever asserted with item COUNTS, which pass
