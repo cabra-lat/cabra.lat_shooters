@@ -23,7 +23,7 @@ var muzzle_flash_ready: bool = false
 func _ready():
   firerate_timer = Timer.new()
   firerate_timer.one_shot = true
-  firerate_timer.connect("timeout", Callable(self, "_on_firerate_timeout"))
+  firerate_timer.timeout.connect(_on_firerate_timeout)
   add_child(firerate_timer)
 
   # Recoil cooldown timer
@@ -57,7 +57,7 @@ func _mark_muzzle_flash_ready():
   muzzle_flash_ready = true
 
 func _play_muzzle_flash():
-  """Play enhanced muzzle flash - optimized for immediate response"""
+  ## Play enhanced muzzle flash - optimized for immediate response
   if not muzzle_flash_effect or is_muzzle_flash_playing or not muzzle_flash_ready:
     return
 
@@ -118,12 +118,38 @@ func _remove_magazine_3d():
 func _connect_weapon_signals(weapon: Weapon):
     weapon.shell_ejected.connect(_on_weapon_shell_ejected)
     weapon.ammo_feed_changed.connect(_on_weapon_ammo_feed_changed)
+    if weapon.has_signal("weapon_malfunctioned"):
+        weapon.weapon_malfunctioned.connect(_on_weapon_malfunctioned)
+    if weapon.has_signal("malfunction_cleared"):
+        weapon.malfunction_cleared.connect(_on_malfunction_cleared)
 
 func _disconnect_weapon_signals(weapon: Weapon):
     if weapon.shell_ejected.is_connected(_on_weapon_shell_ejected):
         weapon.shell_ejected.disconnect(_on_weapon_shell_ejected)
     if weapon.ammo_feed_changed.is_connected(_on_weapon_ammo_feed_changed):
         weapon.ammo_feed_changed.disconnect(_on_weapon_ammo_feed_changed)
+    if weapon.has_signal("weapon_malfunctioned") and weapon.weapon_malfunctioned.is_connected(_on_weapon_malfunctioned):
+        weapon.weapon_malfunctioned.disconnect(_on_weapon_malfunctioned)
+    if weapon.has_signal("malfunction_cleared") and weapon.malfunction_cleared.is_connected(_on_malfunction_cleared):
+        weapon.malfunction_cleared.disconnect(_on_malfunction_cleared)
+
+## A fault stops any automatic fire until the weapon is cleared.
+func _on_weapon_malfunctioned(_weapon: Weapon, _kind: int):
+    if firerate_timer and not firerate_timer.is_stopped():
+        firerate_timer.stop()
+
+func _on_malfunction_cleared(_weapon: Weapon, _kind: int):
+    pass
+
+## Bound by the player to the Troubleshooting key/action.
+func clear_malfunction() -> bool:
+    if data is Weapon:
+        return (data as Weapon).start_clearing()
+    return false
+
+func _process(delta: float):
+    if data is Weapon:
+        (data as Weapon).advance(delta)
 
 func _on_weapon_shell_ejected(weapon: Weapon, cartridge: Ammo):
   if not casing_ejection:
@@ -165,17 +191,23 @@ func _on_weapon_shell_ejected(weapon: Weapon, cartridge: Ammo):
   _apply_recoil(cartridge)
 
 func _apply_ejection_physics(casing: Cartridge3D, cartridge: Ammo):
-  """Apply realistic ejection - consistent rightward ejection"""
+  ## Apply realistic ejection - consistent rightward ejection
   if not cartridge:
     return
 
   # Get weapon's right vector for consistent ejection direction
   var right_vector = global_transform.basis.x
+  # Weapon-exported ejection tuning (falls back to neutral defaults).
+  var weapon_data := data as Weapon
+  var force_mult := weapon_data.ejection_force_multiplier if weapon_data != null else 1.0
+  var spin_mult := weapon_data.ejection_spin_multiplier if weapon_data != null else 1.0
+  var dir_hint := weapon_data.ejection_direction if weapon_data != null else Vector3(1.0, 0.3, -0.2)
 
-  # Realistic ejection pattern - always to the weapon's right
-  var ejection_force = right_vector * randf_range(3.0, 5.0) + \
-    Vector3.UP * randf_range(0.5, 1.5) + \
-    -global_transform.basis.z * randf_range(0.5, 1.5)
+  # Realistic ejection pattern - rightward, shaped by the weapon's direction hint.
+  var ejection_force = (right_vector * randf_range(3.0, 5.0)
+    + Vector3.UP * randf_range(0.5, 1.5)
+    + -global_transform.basis.z * randf_range(0.5, 1.5)
+    + right_vector * dir_hint.x + Vector3.UP * dir_hint.y - global_transform.basis.z * dir_hint.z) * force_mult
 
   casing._enable_physics()
 
@@ -183,8 +215,8 @@ func _apply_ejection_physics(casing: Cartridge3D, cartridge: Ammo):
   casing.apply_central_impulse(ejection_force)
 
   # Add realistic spin around the right vector
-  var spin_torque = right_vector * randf_range(8.0, 12.0) + \
-    Vector3(randf_range(-1.0, 1.0), randf_range(-0.5, 0.5), 0.0)
+  var spin_torque = (right_vector * randf_range(8.0, 12.0) + \
+    Vector3(randf_range(-1.0, 1.0), randf_range(-0.5, 0.5), 0.0)) * spin_mult
 
   casing.apply_torque_impulse(spin_torque)
 
@@ -193,7 +225,7 @@ func _apply_ejection_physics(casing: Cartridge3D, cartridge: Ammo):
   casing.linear_damp = randf_range(0.2, 0.4)
 
 func _apply_recoil(cartridge: Ammo):
-  """Force-based recoil that bypasses resting thresholds"""
+  ## Force-based recoil that bypasses resting thresholds
   if not cartridge or is_applying_recoil or recoil_cooldown_timer.time_left > 0:
     return
 
@@ -246,7 +278,8 @@ func _apply_recoil(cartridge: Ammo):
     apply_torque(torque_per_frame)
 
     # Wait for next frame
-    await get_tree().physics_frame
+    var t = get_tree()
+    if t: await t.physics_frame
 
   # Restore thresholds
   linear_rest_threshold = original_linear_threshold
@@ -269,8 +302,8 @@ func pull_trigger(callback: Callable = func(): return null):
     firerate_timer.wait_time = data.cycle_time
 
     if callback:
-        if firerate_timer.is_connected("timeout", callback):
-            firerate_timer.disconnect("timeout", callback)
+        if firerate_timer.timeout.is_connected(callback):
+            firerate_timer.timeout.disconnect(callback)
         firerate_timer.timeout.connect(callback)
 
     WeaponSystem.pull_trigger(data)

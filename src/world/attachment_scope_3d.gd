@@ -27,8 +27,11 @@ func _ready():
     current_fov = default_fov
     camera.fov = current_fov
 
-    # Reconnect if scene changes
-    get_tree().tree_changed.connect(_on_tree_changed)
+    # NOTE: deliberately NOT subscribing to get_tree().tree_changed. That
+    # global signal fires while nodes are mid-deletion, and re-running
+    # _setup_viewport then touched a half-freed SubViewport/Camera and hard
+    # crashed the engine on weapon switch (viewmodel free). One-shot setup
+    # in _ready is enough; call _setup_viewport() explicitly if needed.
 
 func _create_viewport_and_camera():
     # Add camera to viewport
@@ -37,10 +40,21 @@ func _create_viewport_and_camera():
     # Add viewport to scope (as a direct child, not under MESH)
     sub_viewport.owner = self
 
-func _on_tree_changed():
-    _setup_viewport()
-
 func _setup_viewport():
+    if not is_inside_tree() or get_tree() == null:
+        return
+    if is_queued_for_deletion():
+        return
+    # Children are freed before the parent during exit propagation, so the
+    # cached @onready refs can be non-null yet already freed: is_instance_valid.
+    if not is_instance_valid(sub_viewport) or not is_instance_valid(camera):
+        return
+    if sub_viewport.is_queued_for_deletion() or camera.is_queued_for_deletion():
+        return
+    # Setting camera.current touches the viewport's internal camera slot;
+    # both ends must still be live and in-tree.
+    if not camera.is_inside_tree() or not sub_viewport.is_inside_tree():
+        return
     # Set up the viewport
     sub_viewport.world_3d = get_tree().root.world_3d
     sub_viewport.own_world_3d = false
@@ -50,12 +64,14 @@ func _setup_viewport():
     _setup_viewport_texture()
 
 func _setup_viewport_texture():
+    if not is_instance_valid(sub_viewport):
+        return
     # Create ViewportTexture
     viewport_texture = ViewportTexture.new()
     viewport_texture.viewport_path = sub_viewport.get_path()
 
     # Apply to material
-    var mesh_instance = $MESH
+    var mesh_instance = get_node_or_null("MESH")
     if mesh_instance and mesh_instance.material_override:
         var material = mesh_instance.material_override.duplicate()
         mesh_instance.material_override = material
@@ -79,6 +95,13 @@ func update_scope_view():
 var last_global_transform: Transform3D
 
 func _process(delta):
+    if not is_instance_valid(sub_viewport):
+        return
+    # Respect a deliberately disabled viewport (no shader lens to feed):
+    # the rig re-poses the held gun every frame, so an unconditional
+    # "scope moved" update would render the scope world every frame.
+    if sub_viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED:
+        return
     # Check if the scope has moved significantly
     if global_transform != last_global_transform:
         last_global_transform = global_transform
@@ -89,6 +112,8 @@ func _process(delta):
 
 # Handle mouse wheel input for zooming
 func _input(event):
+    if not is_instance_valid(camera):
+        return
     if event is InputEventMouseButton and is_zooming:
         if event.pressed:
             match event.button_index:
