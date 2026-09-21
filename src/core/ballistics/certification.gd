@@ -7,14 +7,33 @@ enum Standard { NIJ, VPAM, GOST, GA141, MILITARY }
 static func E(m, v):
   return Utils.bullet_energy(m, v)
 
-static func get_max_certified_energy(standard: Standard, level: int) -> float:
-  """Returns the maximum energy threat for a given certification level."""
-  # These values represent typical maximum energies for each certification level
-  var certified_threats = get_certified_threats(standard, level)
-  return certified_threats.map(func(e): return e.energy).max()
+# Reference RHA (mm) each abstract protection class is rated against.
+# Our own bridge between the class scale (GOST BR1-6, NIJ I-IV, VPAM PM1-14)
+# and the mm-RHA penetration anchors used by the unified armour model.
+const CLASS_REFERENCE_RHA := {
+  1: 3.0, 2: 5.0, 3: 9.0, 4: 16.0, 5: 24.0, 6: 35.0,
+  7: 45.0, 8: 55.0, 9: 60.0, 10: 75.0, 11: 85.0, 12: 100.0, 13: 125.0, 14: 140.0
+}
 
+static func class_reference_rha(level: int) -> float:
+  return CLASS_REFERENCE_RHA.get(level, 0.0)
+
+## Returns the maximum energy threat for a given certification level.
+## Contract: always returns a float; 0.0 (never null/INF) when the standard does
+## not define the level. Callers that build armour must not treat 0.0 as a
+## usable threat list — see BallisticMaterial.create_for_armor_certification,
+## which falls back to class_reference_rha() and warns.
+static func get_max_certified_energy(standard: Standard, level: int) -> float:
+  var certified_threats := get_certified_threats(standard, level)
+  if certified_threats.is_empty():
+    return 0.0
+  var max_energy := 0.0
+  for threat in certified_threats:
+    max_energy = maxf(max_energy, threat.energy if threat.energy else 0.0)
+  return max_energy
+
+## Determines the appropriate armor type for a certification level.
 static func get_armor_type_for_certification(standard: int, level: int) -> int:
-  """Determines the appropriate armor type for a certification level."""
   match standard:
     Standard.NIJ:
       if level <= 2: return BallisticMaterial.Type.ARMOR_SOFT    # Soft armor

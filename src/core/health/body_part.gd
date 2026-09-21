@@ -1,4 +1,4 @@
-# res://src/core/health/body_part.gd
+# res://addons/cabra.lat_shooters/src/core/health/body_part.gd
 class_name BodyPart
 extends Resource
 
@@ -64,7 +64,7 @@ func take_damage(amount: float) -> float:
   if current_health == 0 and not is_destroyed:
     is_destroyed = true
     functionality_changed.emit(_get_functionality_multiplier())
-    destroyed.emit(self)  # ← ADD THIS
+    destroyed.emit(self)
   return old_health - current_health
 
 func add_wound(wound: Wound):
@@ -80,11 +80,14 @@ func heal(amount: float):
 
 func update(delta: float):
   for wound in wounds:
+    # Fractures are persistent: they only go away with a splint (genre-typical).
+    if wound.type == Wound.Type.FRACTURE:
+      continue
     if wound.duration > 0:
       take_damage(wound.damage_per_second * delta)
       wound.duration -= delta
-  # Remove expired wounds
-  wounds = wounds.filter(func(w): return w.duration > 0)
+  # Remove expired wounds (never fractures).
+  wounds = wounds.filter(func(w): return w.type == Wound.Type.FRACTURE or w.duration > 0)
 
 func equip_armor(armor: Armor) -> void:
   equipped_armor = armor
@@ -109,9 +112,6 @@ func is_joint() -> bool:
     Type.LEFT_HAND, Type.RIGHT_HAND,
     Type.LEFT_FOOT, Type.RIGHT_FOOT
   ]
-
-func is_spine() -> bool:
-  return type in [Type.CERVICAL_SPINE, Type.THORACIC_SPINE, Type.LUMBAR_SPINE]
 
 func is_torso() -> bool:
   return type in [Type.UPPER_CHEST, Type.LOWER_CHEST, Type.ABDOMEN, Type.PELVIS]

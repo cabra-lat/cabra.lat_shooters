@@ -7,8 +7,6 @@ extends Item
     _caliber_data = Utils.parse_caliber(value)
     caliber = value
 @export_multiline var description: String = "Generic ammunition"
-@export var shell_model: PackedScene  # 3D model for the casing
-@export var shell_sound: AudioStream
 
 # ─── BALLISTIC PROPERTIES ─────────────────────────
 enum Type {
@@ -18,6 +16,7 @@ enum Type {
 }
 
 @export var type: Type = Type.FMJ
+@export var base_damage: float = 0.0  # genre-typical damage stat (per projectile)
 @export_custom(PROPERTY_HINT_NONE, "suffix:g") var bullet_mass: float = 8.0     # grams
 @export_custom(PROPERTY_HINT_NONE, "suffix:g") var cartridge_mass: float = 12.0  # grams
 @export_custom(PROPERTY_HINT_NONE, "suffix:m/s") var muzzle_velocity: float = 360.0 # m/s
@@ -41,9 +40,6 @@ enum Type {
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var reference_distance: float = 100.0    # meters
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var penetration_at_500m: float = 8.0
 @export var armor_performance: float = 1.0
-@export_custom(PROPERTY_HINT_NONE, "suffix:BHN") var core_hardness: float = 300.0         # BHN
-@export_custom(PROPERTY_HINT_NONE, "suffix:g/cm³") var core_density: float = 7.85           # g/cm³
-@export var angle_performance: float = 1.0
 
 # ─── TERMINAL EFFECTS ─────────────────────────────
 @export var armor_modifier: float = 1.0
@@ -55,8 +51,70 @@ enum Type {
 @export_range(0.0, 1.0) var fragment_chance: float = 0.0
 @export var accuracy: float = 1.0  # mm R50 at 300m
 
+# ─── TARKOV TERMINAL / MALFUNCTION DATA (from wiki infoboxes) ───
+# Rating scale used by the genre for feedfailure / misfire.
+enum Rating { NONE, VERY_LOW, LOW, MEDIUM, HIGH, VERY_HIGH }
+
+@export_group("Terminal Effects")
+@export_range(0.0, 1.0) var light_bleed_chance: float = 0.0   # chance per projectile
+@export_range(0.0, 1.0) var heavy_bleed_chance: float = 0.0
+
+@export_group("Weapon Malfunction")
+@export var feed_failure: Rating = Rating.LOW
+@export var misfire: Rating = Rating.LOW
+@export_custom(PROPERTY_HINT_NONE, "suffix:%") var durability_burn: float = 0.0  # per shot
+@export_custom(PROPERTY_HINT_NONE, "suffix:%") var heat: float = 0.0             # per shot
+
+@export_group("Multi-Projectile")
+# projectiles fired per cartridge (buckshot/flechette). bullet_mass and
+# base_damage are PER PROJECTILE when this is > 1.
+@export_range(1, 64) var projectile_count: int = 1
+@export_custom(PROPERTY_HINT_NONE, "suffix:J") var projectile_damage: float = 0.0  # 0 => use base_damage
+
 func get_mass() -> float:
   return cartridge_mass / 1000.0  # Convert grams to kg
+
+# ─── TERMINAL / MULTI-PROJECTILE / EFFECTIVENESS API ───
+func get_projectile_damage() -> float:
+  return projectile_damage if projectile_damage > 0.0 else base_damage
+
+static func rating_to_string(r: Rating) -> String:
+  return ["None", "Very low", "Low", "Medium", "High", "Very high"][int(r)]
+
+static func rating_from_string(s: String) -> Rating:
+  match s.strip_edges().to_lower():
+    "none": return Rating.NONE
+    "very low", "verylow", "very_low": return Rating.VERY_LOW
+    "low": return Rating.LOW
+    "medium": return Rating.MEDIUM
+    "high": return Rating.HIGH
+    "very high", "veryhigh", "very_high": return Rating.VERY_HIGH
+    _: return Rating.LOW
+
+## Genre-typical effectiveness scale 0..6 (0 = pointless, 20+ hits; 6 = usually
+## ignores, >80% pen) derived from reference penetration vs class reference.
+func effectiveness_vs_class(armor_class: int) -> int:
+  var thr := Certification.class_reference_rha(armor_class)
+  if thr <= 0.0:
+    return 6
+  return effectiveness_for_ratio(reference_penetration / thr)
+
+static func effectiveness_for_ratio(r: float) -> int:
+  if r >= 1.35: return 6
+  if r >= 1.05: return 5
+  if r >= 0.90: return 4
+  if r >= 0.72: return 3
+  if r >= 0.55: return 2
+  if r >= 0.40: return 1
+  return 0
+
+## Durability-wear multiplier the round inflicts on a plate of the class.
+## Wear model: hardness/pen relative; heavier AP rounds burn less, overmatch more.
+func armor_wear_factor(armor_class: int) -> float:
+  var thr := Certification.class_reference_rha(armor_class)
+  if thr <= 0.0:
+    return 1.0
+  return clampf(0.4 + 0.6 * (reference_penetration / thr), 0.4, 2.0)
 
 # ─── INTERNAL STATE ───────────────────────────────
 var _caliber_data: Dictionary = {}
@@ -64,13 +122,6 @@ var _caliber_data: Dictionary = {}
 # ─── COMPUTED PROPERTIES ──────────────────────────
 var cross_sectional_area: float:
   get: return PI * pow(bullet_diameter / 2000.0, 2)  # m²
-
-var kinetic_energy: float:
-  get:
-    return Utils.bullet_energy(bullet_mass / 1000.0, muzzle_velocity)  # Convert to kg
-
-var momentum: float:
-  get: return (bullet_mass / 1000.0) * muzzle_velocity  # Convert to kg
 
 var bore_mm: float:
   get: return _caliber_data.get("bore_mm", bullet_diameter)
@@ -93,6 +144,36 @@ func _init(mass: float = 8.0, speed: float = 360.0, ammo_type: Type = Type.FMJ) 
   muzzle_velocity = speed
   type = ammo_type
   _caliber_data = Utils.parse_caliber(caliber)
+
+# ─── RANGE / ENERGY API (used by BallisticsCalculator) ──
+func get_energy() -> float:
+  return Utils.bullet_energy(bullet_mass, muzzle_velocity)
+
+func get_velocity_at_range(distance_m: float) -> float:
+  # Exponential velocity decay calibrated by ballistic coefficient.
+  # Cheap stand-in for G1/G7 drag tables (future work: proper drag curves).
+  if distance_m <= 0.0:
+    return muzzle_velocity
+  var scale = max(800.0, ballistic_coefficient * 12000.0)
+  return muzzle_velocity * exp(-distance_m / scale)
+
+func get_energy_at_range(distance_m: float) -> float:
+  return Utils.bullet_energy(bullet_mass, get_velocity_at_range(distance_m))
+
+func get_ballistic_drop(distance_m: float, _zero_range: float, gravity: float) -> float:
+  var v = get_velocity_at_range(distance_m)
+  if v <= 0.0:
+    return 0.0
+  var t = distance_m / v
+  return 0.5 * gravity * t * t
+
+func should_fragment(energy_j: float, _target_hardness: float) -> int:
+  if fragment_chance <= 0.0 or energy_j < 300.0:
+    return 0
+  return int(ceil(fragment_chance * energy_j / 500.0))
+
+func is_deforming() -> bool:
+  return type in [Type.JHP, Type.JSP, Type.HOLLOW_POINT]
 
 # ─── FACTORY METHODS ──────────────────────────────
 static func create_9mm_ammo() -> Ammo:

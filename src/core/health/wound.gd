@@ -1,4 +1,4 @@
-# res://src/core/health/wound.gd
+# res://addons/cabra.lat_shooters/src/core/health/wound.gd
 class_name Wound
 extends Resource
 
@@ -46,6 +46,20 @@ func _init(
   duration = _duration
   penetration_depth = _penetration
 
+## Rolls a round's light/heavy bleed chance. Deterministic when rolls are
+## supplied (tests); otherwise uses randf(). Returns {bleeding, heavy, severity,
+## dps, duration}.
+static func bleed_from_ammo(ammo: Ammo, light_roll: float = -1.0, heavy_roll: float = -1.0) -> Dictionary:
+  if ammo == null:
+    return {"bleeding": false}
+  var lr := light_roll if light_roll >= 0.0 else randf()
+  var hr := heavy_roll if heavy_roll >= 0.0 else randf()
+  if ammo.heavy_bleed_chance > 0.0 and hr < ammo.heavy_bleed_chance:
+    return {"bleeding": true, "heavy": true, "severity": Severity.SEVERE, "dps": 2.5, "duration": 30.0}
+  if ammo.light_bleed_chance > 0.0 and lr < ammo.light_bleed_chance:
+    return {"bleeding": true, "heavy": false, "severity": Severity.MODERATE, "dps": 1.0, "duration": 30.0}
+  return {"bleeding": false}
+
 static func create_ballistic_wound(bullet: Ammo, impact: BallisticsImpact, body_part: BodyPart) -> Wound:
   var severity: Severity
   var wound_type: Type
@@ -76,7 +90,8 @@ static func create_ballistic_wound(bullet: Ammo, impact: BallisticsImpact, body_
         severity = Severity.MODERATE
 
   # Step 3: Wound type by bullet behavior
-  if bullet.is_deforming():
+  var deforming = bullet != null and bullet.is_deforming()
+  if deforming:
     wound_type = Type.CAVITY
     if impact.hit_energy > 800:
       wound_type = Type.SHRAPNEL
@@ -86,10 +101,11 @@ static func create_ballistic_wound(bullet: Ammo, impact: BallisticsImpact, body_
       severity = severity - 1
 
   # Special ammo overrides
-  if bullet.type in [Ammo.Type.BUCKSHOT, Ammo.Type.BIRD_SHOT]:
-    wound_type = Type.SHRAPNEL
-  elif bullet.type in [Ammo.Type.INCENDIARY, Ammo.Type.API]:
-    wound_type = Type.BURN
+  if bullet != null:
+    if bullet.type in [Ammo.Type.BUCKSHOT, Ammo.Type.BIRD_SHOT]:
+      wound_type = Type.SHRAPNEL
+    elif bullet.type in [Ammo.Type.INCENDIARY, Ammo.Type.API]:
+      wound_type = Type.BURN
 
   # Step 4: Secondary effects (bone fracture chance)
   var hit_long_bone := body_part.type in [

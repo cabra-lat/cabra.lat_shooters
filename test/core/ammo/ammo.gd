@@ -30,7 +30,7 @@ func _run():
 	
 	# Test fragmentation
 	randomize()
-	var frag_count = jhp.should_fragment(jhp.get_energy() * 0.8)
+	var frag_count = jhp.should_fragment(jhp.get_energy() * 0.8, 0.0)
 	# Could be 0 due to randomness, but let's just ensure method runs
 	print("  ✅ PASS: Fragmentation logic executed (result: %d)" % frag_count)
 	

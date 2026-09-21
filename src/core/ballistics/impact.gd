@@ -1,4 +1,4 @@
-# res://src/core/ballistics/ballistics_impact.gd
+# res://addons/cabra.lat_shooters/src/core/ballistics/ballistics_impact.gd
 class_name BallisticsImpact
 extends Resource
 
@@ -10,6 +10,8 @@ extends Resource
 @export var exit_energy: float = 0.0            # Joules
 @export var thickness: float = 0.0              # mm
 @export var angle: float = 0.0                  # degrees
+@export var projectile_count: int = 1           # multi-projectile (buckshot/flechette)
+@export var projectile_damage: float = 0.0      # per-projectile damage (genre-typical) (0 = energy model)
 
 var penetrated: bool:
   get: return penetration_depth >= thickness
