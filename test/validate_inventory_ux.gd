@@ -125,6 +125,31 @@ func _item(dims: Vector2i, extra: Item = null, mass: float = 0.0) -> InventoryIt
 	it.mass = mass
 	return it
 
+## All Item resource paths on disk (used to check manifest coverage).
+func _collect_item_paths() -> Array[String]:
+	var out: Array[String] = []
+	_walk_items("res://resources", out)
+	out.sort()
+	return out
+
+func _walk_items(dir: String, out: Array[String]) -> void:
+	var d := DirAccess.open(dir)
+	if d == null:
+		return
+	d.list_dir_begin()
+	var name := d.get_next()
+	while name != "":
+		if name.begins_with("."):
+			name = d.get_next()
+			continue
+		var full := dir.path_join(name)
+		if d.current_is_dir():
+			_walk_items(full, out)
+		elif name.ends_with(".tres") and load(full) is Item:
+			out.append(full)
+		name = d.get_next()
+	d.list_dir_end()
+
 # ─── ROTATION ───────────────────────────────────────
 func _check_rotation_in_place() -> void:
 	var c := _container(6, 6)
@@ -326,6 +351,22 @@ func _check_generated_icons_wired() -> void:
 		checked += 1
 	_check(checked > 0, "icons: manifest lists items")
 	_check(wrong == 0, "icons: every rendered item points at its generated PNG (%d checked)" % checked)
+	# Coverage BOTH ways: a renamed/removed .tres (stale key) or a NEW item that
+	# was never added to the manifest must not slip through. The identity rename
+	# churn showed a manifest can silently go stale; enumerate the disk here.
+	var disk_items := _collect_item_paths()
+	var uncovered: Array[String] = []
+	for p in disk_items:
+		if not items.has(p):
+			uncovered.append(p)
+			print("  not in manifest: %s" % p)
+	var stale: Array[String] = []
+	for k in items.keys():
+		if not FileAccess.file_exists(k):
+			stale.append(k)
+			print("  stale manifest key (file gone): %s" % k)
+	_check(uncovered.is_empty(), "icons: manifest covers every item resource (%d missing)" % uncovered.size())
+	_check(stale.is_empty(), "icons: no stale manifest key (%d)" % stale.size())
 	# Ballistics 2026-09-21: the Godot logo (Item.icon default) must not ship on
 	# items we can cover, so every collected item must have a real icon or a
 	# DOCUMENTED placeholder now.
