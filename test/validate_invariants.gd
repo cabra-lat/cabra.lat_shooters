@@ -205,7 +205,7 @@ func _inv16_attachment_wiring() -> void:
 
 	# Magazine path: equips without a rail bit, scales ammo_feed, restores.
 	var wres := (load("res://resources/weapons/AK_47.tres") as Weapon)
-	var mag := (load("res://resources/attachments/Magpul_PMAG_40.tres") as Attachment)
+	var mag := (load("res://resources/attachments/USA_P40.tres") as Attachment)
 	var base_cap := wres.ammo_feed.max_capacity
 	var equipped: bool = wres.attach_attachment(0, mag) and wres.attachments.has(Weapon.MAGAZINE_POINT)
 	var scaled_cap := base_cap
