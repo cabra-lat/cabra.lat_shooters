@@ -32,6 +32,7 @@ func _run() -> void:
 	_inv04_magazine_alias()
 	_inv06_wrapped_item_mass()
 	_inv07_undefined_cert_level()
+	_inv11_container_grid_dims()
 
 	await _run_player_invariants()
 
@@ -132,6 +133,40 @@ func _inv07_undefined_cert_level() -> void:
 			defined.penetration_resistance, undef10.penetration_resistance,
 			undef14.penetration_resistance, reported],
 		"undefined cert level silently produced 0 J armour / Nil return")
+
+# ─── INV-11: a saved container's grid dims must survive a reload ────
+# ORIGIN (QA-009, order-of-init): InventoryContainer._init() built the default
+# 15x15 grid and the .tres properties were applied WITHOUT rebuilding, so a
+# container saved with non-default dims (e.g. 7x3) loaded as 15x15. Fix:
+# grid_width/grid_height setters call _rebuild_grid().
+func _inv11_container_grid_dims() -> void:
+	var fresh := InventoryContainer.new()
+	var fresh_ok: bool = fresh.grid != null and fresh.grid.width == 15 and fresh.grid.height == 15
+
+	var resized := InventoryContainer.new()
+	resized.grid_width = 20
+	resized.grid_height = 8
+	var setter_ok: bool = resized.grid != null and resized.grid.width == 20 and resized.grid.height == 8
+
+	var saved := InventoryContainer.new()
+	saved.grid_width = 7
+	saved.grid_height = 3
+	var path := "user://qa009_container.tres"
+	var save_err := ResourceSaver.save(saved, path)
+	var reloaded := ResourceLoader.load(path) as InventoryContainer
+	var reload_ok: bool = save_err == OK and reloaded != null \
+		and reloaded.grid != null and reloaded.grid.width == 7 and reloaded.grid.height == 3
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+	_check("INV-11", "container_grid_dims_follow_exports",
+		fresh_ok and setter_ok and reload_ok,
+		"fresh=%s setter=%s reload=%s" % [_grid_dims(fresh), _grid_dims(resized), _grid_dims(reloaded)],
+		"QA-009 order-of-init: non-default container dims loaded as the default 15x15")
+
+func _grid_dims(c: InventoryContainer) -> String:
+	if c == null or c.grid == null:
+		return "nil"
+	return "%dx%d" % [c.grid.width, c.grid.height]
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
