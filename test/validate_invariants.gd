@@ -630,8 +630,11 @@ func _inv25_26_npc_spawn_and_corpse() -> void:
 	world.add_child(sp)
 	sp.start()
 
+	var max_wave_y := 0.0
 	for i in 60:
 		await physics_frame
+		for b in sp.active_bots:
+			max_wave_y = maxf(max_wave_y, b.global_position.y)
 	var settled: bool = bot.is_on_floor()
 	var death_y: float = bot.global_position.y
 	var imp := BallisticsImpact.new()
@@ -649,11 +652,9 @@ func _inv25_26_npc_spawn_and_corpse() -> void:
 
 	for i in 30:
 		await physics_frame
+		for b in sp.active_bots:
+			max_wave_y = maxf(max_wave_y, b.global_position.y)
 	var no_sink: bool = bot.global_position.y > -0.2
-	var airborne := 0
-	for b in sp.active_bots:
-		if b.global_position.y > 3.0:
-			airborne += 1
 
 	# The corpse fade must already be ramping (alpha < 1).
 	var alpha := 1.0
@@ -666,8 +667,8 @@ func _inv25_26_npc_spawn_and_corpse() -> void:
 				alpha = (c as Color).a
 
 	_check("INV-25", "wave_spawns_separated_and_grounded",
-		separated and airborne == 0,
-		"min_intended=%.3f sep=%.2f airborne=%d" % [min_d, sp.spawn_separation, airborne],
+		separated and max_wave_y <= 3.0,
+		"min_intended=%.3f sep=%.2f max_wave_y=%.2f" % [min_d, sp.spawn_separation, max_wave_y],
 		"F-SPAWN: a repeated spawn point launched the wave (add_child before positioning)")
 	_check("INV-26", "corpse_stays_on_floor_and_fades",
 		settled and died and no_sink and alpha < 0.99,
