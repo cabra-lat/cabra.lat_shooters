@@ -47,6 +47,8 @@ func _run() -> void:
 	await _inv18_rig_sole_on_ground()
 	await _inv19_rig_body_material_supports_flash()
 	await _inv20_every_clip_drives_the_rig()
+	_inv21_roles_swap_conserves_mass()
+	_inv22_roles_kia_forfeits_only_active_kit()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -358,6 +360,114 @@ func _inv20_every_clip_drives_the_rig() -> void:
 		"clips=%d without_a_match=%d %s" % [clips.size(), dead.size(), str(dead)],
 		"F9: clips used Mixamo bone names absent from the rig, so bodies were a T-pose")
 	rig.queue_free()
+
+# ─── INV-21: switching faction conserves mass + item multiset (roles) ─
+# ORIGIN (verifier roles slices, 2026-09-21; coordinator asked for independent
+# permanent coverage — the author's own harness was the only guard): the two kits
+# are SWAPPED, never copied, so `stash + loadout + every NON-ACTIVE role kit` must
+# keep the same mass and the same item multiset across a switch. TRAP: skip the
+# ACTIVE faction's role slot — `switch_faction` leaves `roles[target].kit ==
+# loadout` (a logical duplicate; `role_kit()` returns `loadout` for the active
+# faction), so summing both DOUBLES the mass and gives a false FAIL.
+func _inv21_roles_swap_conserves_mass() -> void:
+	var p := MetaProfile.new()
+	p.stash.deposit(ItemCodec.item_from_path(BANDAGE_PATH))
+	p.loadout["pocket"] = [ItemCodec.encode_item(ItemCodec.item_from_path(WEAPON_PATH))]
+	p.role_state("drifter")["kit"] = {"pocket": [ItemCodec.encode_item(ItemCodec.item_from_path(BANDAGE_PATH))]}
+	var m0 := _roles_mass(p)
+	var s0 := _roles_signature(p)
+	var ok: bool = m0 > 0.0
+	var refused_same: bool = not p.switch_faction(p.faction).get("ok", false)
+	var refused_empty: bool = not p.switch_faction("").get("ok", false)
+	var active_changed := true
+	for i in 6:
+		var target := "drifter" if p.faction == "contractor" else "contractor"
+		var res := p.switch_faction(target)
+		if not res.get("ok", false) or p.faction != target:
+			active_changed = false
+		if absf(_roles_mass(p) - m0) > 1e-4 or _roles_signature(p) != s0:
+			ok = false
+	_check("INV-21", "roles_swap_conserves_mass",
+		ok and active_changed and refused_same and refused_empty,
+		"m0=%.4f m6=%.4f sig_stable=%s active_changed=%s refused_same=%s refused_empty=%s" % [
+			m0, _roles_mass(p), str(_roles_signature(p) == s0), str(active_changed), str(refused_same), str(refused_empty)],
+		"switch_faction duplicated/lost mass or items (or accepted a no-op switch)")
+
+## Mass over stash + loadout + every NON-ACTIVE role kit (active slot skipped: it
+## is the same object as `loadout`).
+func _roles_mass(p: MetaProfile) -> float:
+	var total := p.stash.get_total_mass() + _kit_mass(p.loadout)
+	for id in p.roles:
+		if id == p.faction:
+			continue
+		var st = p.roles[id]
+		if st is Dictionary:
+			total += _kit_mass(st.get("kit", {}))
+	return total
+
+func _kit_mass(kit) -> float:
+	var total := 0.0
+	if not (kit is Dictionary):
+		return total
+	for slot in kit:
+		var arr = kit[slot]
+		if not (arr is Array):
+			continue
+		for enc in arr:
+			var it := ItemCodec.decode_item(enc)
+			if it != null:
+				total += it.get_mass() * maxi(it.stack_count, 1)
+	return total
+
+## Sorted multiset of "name#stack" over the SAME sources as `_roles_mass`.
+func _roles_signature(p: MetaProfile) -> String:
+	var parts: Array[String] = []
+	_kit_signature(p.loadout, parts)
+	for id in p.roles:
+		if id == p.faction:
+			continue
+		var st = p.roles[id]
+		if st is Dictionary:
+			_kit_signature(st.get("kit", {}), parts)
+	parts.sort()
+	return "|".join(parts)
+
+func _kit_signature(kit, parts: Array[String]) -> void:
+	if not (kit is Dictionary):
+		return
+	for slot in kit:
+		var arr = kit[slot]
+		if not (arr is Array):
+			continue
+		for enc in arr:
+			var it := ItemCodec.decode_item(enc)
+			if it != null:
+				parts.append("%s#%d" % [it.name, it.stack_count])
+
+# ─── INV-22: KIA forfeits ONLY the active kit; other roles untouched ─
+# ORIGIN (verifier roles slices, 2026-09-21): dying must wipe the ACTIVE kit and
+# count the death on the ACTIVE faction only — a non-active faction's stored kit
+# must stay BYTE-identical. (Roles are per-faction; a KIA that wiped every kit
+# would silently destroy the player's other loadouts.)
+func _inv22_roles_kia_forfeits_only_active_kit() -> void:
+	var p := MetaProfile.new()
+	p.role_state("drifter")["kit"] = {"pocket": [ItemCodec.encode_item(ItemCodec.item_from_path(BANDAGE_PATH))]}
+	var before := JSON.stringify(p.roles["drifter"]["kit"])
+	var eq := Equipment.new()
+	eq.equip(InventorySystem.create_inventory_item(ItemCodec.item_from_path(WEAPON_PATH)), "primary")
+	var svc := MetaService.new()
+	svc.use_profile(p, META_TEST_DIR + "/kia.save")
+	svc.bind_carrier(eq, null)
+	svc.resolve_raid(Raid.Outcome.KIA, 0)
+	var untouched: bool = JSON.stringify(p.roles["drifter"]["kit"]) == before
+	var active_kia: int = int(p.role_state()["kia"])
+	var other_kia: int = int(p.roles["drifter"]["kia"])
+	var other_survived: int = int(p.roles["drifter"]["survived"])
+	_check("INV-22", "roles_kia_forfeits_only_active_kit",
+		untouched and active_kia == 1 and other_kia == 0 and other_survived == 0,
+		"drifter_kit_intact=%s active_kia=%d other_kia=%d other_survived=%d" % [
+			str(untouched), active_kia, other_kia, other_survived],
+		"KIA wiped a non-active role's kit (or counted the death on the wrong role)")
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
