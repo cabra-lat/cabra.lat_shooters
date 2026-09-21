@@ -47,6 +47,7 @@ var _ads_rate := ADS_K # blend rate; ergonomics/attachments scale it
 var _ads_offset := DEFAULT_ADS_OFFSET # resolved per weapon in setup()
 var _grabbed_layers := {} # RigidBody3D -> [layer, mask] to restore on teardown
 var _mounted_attachments := {} # point -> Node3D mounted on the held gun
+var _baked_optics_hidden := {} # marker -> [Node3D] hidden while a mounted optic is present
 
 func setup(player: PlayerController, gun: Weapon3D) -> void:
 	_player = player
@@ -283,6 +284,8 @@ func _mount_attachment(point: int, attachment: Attachment) -> void:
 		_stash_and_zero(inst as RigidBody3D)
 		_freeze_body(inst as RigidBody3D)
 	_mounted_attachments[point] = inst
+	if point == Weapon.AttachmentPoint.TOP_RAIL:
+		_hide_baked_optics(marker, inst)
 	# An optic reticle may have appeared; re-resolve eye alignment.
 	_ads_offset = resolve_ads_offset(_gun)
 
@@ -292,8 +295,31 @@ func _unmount_attachment(point: int) -> void:
 		if is_instance_valid(old):
 			old.queue_free()
 		_mounted_attachments.erase(point)
-		if is_instance_valid(_gun):
-			_ads_offset = resolve_ads_offset(_gun)
+	if point == Weapon.AttachmentPoint.TOP_RAIL:
+		_restore_baked_optics()
+	if is_instance_valid(_gun):
+		_ads_offset = resolve_ads_offset(_gun)
+
+## Hide a weapon scene's baked default optic while a mounted optic is present
+## (same convention as Weapon3D._hide_baked_optics); restore on unmount.
+func _hide_baked_optics(marker: Node3D, keep: Node) -> void:
+	var hidden: Array = []
+	for c in marker.get_children():
+		if c == keep:
+			continue
+		if c is Node3D and (c as Node3D).visible:
+			(c as Node3D).visible = false
+			hidden.append(c)
+	if not hidden.is_empty():
+		_baked_optics_hidden[marker] = hidden
+
+func _restore_baked_optics() -> void:
+	for marker in _baked_optics_hidden.keys():
+		if is_instance_valid(marker):
+			for c in _baked_optics_hidden[marker]:
+				if is_instance_valid(c):
+					(c as Node3D).visible = true
+	_baked_optics_hidden.clear()
 
 func _unmount_all_attachments() -> void:
 	for point in _mounted_attachments.keys():

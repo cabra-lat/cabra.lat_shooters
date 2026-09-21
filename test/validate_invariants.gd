@@ -43,6 +43,7 @@ func _run() -> void:
 	_inv07_undefined_cert_level()
 	_inv11_container_grid_dims()
 	_inv16_attachment_wiring()
+	_inv16b_baked_optic_toggle()
 	await _inv17_world_mode_tags_no_npcs()
 	await _inv18_rig_sole_on_ground()
 	await _inv19_rig_body_material_supports_flash()
@@ -231,6 +232,44 @@ func _inv16_attachment_wiring() -> void:
 		"assets=%d missing=%d mag_equipped=%s cap %d->%d->%d" % [
 			total, missing.size(), str(equipped), base_cap, scaled_cap, wres.ammo_feed.max_capacity],
 		"attachment .tres had no model_scene (never appeared) or magazine path did not feed")
+
+# ─── INV-16b: mounting an optic hides the weapon's baked default optic ───
+# ORIGIN (range, 2026-09-21): weapon scenes ship a VISIBLE default optic baked
+# into the rail marker (AR15/AK reddot, AGLC sniper). Without a toggle, mounting
+# a second optic showed BOTH. Contract: baked visible -> hidden while a TOP_RAIL
+# attachment is mounted -> restored on detach.
+func _inv16b_baked_optic_toggle() -> void:
+	var wres := (load("res://resources/weapons/M4_Carbine.tres") as Weapon)
+	var ps := (load("res://src/weapons/weapon_ar15.tscn") as PackedScene)
+	var ok := false
+	var detail := "scene/resource missing"
+	if wres != null and ps != null:
+		var w3d := ps.instantiate()
+		root.add_child(w3d)
+		w3d.data = wres
+		var marker := w3d.get_node_or_null("Scope") as Node3D
+		var baked: Node3D = null
+		if marker != null:
+			for c in marker.get_children():
+				if String(c.name).contains("attachment_scope_reddot"):
+					baked = c as Node3D
+		if marker != null and baked != null:
+			var before: bool = baked.visible
+			var optic := (load("res://resources/attachments/Sweden_R1.tres") as Attachment)
+			var mounted: bool = wres.attach_attachment(Weapon.AttachmentPoint.TOP_RAIL, optic)
+			var hidden: bool = not baked.visible
+			var mounted_visible := false
+			for c in marker.get_children():
+				if c != baked and c is Node3D and (c as Node3D).visible:
+					mounted_visible = true
+			wres.detach_attachment(Weapon.AttachmentPoint.TOP_RAIL)
+			var restored: bool = baked.visible
+			ok = before and mounted and hidden and mounted_visible and restored
+			detail = "baked before=%s after_mount=%s after_detach=%s mounted_visible=%s" % [str(before), str(not hidden), str(restored), str(mounted_visible)]
+		w3d.data = null
+		w3d.free()
+	_check("INV-16b", "baked_optic_hidden_while_mounted", ok, detail,
+		"mounting a TOP_RAIL optic showed both the baked default and the mounted optic")
 
 # ─── INV-17: world-mode visibility must NOT tag colliders as viewmodels (B2) ─
 # ORIGIN (npc-body B2, 2026-09-21): ShotRay.collect excludes EVERY node in the
