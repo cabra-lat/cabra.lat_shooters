@@ -75,7 +75,7 @@ func _on_physics_timeout():
 
 # Public methods - simplified to focus on physics
 func throw(force: Vector3 = Vector3.ZERO, torque: Vector3 = Vector3.ZERO) -> void:
-  """Activate physics and apply forces to the object"""
+  ## Activate physics and apply forces to the object
   _enable_physics()
   if force != Vector3.ZERO:
     apply_central_impulse(force)

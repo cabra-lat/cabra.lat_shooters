@@ -1,4 +1,4 @@
-# res://addons/cabra.lat_shooters/src/core/ballistics/ballistics_calculator.gd
+# res://addons/cabra.lat_shooters/src/core/ballistics/calculator.gd
 class_name BallisticsCalculator
 extends Resource
 
