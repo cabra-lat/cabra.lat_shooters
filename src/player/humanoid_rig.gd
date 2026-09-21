@@ -25,7 +25,10 @@ const CHEST_HEIGHT := 1.2
 ## y=0.851 (player.tscn), so the ankle (local z=-0.784) lands ~0.067 m up =
 ## the sole thickness. A world consumer places the rig node at this Y to put
 ## the soles on the floor (NOT 0.784, which sinks the sole).
-const GROUND_PLACEMENT_Y := 0.851
+const GROUND_PLACEMENT_Y := 0.893
+## F7: 0.851 is the player's node Y (ankle 0.067 up), but the boot SOLE then
+## sits 4.2 cm below the floor (measured AABB min y = -0.042). A world consumer
+## wants the sole ON the floor, so add that 4.2 cm.
 
 @export var anim_enabled: bool = true
 @export var visible_range: float = 0.0 ## 0 = always visible (per-bot valve, M9).
@@ -33,6 +36,11 @@ const GROUND_PLACEMENT_Y := 0.851
 var _lod: int = 0
 var _anim: AnimationPlayer
 var _mats: Array[ShaderMaterial] = []
+var _fork: Shader = null
+## Our body shader fork (body_psx_base.gdshaderinc): the shared surface shader
+## (psx_base) has no `flash_amount`, so tint works but the damage flash would be
+## written to a uniform nobody reads (F6).
+const BODY_SHADER := "res://addons/cabra.lat_shooters/src/player/psx_lit_body_nearclip.gdshader"
 
 func _ready() -> void:
 	_ensure_anim()
@@ -81,6 +89,13 @@ func own_materials() -> Array[ShaderMaterial]:
 				if src is BaseMaterial3D:
 					mat.albedo_color = (src as BaseMaterial3D).albedo_color
 			mi.set_surface_override_material(s, mat)
+			# F6: force the body fork shader (has flash_amount) and disable the
+			# near-clip (world mode = whole body). Params survive the swap by name.
+			if _fork == null:
+				_fork = load(BODY_SHADER) as Shader
+			if _fork != null:
+				mat.shader = _fork
+				mat.set_shader_parameter("body_near_cutoff", 0.0)
 			_mats.append(mat)
 	return _mats
 
