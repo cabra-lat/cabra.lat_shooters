@@ -37,6 +37,7 @@ func _run() -> void:
 	_inv07_undefined_cert_level()
 	_inv11_container_grid_dims()
 	_inv16_attachment_wiring()
+	await _inv17_world_mode_tags_no_npcs()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -219,6 +220,45 @@ func _inv16_attachment_wiring() -> void:
 		"assets=%d missing=%d mag_equipped=%s cap %d->%d->%d" % [
 			total, missing.size(), str(equipped), base_cap, scaled_cap, wres.ammo_feed.max_capacity],
 		"attachment .tres had no model_scene (never appeared) or magazine path did not feed")
+
+# ─── INV-17: world-mode visibility must NOT tag colliders as viewmodels (B2) ─
+# ORIGIN (npc-body B2, 2026-09-21): ShotRay.collect excludes EVERY node in the
+# "viewmodel" group TREE-WIDE. If a WORLD consumer (an NPC) took the
+# first-person path, its colliders would join that group and the player's ray
+# would skip them — `collider is NpcBot` in the resolver is never reached, i.e.
+# an INVULNERABLE bot. Contract: first_person=false tags NOTHING, and the
+# first-person tagging is scoped to the player's OWN subtree (never a sibling).
+func _inv17_world_mode_tags_no_npcs() -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	var player := CharacterBody3D.new()
+	var own_col := Area3D.new()          # the player's own collider (TorsoAttachment-like)
+	own_col.name = "TorsoAttachment"
+	player.add_child(own_col)
+	world.add_child(player)
+	var npc_col := Area3D.new()          # an NPC's collider: a SIBLING, not under the player
+	npc_col.name = "NpcTorso"
+	world.add_child(npc_col)
+
+	# `apply` gates on is_inside_tree(); during _initialize() the tree is not
+	# settled yet, so let one frame pass or the world branch is never exercised.
+	await process_frame
+
+	PlayerBodyVisibility.apply(player, 0.05, false)   # world mode
+	var world_untagged: bool = not own_col.is_in_group(PlayerBodyVisibility.SHOT_EXCLUDE_GROUP) \
+		and not npc_col.is_in_group(PlayerBodyVisibility.SHOT_EXCLUDE_GROUP)
+
+	var tagged := PlayerBodyVisibility.tag_own_colliders(player)   # the first-person path
+	var own_tagged: bool = own_col.is_in_group(PlayerBodyVisibility.SHOT_EXCLUDE_GROUP)
+	var npc_untagged: bool = not npc_col.is_in_group(PlayerBodyVisibility.SHOT_EXCLUDE_GROUP)
+
+	_check("INV-17", "world_mode_tags_no_npc_colliders",
+		world_untagged and tagged >= 1 and own_tagged and npc_untagged,
+		"world_untagged=%s tagged=%d own_tagged=%s sibling_npc_untagged=%s" % [
+			str(world_untagged), tagged, str(own_tagged), str(npc_untagged)],
+		"an NPC collider in the 'viewmodel' group makes the player's ray skip it (invulnerable bot)")
+
+	world.queue_free()
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
