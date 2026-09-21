@@ -38,6 +38,7 @@ func _run() -> void:
 	_inv11_container_grid_dims()
 	_inv16_attachment_wiring()
 	await _inv17_world_mode_tags_no_npcs()
+	await _inv18_rig_sole_on_ground()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -259,6 +260,33 @@ func _inv17_world_mode_tags_no_npcs() -> void:
 		"an NPC collider in the 'viewmodel' group makes the player's ray skip it (invulnerable bot)")
 
 	world.queue_free()
+
+# ─── INV-18: the rig's sole sits on the ground at GROUND_PLACEMENT_Y (F7) ─
+# ORIGIN (npc-body rig acceptance, 2026-09-21): placing the shared world-mode rig
+# at the published GROUND_PLACEMENT_Y used to sink the body ~4.2 cm. Assert the
+# body mesh's lowest point lands on y=0 (tolerance 2 cm). Measured AFTER a frame:
+# transforms only propagate then (measuring in _initialize() is a false negative).
+func _inv18_rig_sole_on_ground() -> void:
+	var ps := load("res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn") as PackedScene
+	if ps == null:
+		_check("INV-18", "rig_sole_on_ground_at_offset", false, "rig scene missing", "F7: body sank 4.2 cm")
+		return
+	var rig = ps.instantiate()
+	root.add_child(rig)
+	await process_frame
+	var ground_y: float = rig.GROUND_PLACEMENT_Y
+	rig.position.y = ground_y
+	await process_frame
+	var mesh: MeshInstance3D = rig.get_body_mesh()
+	var lo := INF
+	if mesh != null:
+		for i in 8:
+			lo = minf(lo, (mesh.global_transform * mesh.get_aabb().get_endpoint(i)).y)
+	var ok: bool = mesh != null and absf(lo) < 0.02
+	_check("INV-18", "rig_sole_on_ground_at_offset", ok,
+		"sole_min_y=%.4f (GROUND_PLACEMENT_Y=%.3f)" % [lo, ground_y],
+		"F7: the shared rig sank 4.2 cm when placed at GROUND_PLACEMENT_Y")
+	rig.queue_free()
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
