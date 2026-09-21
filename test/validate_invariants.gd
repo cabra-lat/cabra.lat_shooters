@@ -54,6 +54,7 @@ func _run() -> void:
 	_inv22_roles_kia_forfeits_only_active_kit()
 	_inv23_skeletons_in_sync()
 	_inv24_spawn_picks_are_distinct()
+	await _inv25_26_npc_spawn_and_corpse()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -582,6 +583,97 @@ func _inv24_spawn_picks_are_distinct() -> void:
 	_check("INV-24", "spawn_picks_are_distinct", pts.size() > 0 and dupes == 0,
 		"picks=%d distinct=%d dupes=%d" % [pts.size(), seen.size(), dupes],
 		"randi() handed the same spawn to two bots -> depenetration launched them (y~140 m)")
+
+# ─── INV-25 / INV-26: NPC wave spawn + corpse (F-SPAWN / F-CORPSE, fixed 6d7fce4) ─
+# ORIGIN (npc-body + spotter, 2026-09-21):
+#   F-SPAWN: `add_child(bot)` BEFORE positioning left the wave stacked at the
+#     origin for one physics frame; move_and_slide resolved the penetration UP and
+#     launched the bots (2 on one point -> y=100; arena: ~135 m). Fix: position
+#     before add_child + a minimum separation between same-wave bots.
+#   F-CORPSE: the corpse SANK through the floor (y 0 -> -3.475 in 0.4 s) because
+#     `_die()` zeroed the collision_mask while `_tick_death` kept gravity +
+#     move_and_slide. Fix: only the layer goes to 0, the mask stays.
+# Deliberately does NOT boot the arena (no other-lane SCRIPT ERROR) — a floor +
+# one bot + one NpcWaveSpawner is enough. The bot is spawned ABOVE the floor:
+# spawning it overlapping ejects it (a false "sank", npc-body's own first probe).
+func _inv25_26_npc_spawn_and_corpse() -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	var floor := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(40, 1, 40)
+	cs.shape = box
+	floor.add_child(cs)
+	floor.position = Vector3(0, -0.5, 0)
+	world.add_child(floor)
+
+	var bot_ps := load("res://src/npcs/bot/bot.tscn") as PackedScene
+	if bot_ps == null:
+		_check("INV-25", "wave_spawns_separated_and_grounded", false, "bot.tscn missing", "F-SPAWN")
+		_check("INV-26", "corpse_stays_on_floor_and_fades", false, "bot.tscn missing", "F-CORPSE")
+		world.queue_free()
+		return
+	var bot = bot_ps.instantiate()
+	world.add_child(bot)
+	bot.global_position = Vector3(0, 1.6, 0)   # clearly ABOVE the floor
+	bot.despawn_delay = 4.0
+	bot.corpse_fade_time = 4.0
+
+	# ONE spawn point for 3 bots: the overlap that used to launch them.
+	var sp = NpcWaveSpawner.new()
+	sp.auto_start = false
+	sp.start_delay = 0.0
+	sp.base_count = 3
+	var one_point: Array[Vector3] = [Vector3(12, 1, 0)]
+	sp.spawn_points = one_point
+	world.add_child(sp)
+	sp.start()
+
+	for i in 60:
+		await physics_frame
+	var settled: bool = bot.is_on_floor()
+	var death_y: float = bot.global_position.y
+	var imp := BallisticsImpact.new()
+	imp.hit_energy = 100000.0
+	bot.health.take_ballistic_damage(imp, BodyPart.Type.UPPER_CHEST, null)
+	var died: bool = not bot.is_alive()
+
+	# Spawn separation (intended points of the same wave must be > spawn_separation).
+	var pts: Array = sp._used_spawns.duplicate()
+	var min_d := INF
+	for i in pts.size():
+		for j in range(i + 1, pts.size()):
+			min_d = minf(min_d, Vector2(pts[i].x - pts[j].x, pts[i].z - pts[j].z).length())
+	var separated: bool = pts.size() < 2 or min_d >= sp.spawn_separation
+
+	for i in 30:
+		await physics_frame
+	var no_sink: bool = bot.global_position.y > -0.2
+	var airborne := 0
+	for b in sp.active_bots:
+		if b.global_position.y > 3.0:
+			airborne += 1
+
+	# The corpse fade must already be ramping (alpha < 1).
+	var alpha := 1.0
+	var rig = bot.get_node_or_null("Skeleton3D")
+	if rig != null and rig.has_method("own_materials"):
+		var mats = rig.own_materials()
+		if mats.size() > 0:
+			var c = mats[0].get_shader_parameter("modulate_color")
+			if c is Color:
+				alpha = (c as Color).a
+
+	_check("INV-25", "wave_spawns_separated_and_grounded",
+		separated and airborne == 0,
+		"min_intended=%.3f sep=%.2f airborne=%d" % [min_d, sp.spawn_separation, airborne],
+		"F-SPAWN: a repeated spawn point launched the wave (add_child before positioning)")
+	_check("INV-26", "corpse_stays_on_floor_and_fades",
+		settled and died and no_sink and alpha < 0.99,
+		"settled=%s died=%s corpse_y=%.3f alpha=%.2f" % [str(settled), str(died), bot.global_position.y, alpha],
+		"F-CORPSE: the corpse sank through the floor (_die zeroed collision_mask)")
+	world.queue_free()
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
