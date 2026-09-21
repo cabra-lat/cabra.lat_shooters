@@ -1,4 +1,4 @@
-# res://src/core/ammo/reservoir.gd
+# res://addons/cabra.lat_shooters/src/core/ammo/reservoir.gd
 class_name Reservoir
 extends Item
 

@@ -1,4 +1,4 @@
-# res://src/core/attachment/attachment.gd
+# res://addons/cabra.lat_shooters/src/core/attachment/attatchments.gd
 class_name Attachment
 extends Item
 

@@ -1,4 +1,4 @@
-# res://src/core/ammo/ammo_feed.gd
+# res://addons/cabra.lat_shooters/src/core/ammo/ammo_feed.gd
 class_name AmmoFeed
 extends Reservoir
 
