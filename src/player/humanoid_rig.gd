@@ -27,6 +27,9 @@ extends Skeleton3D
 ## and make the player instance this scene. Drift is guarded by an invariant
 ## (bone count + names/order) until then.
 
+## LIGHTING: the body renders with the PSX **LIT** shader, so a scene that
+## instantiates this rig WITHOUT a light draws the body BLACK — add a
+## DirectionalLight3D (the rig is not broken).
 const VISIBLE_LAYER := 1
 
 ## Body reference (M7) — INTENTIONAL HOOKS, consumer pending. The body swap must
