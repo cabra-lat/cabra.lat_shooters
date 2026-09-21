@@ -55,6 +55,7 @@ func _run() -> void:
 	_inv23_skeletons_in_sync()
 	_inv24_spawn_picks_are_distinct()
 	await _inv25_26_npc_spawn_and_corpse()
+	await _inv28_npc_teams_contract()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -688,6 +689,60 @@ func _inv25_26_npc_spawn_and_corpse() -> void:
 		"parked_peak_y=%.2f settled=%s (wave_peak=%.2f)" % [max_victim_y, str(settled), max_wave_y],
 		"a body parked in the spawn path was launched by the wave (racy add_child/position order)")
 	world.queue_free()
+
+# ─── INV-28: NpcBot teams contract (tint / hostility / squad / died_with_team) ─
+# ORIGIN (npc-body, 2026-09-21): the arena never called `set_team`, so every arena
+# bot was team=-1 — the whole per-team contract (tint, hostility, squad,
+# died_with_team) was DEAD on the real path. The range is about to wire `set_team`
+# in the arena, so assert the consumer contract deterministically (no physics, no
+# arena; probe 12/12). Setup note (npc-body's gotcha): build/add the bots AFTER a
+# frame.
+func _inv28_npc_teams_contract() -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	var bot_ps := load("res://src/npcs/bot/bot.tscn") as PackedScene
+	if bot_ps == null:
+		_check("INV-28", "npc_teams_contract", false, "bot.tscn missing", "teams contract was dead (team=-1)")
+		world.queue_free()
+		return
+	await process_frame
+	var a = _inv28_spawn(world, bot_ps, Vector3(0, 0, 0), 0)
+	var b = _inv28_spawn(world, bot_ps, Vector3(4, 0, 0), 0)     # same team as A
+	var c = _inv28_spawn(world, bot_ps, Vector3(0, 0, -6), 1)    # other team
+
+	var tint_ok: bool = _inv28_tint(a).is_equal_approx(NpcVisuals.team_color(0)) \
+		and _inv28_tint(c).is_equal_approx(NpcVisuals.team_color(1)) \
+		and not _inv28_tint(a).is_equal_approx(_inv28_tint(c))
+	var hostile_ok: bool = NpcTargeting.is_hostile(c, a.team, false) \
+		and not NpcTargeting.is_hostile(b, a.team, false) \
+		and NpcTargeting.is_hostile(a, -1, true)
+	var acq = NpcTargeting.acquire(a, world, a.team, false)
+	var acq_ok: bool = acq != null and acq != b
+	NpcSquad.publish(1, Vector3(10, 0, 0), 2, 99)
+	var info = NpcSquad.get_info(1, 5.0)
+	var squad_ok: bool = not info.is_empty() \
+		and (info.get("pos", Vector3.ZERO) as Vector3).is_equal_approx(Vector3(10, 0, 0)) \
+		and NpcSquad.get_info(0, 5.0).is_empty()
+	var seen := []
+	c.died_with_team.connect(func(_b, t: int) -> void: seen.append(t))
+	c._die("probe")
+	var died_ok: bool = seen == [1]
+	_check("INV-28", "npc_teams_contract", tint_ok and hostile_ok and acq_ok and squad_ok and died_ok,
+		"tint=%s hostile=%s acquire=%s squad=%s died_with_team=%s" % [
+			str(tint_ok), str(hostile_ok), str(acq_ok), str(squad_ok), str(died_ok)],
+		"the per-team contract was dead (arena never called set_team: team=-1)")
+	world.queue_free()
+
+func _inv28_spawn(world: Node3D, ps: PackedScene, at: Vector3, team: int) -> Node:
+	var bot = ps.instantiate()
+	world.add_child(bot)
+	bot.position = at
+	bot.set_team(team)
+	return bot
+
+func _inv28_tint(bot: Node) -> Color:
+	var rig = bot.get_node("Skeleton3D")
+	return rig.own_materials()[0].get_shader_parameter("modulate_color") as Color
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
