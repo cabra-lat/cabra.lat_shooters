@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cstatushud0001"]
+
+[ext_resource type="Script" uid="uid://clq1m4rgatybe" path="res://addons/cabra.lat_shooters/src/ui/hud/status_hud.gd" id="1_hud"]
+
+[node name="PlayerStatusHud" type="CanvasLayer"]
+script = ExtResource("1_hud")
