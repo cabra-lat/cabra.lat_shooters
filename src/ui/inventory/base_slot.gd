@@ -33,6 +33,17 @@ func _ready():
 func setup(parent: BaseInventoryUI):
     parent_ui = parent
 
+## Right-click on a slot opens the parent inventory's item context menu. The slot
+## has MOUSE_FILTER_STOP, so the panel's own _gui_input never sees this event
+## (the real right-click bug); the slot must own it and hand it up explicitly.
+func _gui_input(event: InputEvent) -> void:
+    if event is InputEventMouseButton:
+        var mb := event as InputEventMouseButton
+        if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+            if associated_item != null and parent_ui != null:
+                parent_ui.show_context_menu(self)
+                accept_event()
+
 func clear():
     if icon:
         icon.texture = null

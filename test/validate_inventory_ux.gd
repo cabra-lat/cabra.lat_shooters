@@ -1,9 +1,8 @@
 # res://addons/cabra.lat_shooters/test/validate_inventory_ux.gd
 #
 # Headless harness for the tetris-inventory UX LOGIC: rotation, swap, stacking,
-# container nesting, quick-move (equip inference), weight / free-space feedback.
-# The UI is driven by these core calls, so covering them here keeps the visual
-# layer honest without a GPU.
+# container nesting, quick-move (equip inference), weight / free-space feedback,
+# and the REAL right-click gesture that opens the item context menu.
 #
 # Run:
 #   godot --headless --path . --script res://addons/cabra.lat_shooters/test/validate_inventory_ux.gd
@@ -13,6 +12,7 @@ extends SceneTree
 
 const AMMO_PATH := "res://resources/ammo/7_62_39mm_PS_GOST_BR4.tres"
 const WEAPON_PATH := "res://resources/weapons/M4_Carbine.tres"
+const CONTAINER_UI_SCENE := "res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"
 
 var _pass := 0
 var _fail := 0
@@ -20,6 +20,8 @@ var _fail_lines: Array[String] = []
 
 func _initialize() -> void:
 	_run()
+
+func _finish() -> void:
 	print("")
 	print("=== validate_inventory_ux summary ===")
 	print("  checks passed  %d" % _pass)
@@ -58,6 +60,55 @@ func _run() -> void:
 	_check_tooltip()
 	_check_nested_container_branch()
 	_check_generated_icons_wired()
+	await _check_context_menu_right_click()
+	_finish()
+
+## The context menu must open on a REAL right-click over a slot. Regression for
+## the bug where a full-grid overlay Control (ItemsContainer, MOUSE_FILTER_STOP)
+## swallowed the click so the panel's _gui_input never fired. Drives an actual
+## InputEventMouseButton(RIGHT) through the viewport, NOT id_pressed directly.
+func _check_context_menu_right_click() -> void:
+	var container := _container(5, 5)
+	var weapon: Weapon = load(WEAPON_PATH)
+	var item := InventoryItem.slurp(weapon)
+	item.dimensions = Vector2i(3, 2)
+	container.add_item(item, Vector2i(0, 0))
+
+	var ui = load(CONTAINER_UI_SCENE).instantiate()
+	get_root().add_child(ui)
+	get_root().size = Vector2i(1280, 720)
+	await process_frame  # let @onready resolve before open_container
+	ui.open_container(container)
+	for i in 5:
+		await process_frame
+
+	_check(ui.items_container.mouse_filter == Control.MOUSE_FILTER_IGNORE,
+		"context menu: the items overlay does not swallow slot clicks")
+
+	var slot = ui.get_slot_by_grid_position(Vector2i(0, 0))
+	_check(slot != null and slot.associated_item == item, "context menu: weapon slot resolved")
+	if slot == null:
+		ui.queue_free()
+		return
+
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_RIGHT
+	ev.pressed = true
+	ev.position = slot.get_global_rect().get_center()
+	ev.global_position = ev.position
+	get_root().push_input(ev)
+	for i in 3:
+		await process_frame
+
+	var menu = ui.context_menu
+	_check(menu != null and menu.visible, "context menu: real right-click opens it")
+	var has_modify := false
+	if menu != null:
+		for i in menu.get_item_count():
+			if menu.get_item_text(i).begins_with("Modificar"):
+				has_modify = true
+	_check(has_modify, "context menu: offers Modificar (gunsmith)")
+	ui.queue_free()
 
 # ─── FIXTURES ───────────────────────────────────────
 func _container(w: int, h: int, max_weight: float = 1000.0) -> InventoryContainer:

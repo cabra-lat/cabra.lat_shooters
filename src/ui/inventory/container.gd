@@ -24,6 +24,11 @@ func _ready():
     super._ready()
     close_button.pressed.connect(_on_close_button_pressed)
     _create_drop_preview()
+    # ItemsContainer is a full-grid Control layered ABOVE the slots; with the
+    # default MOUSE_FILTER_STOP it swallowed every click, so the slots (and thus
+    # the right-click context menu) never received input. It only draws the
+    # floating item icons (themselves IGNORE), so it must be pass-through.
+    items_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func open_container(container: InventoryContainer):
     setup_inventory(container)
@@ -68,7 +73,7 @@ func _setup_grid_size():
 ## node, always visible, consistent with the shared HUD style.
 func _update_stats() -> void:
     var container = current_inventory_source as InventoryContainer
-    if not container:
+    if not container or foldable_panel == null:
         return
     foldable_panel.title = "%s   %.1f/%.0f kg   %d cells free" % [
         container.name, container.total_weight, container.max_weight,
