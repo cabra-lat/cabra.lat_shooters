@@ -309,6 +309,19 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
 
   # Create new viewmodel if available
   if weapon and weapon.view_model:
+    # `current_scene` is null when a harness instantiates the arena via
+    # `--script` (nothing registered it as the current scene) -> fall back to the
+    # tree root. If that host is still building (add_child during _initialize
+    # fails on a busy parent), retry next frame instead of erroring.
+    var tree := get_tree()
+    if tree == null:
+      return
+    var host := tree.current_scene if tree.current_scene != null else tree.root
+    if host == null:
+      return
+    if not host.is_node_ready():
+      _setup_viewmodel_on_hand.call_deferred(weapon)
+      return
     var new_vm: Weapon3D = weapon.view_model.instantiate()
     new_vm.name = VIEW_MODEL_NAME
     # Rigid procedural hold (see ViewmodelRig): freeze the body and pose it
@@ -319,7 +332,7 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
     # reads get_global_transform(), which needs the tree (else the engine warns
     # and the initial pose is wrong). Clear attractors AFTER Item3D._ready
     # repopulates them from the parent (QA-014).
-    get_tree().current_scene.add_child(new_vm)
+    host.add_child(new_vm)
     new_vm.attractors.clear()
     new_vm.data = weapon
     viewmodel_rig = ViewmodelRig.new()
