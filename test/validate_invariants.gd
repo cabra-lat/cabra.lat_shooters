@@ -1,0 +1,329 @@
+# res://addons/cabra.lat_shooters/test/validate_invariants.gd
+#
+# PERMANENT cross-system invariants (TEST TOOLCHAIN, CI).
+#
+# Why this exists: during the 2026-09-21 sessions dozens of throwaway `*_tmp.gd`
+# probes proved valuable things and were then deleted — the proof evaporated with
+# the file, so the regression could come back unnoticed. The big `validate_*`
+# harnesses cover subsystems; THIS file covers the cross-system invariants that
+# only existed as probes. Each named assertion carries its ORIGIN: the real bug
+# it catches. Do not delete one as "redundant" without reading that comment.
+#
+# Headless, editor-independent. Run:
+#   godot --headless --path . --script res://addons/cabra.lat_shooters/test/validate_invariants.gd
+#
+# Exit code: 0 = all invariants pass, 1 = at least one failed.
+extends SceneTree
+
+const PLAYER_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player.tscn"
+const WEAPON_PATH := "res://resources/weapons/M4_Carbine.tres"
+const ARMOR_PATH := "res://resources/armor/GOST_BR4.tres"
+
+var _pass := 0
+var _fail := 0
+var _fail_lines: Array[String] = []
+
+func _initialize() -> void:
+	_run()
+
+func _run() -> void:
+	print("=== validate_invariants: cross-system invariants ===")
+
+	_inv04_magazine_alias()
+	_inv06_wrapped_item_mass()
+	_inv07_undefined_cert_level()
+
+	await _run_player_invariants()
+
+	print("")
+	print("=== validate_invariants summary ===")
+	print("  passed  %d" % _pass)
+	print("  failed  %d" % _fail)
+	if _fail > 0:
+		print("  --- failures (with origin) ---")
+		for line in _fail_lines:
+			print("  " + line)
+		print("RESULT: FAIL")
+		quit(1)
+	else:
+		print("RESULT: PASS")
+		quit(0)
+
+func _check(id: String, name: String, ok: bool, detail: String, origin: String) -> void:
+	if ok:
+		_pass += 1
+		print("  PASS  %-7s %-42s %s" % [id, name, detail])
+	else:
+		_fail += 1
+		print("  FAIL  %-7s %-42s %s" % [id, name, detail])
+		_fail_lines.append("%s %s — origin: %s" % [id, name, origin])
+
+# ─── INV-04: magazine swap must not alias the source ────────────────
+# ORIGIN: Resource.duplicate() is SHALLOW and shares the `contents` Array, so
+# installing a mag and ejecting from the copy drained the ORIGINAL reserve.
+func _inv04_magazine_alias() -> void:
+	var source := _make_feed(3)
+	var before := source.contents.size()
+	var weapon := Weapon.new()
+	weapon.feed_type = AmmoFeed.Type.EXTERNAL
+	weapon.ammo_feed = source
+	var incoming := _make_feed(3)
+	var swapped := WeaponSystem.change_magazine(weapon, incoming)
+	while weapon.ammo_feed != null and not weapon.ammo_feed.is_empty():
+		weapon.ammo_feed.eject()
+	var after := source.contents.size()
+	_check("INV-04", "magazine_swap_no_alias", swapped and after == before,
+		"source %d -> %d after draining installed feed" % [before, after],
+		"shallow duplicate drained the source reserve on mag swap")
+
+func _make_feed(rounds: int) -> AmmoFeed:
+	var feed := AmmoFeed.new()
+	feed.type = AmmoFeed.Type.EXTERNAL
+	feed.compatible_calibers = PackedStringArray(["9x19mm"])
+	for i in rounds:
+		var a := Ammo.create_9mm_ammo()
+		a.caliber = "9x19mm"
+		feed.insert(a)
+	return feed
+
+# ─── INV-06: wrapped item mass must be real ─────────────────────────
+# ORIGIN: InventoryItem.slurp() wraps a resource without copying mass, so
+# `mass` alone read 0 — encumbrance/weight was decorative even when "on".
+func _inv06_wrapped_item_mass() -> void:
+	var weapon := (load(WEAPON_PATH) as Weapon)
+	var wrapper := InventoryItem.slurp(weapon)
+	var weapon_mass := weapon.get_mass()
+	var wrap_ok := wrapper.get_mass() > 0.0 and is_equal_approx(wrapper.get_mass(), weapon_mass)
+
+	# Armor assets carry no `mass` of their own, so set one explicitly: the
+	# point is that slurp() does NOT copy mass, yet get_mass() must still see it.
+	var armor := (load(ARMOR_PATH) as Armor).duplicate(true) as Armor
+	armor.mass = 6.5
+	var armor_wrap := InventoryItem.slurp(armor)
+	var armor_ok := armor_wrap.get_mass() > 0.0 and is_equal_approx(armor_wrap.get_mass(), 6.5)
+
+	# Nested: container inside container must sum recursive mass.
+	var inner := InventoryContainer.new()
+	inner.add_item(InventoryItem.slurp(weapon))
+	var outer := InventoryContainer.new()
+	var inner_wrap := InventoryItem.new()
+	inner_wrap.extra = inner
+	outer.add_item(inner_wrap)
+	var nested_ok := inner.get_total_mass() > 0.0 and outer.get_total_mass() >= inner.get_total_mass()
+
+	_check("INV-06", "wrapped_item_mass_is_real", wrap_ok and armor_ok and nested_ok,
+		"weapon %.2f armor %.2f nested %.2f" % [wrapper.get_mass(), armor_wrap.get_mass(), outer.get_total_mass()],
+		"InventoryItem wrapper did not copy mass -> all items weighed 0")
+
+# ─── INV-07: an undefined cert level must not become 0 J armour ─────
+# ORIGIN: NIJ 10-14 (allowed by @export_range(1,14)) produced "Hard Armor (0 J)"
+# that stopped nothing, and get_max_certified_energy returned Nil (crash).
+func _inv07_undefined_cert_level() -> void:
+	var defined := BallisticMaterial.create_for_armor_certification(Certification.Standard.NIJ, 4)
+	var undef10 := BallisticMaterial.create_for_armor_certification(Certification.Standard.NIJ, 10)
+	var undef14 := BallisticMaterial.create_for_armor_certification(Certification.Standard.NIJ, 14)
+	var reported: float = Certification.get_max_certified_energy(Certification.Standard.NIJ, 10)
+	var ok: bool = defined.penetration_resistance > 0.0 \
+		and undef10.penetration_resistance > 0.0 \
+		and undef14.penetration_resistance > 0.0 \
+		and reported == 0.0
+	_check("INV-07", "undefined_cert_level_not_zero_armor", ok,
+		"nij4=%.0f nij10=%.0f nij14=%.0f reported=%.0f" % [
+			defined.penetration_resistance, undef10.penetration_resistance,
+			undef14.penetration_resistance, reported],
+		"undefined cert level silently produced 0 J armour / Nil return")
+
+# ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
+func _run_player_invariants() -> void:
+	var world := Node3D.new()
+	world.name = "InvariantWorld"
+	root.add_child(world)
+	current_scene = world
+
+	var ps := load(PLAYER_SCENE) as PackedScene
+	var player = ps.instantiate() if ps != null else null
+	if player == null:
+		_check("INV-01..03/05/08/09/10", "player_scene_instantiates", false,
+			"could not instantiate %s" % PLAYER_SCENE, "player scene is required by these invariants")
+		world.queue_free()
+		return
+	world.add_child(player)
+	for i in 5:
+		await process_frame
+	for i in 5:
+		await physics_frame
+
+	var camera = player.get("camera")
+	var spring_arm = player.get("spring_arm")
+	var head = player.get("head")
+
+	_inv01_camera_pitch(player, camera, head)
+	_inv02_camera_sees_body(player, camera)
+	_inv03_shot_ray(player, world, camera)
+	_inv05_bleeding_ticks(player)
+	_inv08_lean_translates(player, spring_arm)
+	_inv09_aim_ray_any_pitch(camera)
+	await _inv10_held_viewmodel(player)
+
+	world.queue_free()
+
+# ─── INV-01: mouse pitch must reach the CAMERA's rig ────────────────
+# ORIGIN: the `head` (IK RemoteTransform) inclined but the camera never did, so
+# vertical aim did not exist and the shot ray could only be horizontal.
+func _inv01_camera_pitch(player, camera, head) -> void:
+	var input = player.get("input")
+	if input == null or camera == null or head == null:
+		_check("INV-01", "camera_pitch_reaches_eye", false, "missing input/camera/head", "pitch never reached the eye camera")
+		return
+	input.mouse_delta = Vector2(0.0, -40.0)
+	var yaw0: float = player.rotation_degrees.y
+	player.call("_handle_camera_rotation")
+	var cam_x := rad_to_deg(camera.rotation.x)
+	var head_x := rad_to_deg(head.rotation.x)
+	var reaches := absf(cam_x - head_x) < 0.01 and cam_x > 0.5
+	var yaw_untouched := absf(player.rotation_degrees.y - yaw0) < 0.001
+
+	input.mouse_delta = Vector2(0.0, 100000.0)
+	player.call("_handle_camera_rotation")
+	var clamp_lo := is_equal_approx(rad_to_deg(camera.rotation.x), -90.0)
+	input.mouse_delta = Vector2(0.0, -1000000.0)
+	player.call("_handle_camera_rotation")
+	var clamp_hi := is_equal_approx(rad_to_deg(camera.rotation.x), 90.0)
+	# leave the eye neutral for the following invariants
+	input.mouse_delta = Vector2(0.0, 1000000.0)
+	player.call("_handle_camera_rotation")
+
+	_check("INV-01", "camera_pitch_reaches_eye", reaches and yaw_untouched and clamp_lo and clamp_hi,
+		"cam=%.2f head=%.2f yaw_d=%.4f clamp[%s,%s]" % [cam_x, head_x, player.rotation_degrees.y - yaw0, str(clamp_lo), str(clamp_hi)],
+		"pitch stayed on the head/IK and never inclined the eye camera")
+
+# ─── INV-02: the FPS camera must SEE the player's body ──────────────
+# ORIGIN: a blanket hide of every body mesh on the hide layer removed legs/feet
+# from first person (you could not see your own body at all).
+func _inv02_camera_sees_body(player, camera) -> void:
+	var mesh: MeshInstance3D = PlayerBodyVisibility.body_mesh(player)
+	var ok: bool = mesh != null and mesh.layers == PlayerBodyVisibility.VISIBLE_LAYER \
+		and camera != null and (camera.cull_mask & PlayerBodyVisibility.VISIBLE_LAYER) != 0
+	_check("INV-02", "fps_camera_sees_body", ok,
+		"body_layers=%s cam_cull=0x%x" % [str(mesh.layers if mesh else -1), camera.cull_mask if camera else 0],
+		"blanket body hide removed the legs/feet from the FPS camera")
+
+# ─── INV-03: the shot ray must not hit the shooter's own body ───────
+# ORIGIN: the naive ray from the camera hit the TorsoAttachment at 0.51 m, so
+# looking down you could shoot your own feet. ShotRay must exclude the shooter.
+func _inv03_shot_ray(player, world, camera) -> void:
+	var space: PhysicsDirectSpaceState3D = world.get_world_3d().direct_space_state
+	var from: Vector3 = player.global_position + Vector3(0.0, 2.2, 0.0)
+	var to: Vector3 = player.global_position + Vector3(0.0, -0.5, 0.0)
+
+	var naive := PhysicsRayQueryParameters3D.create(from, to)
+	naive.collide_with_areas = false
+	var naive_hit: Dictionary = space.intersect_ray(naive)
+	var naive_hits_player := not naive_hit.is_empty() and _is_descendant(naive_hit.get("collider"), player)
+
+	var guarded := PhysicsRayQueryParameters3D.create(from, to)
+	guarded.exclude = ShotRay.collect(player, world, true)
+	guarded.collide_with_areas = false
+	var guarded_hit: Dictionary = space.intersect_ray(guarded)
+	var guarded_hits_player := not guarded_hit.is_empty() and _is_descendant(guarded_hit.get("collider"), player)
+
+	var ok: bool = naive_hits_player and not guarded_hits_player
+	_check("INV-03", "shot_ray_never_hits_shooter", ok,
+		"naive_hits_player=%s guarded_hits_player=%s excludes=%d" % [str(naive_hits_player), str(guarded_hits_player), guarded.exclude.size()],
+		"naive resolver ray hit the shooter's own body (self-hit at the feet)")
+
+func _is_descendant(node: Variant, ancestor: Node) -> bool:
+	var n := node as Node
+	while n != null:
+		if n == ancestor:
+			return true
+		n = n.get_parent()
+	return false
+
+# ─── INV-05: bleeding must actually tick through the player ─────────
+# ORIGIN: Health.update() was never called by anyone — bleeding never drained
+# and never killed, even though the whole bleed system existed.
+func _inv05_bleeding_ticks(player) -> void:
+	var health = player.get("health")
+	if health == null:
+		_check("INV-05", "bleeding_ticks_through_player", false, "no health", "Health.update was never called")
+		return
+	health.add_fresh_wound()
+	var before: float = health.blood_volume
+	for i in 4:
+		player.call("_update_survival", 0.5)
+	var after: float = health.blood_volume
+	var ok: bool = health.total_bleeding_rate > 0.0 and after < before
+	_check("INV-05", "bleeding_ticks_through_player", ok,
+		"blood %.1f -> %.1f (rate %.3f)" % [before, after, health.total_bleeding_rate],
+		"Health.update() had no caller, so bleeding never drained")
+
+# ─── INV-08: lean must TRANSLATE the eye, not only roll ─────────────
+# ORIGIN: lean only rotated about the aim axis, so it could not peek around a
+# corner. The camera lives on the SpringArm and must move sideways.
+func _inv08_lean_translates(player, spring_arm) -> void:
+	if spring_arm == null:
+		_check("INV-08", "lean_translates_eye", false, "no spring arm", "lean only rolled")
+		return
+	player.set("_lean_dir", 1.0)
+	for i in 30:
+		player.call("_apply_camera_bob_and_lean", 0.05)
+	var peeked: float = absf(spring_arm.position.x)
+	player.set("_lean_dir", 0.0)
+	for i in 60:
+		player.call("_apply_camera_bob_and_lean", 0.05)
+	var returned: float = absf(spring_arm.position.x)
+	var ok: bool = peeked > 0.2 and returned < 0.05
+	_check("INV-08", "lean_translates_eye", ok,
+		"peek=%.3f return=%.3f (threshold 0.2/0.05)" % [peeked, returned],
+		"lean only rolled on the aim axis and did not translate the eye")
+
+# ─── INV-09: the aim ray must follow the camera at ANY pitch ────────
+# ORIGIN: aim/POI was only ever tested with pitch 0. Before the pitch fix the
+# resolver ray (camera forward) could only be horizontal, so aiming up/down was
+# meaningless. Headless proxy for the ADS dot: use the SAME calls the resolver
+# uses (project_ray_origin/normal at the viewport centre) and prove the ray is
+# pitch-sensitive and aligned with the camera forward.
+func _inv09_aim_ray_any_pitch(camera) -> void:
+	if camera == null:
+		_check("INV-09", "aim_ray_follows_camera_any_pitch", false, "no camera", "ray could only be horizontal")
+		return
+	var center: Vector2 = camera.get_viewport().get_visible_rect().size / 2.0
+	var ok: bool = true
+	var rows: Array[String] = []
+	for pitch_deg in [-60.0, -30.0, 0.0, 30.0, 60.0]:
+		camera.rotation.x = deg_to_rad(pitch_deg)
+		var origin: Vector3 = camera.project_ray_origin(center)
+		var dir: Vector3 = camera.project_ray_normal(center)
+		var forward: Vector3 = -camera.global_transform.basis.z
+		var aligned: bool = dir.dot(forward) > 0.999
+		var pitch_sensitive: bool = absf(dir.y - forward.y) < 0.001
+		# rotation.x = p rotates -Z to (0, sin p, -cos p): the ray must carry
+		# the pitch, not stay horizontal.
+		var vertical_matches: bool = absf(dir.y - sin(deg_to_rad(pitch_deg))) < 0.01
+		if not (aligned and pitch_sensitive and vertical_matches):
+			ok = false
+		rows.append("%.0f:dir.y=%.3f" % [pitch_deg, dir.y])
+	_check("INV-09", "aim_ray_follows_camera_any_pitch", ok,
+		" ".join(rows),
+		"resolver ray was only horizontal / aim only verified at pitch 0")
+
+# ─── INV-10: a held viewmodel must have NO active collision ─────────
+# ORIGIN: the held gun's RigidBody collision was live, so the resolver ray hit
+# it (the self-hit cause). AGENTS rule 5: held items are never physics-simulated.
+func _inv10_held_viewmodel(player) -> void:
+	var weapon := (load(WEAPON_PATH) as Weapon)
+	if weapon == null:
+		_check("INV-10", "held_viewmodel_has_no_collision", false, "no weapon asset", "held gun collision caused the self-hit")
+		return
+	var carried := InventoryItem.slurp(weapon.duplicate(true) as Weapon)
+	var equip = player.get("equipment")
+	var equipped: bool = equip != null and equip.equip(carried, "primary")
+	for i in 5:
+		await process_frame
+	var hands = player.get("current_hands")
+	var layer: int = hands.collision_layer if hands != null else -1
+	var ok: bool = equipped and hands != null and layer == 0
+	_check("INV-10", "held_viewmodel_has_no_collision", ok,
+		"equipped=%s hands=%s collision_layer=%d" % [str(equipped), str(hands != null), layer],
+		"held gun kept live collision -> resolver self-hit")

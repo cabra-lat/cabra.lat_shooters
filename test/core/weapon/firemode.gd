@@ -5,9 +5,12 @@ class_name TestFiremode extends EditorScript
 func _run():
 	print("🧪 Testing Firemode...")
 
-	check(Firemode.get_name(Firemode.SEMI) == "SEMI", "SEMI name correct")
-	check(Firemode.get_name(Firemode.BURST) == "BURST", "BURST name correct")
-	check(Firemode.get_name(999) == "UNKNOWN", "Unknown mode handled")
+	# NOTE: rename `get_name` -> `get_mode` (this is an Object method name, and the
+	# stale call site was a real parse error: "Too many arguments for get_name()" /
+	# "Cannot call non-static function get_name() on the class Firemode".)
+	check(Firemode.get_mode(Firemode.SEMI) == "SEMI", "SEMI name correct")
+	check(Firemode.get_mode(Firemode.BURST) == "BURST", "BURST name correct")
+	check(Firemode.get_mode(999) == "UNKNOWN", "Unknown mode handled")
 
 	check(Firemode.is_automatic(Firemode.AUTO), "AUTO is automatic")
 	check(Firemode.is_automatic(Firemode.BURST), "BURST is automatic")

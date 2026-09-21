@@ -17,6 +17,7 @@ func _run():
     TestHealth,
     TestBallisticsCalculator,
     TestBallisticsImpact,
+    TestBallisticsResidual,
     TestWeaponSystem,
     TestInventoryContainer,
     TestInventoryGrid,
