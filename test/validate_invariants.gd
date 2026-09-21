@@ -13,6 +13,12 @@
 #   godot --headless --path . --script res://addons/cabra.lat_shooters/test/validate_invariants.gd
 #
 # Exit code: 0 = all invariants pass, 1 = at least one failed.
+#
+# ── HARNESS HAZARD — animation probes (player-rig, 2026-09-21) ───────
+# Measuring a bone's "pose change" with `get_bone_pose_rotation(b).length()`
+# ALWAYS returns 1 (a quaternion is normalized), so such a probe reports "0
+# changes" even when the clip IS driving the skeleton — a false "animation does
+# not work". Use the POSITION (`get_bone_pose_position`) or the MESH AABB instead.
 extends SceneTree
 
 const PLAYER_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player.tscn"
