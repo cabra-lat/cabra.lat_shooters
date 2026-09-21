@@ -631,8 +631,10 @@ func _inv25_26_npc_spawn_and_corpse() -> void:
 	sp.start()
 
 	var max_wave_y := 0.0
+	var max_victim_y := -1.0e9   # the PARKED body (INV-27): a wave must not launch it
 	for i in 60:
 		await physics_frame
+		max_victim_y = maxf(max_victim_y, bot.global_position.y)
 		for b in sp.active_bots:
 			max_wave_y = maxf(max_wave_y, b.global_position.y)
 	var settled: bool = bot.is_on_floor()
@@ -674,6 +676,17 @@ func _inv25_26_npc_spawn_and_corpse() -> void:
 		settled and died and no_sink and alpha < 0.99,
 		"settled=%s died=%s corpse_y=%.3f alpha=%.2f" % [str(settled), str(died), bot.global_position.y, alpha],
 		"F-CORPSE: the corpse sank through the floor (_die zeroed collision_mask)")
+	# ─── INV-27: a body PARKED in the spawn path is not launched by a wave start ─
+	# ORIGIN (npc-body, 2026-09-21): the RACE half of F-SPAWN. The WAVE bots recover
+	# (move_and_slide separates them and they land), but a body already parked at the
+	# spawner's ORIGIN — where a bot sits between add_child and the position
+	# assignment — has nowhere to recover: with the racy order npc-body measured it
+	# at y=22.9 and this harness at y=37.0. INV-25 is only the SEPARATION half; this
+	# is the VICTIM half, asserted explicitly instead of by accident.
+	_check("INV-27", "parked_body_not_launched_by_wave",
+		settled and max_victim_y < 3.0,
+		"parked_peak_y=%.2f settled=%s (wave_peak=%.2f)" % [max_victim_y, str(settled), max_wave_y],
+		"a body parked in the spawn path was launched by the wave (racy add_child/position order)")
 	world.queue_free()
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
