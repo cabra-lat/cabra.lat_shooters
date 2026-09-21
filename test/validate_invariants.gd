@@ -25,6 +25,8 @@ const PLAYER_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player.
 const WEAPON_PATH := "res://resources/weapons/M4_Carbine.tres"
 const ARMOR_PATH := "res://resources/armor/GOST_BR4.tres"
 const BANDAGE_PATH := "res://resources/medical/army_bandage.tres"
+const RIG_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn"
+const IK_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player_ik.tscn"
 const META_TEST_DIR := "user://inv_meta_test"
 const META_SAVE := "user://inv_meta_test/profile.save"
 
@@ -50,6 +52,7 @@ func _run() -> void:
 	await _inv20_every_clip_drives_the_rig()
 	_inv21_roles_swap_conserves_mass()
 	_inv22_roles_kia_forfeits_only_active_kit()
+	_inv23_skeletons_in_sync()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -507,6 +510,52 @@ func _inv22_roles_kia_forfeits_only_active_kit() -> void:
 		"drifter_kit_intact=%s active_kia=%d other_kia=%d other_survived=%d" % [
 			str(untouched), active_kia, other_kia, other_survived],
 		"KIA wiped a non-active role's kit (or counted the death on the wrong role)")
+
+# ─── INV-23: player_ik.tscn and humanoid_rig.tscn skeletons stay in sync (M1) ─
+# ORIGIN (coordinator decision M1 + player-rig, 2026-09-21): `humanoid_rig.tscn`
+# is the SINGLE SOURCE of the skeleton, but `player_ik.tscn` still carries a COPY
+# of the same bones (the player needs `ik.gd` on the root, and Godot cannot swap
+# the script of an instanced root). Until the dedupe lands, the duplication must
+# be SAFE: if one side is edited without the other, that is silent drift — this
+# asserts bone count, names/ORDER and parents are identical.
+func _inv23_skeletons_in_sync() -> void:
+	var rig_ps := load(RIG_SCENE) as PackedScene
+	var ik_ps := load(IK_SCENE) as PackedScene
+	if rig_ps == null or ik_ps == null:
+		_check("INV-23", "skeletons_in_sync", false, "rig or player_ik scene missing", "M1: skeleton duplicated")
+		return
+	var rig_root := rig_ps.instantiate()
+	var ik_root := ik_ps.instantiate()
+	var a := _find_skeleton(rig_root)
+	var b := _find_skeleton(ik_root)
+	var ok: bool = a != null and b != null and a.get_bone_count() > 0 and a.get_bone_count() == b.get_bone_count()
+	var mismatch := ""
+	if ok:
+		for i in a.get_bone_count():
+			if a.get_bone_name(i) != b.get_bone_name(i):
+				ok = false
+				mismatch = "name[%d]: %s vs %s" % [i, a.get_bone_name(i), b.get_bone_name(i)]
+				break
+			if a.get_bone_parent(i) != b.get_bone_parent(i):
+				ok = false
+				mismatch = "parent[%d]: %d vs %d" % [i, a.get_bone_parent(i), b.get_bone_parent(i)]
+				break
+	_check("INV-23", "skeletons_in_sync", ok,
+		"rig_bones=%d ik_bones=%d %s" % [a.get_bone_count() if a != null else -1, b.get_bone_count() if b != null else -1, mismatch],
+		"M1: player_ik.tscn duplicates the humanoid_rig skeleton; silent drift if one side is edited")
+	if rig_root != null:
+		rig_root.free()
+	if ik_root != null:
+		ik_root.free()
+
+func _find_skeleton(n: Node) -> Skeleton3D:
+	if n is Skeleton3D:
+		return n as Skeleton3D
+	for c in n.get_children():
+		var s := _find_skeleton(c)
+		if s != null:
+			return s
+	return null
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
