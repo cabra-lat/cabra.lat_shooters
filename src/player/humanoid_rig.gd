@@ -12,6 +12,13 @@ extends Skeleton3D
 ## Hard rules (consumer MUSTs): material is duplicated PER INSTANCE (never the
 ## shared resource); world mode never tags colliders into the shot-exclude group
 ## (B2: ShotRay excludes that group tree-wide -> an NPC would be un-hittable).
+##
+## TRAP if this scene ever gains its own AnimationPlayer: `AnimationPlayer.root_node`
+## is the base of the track paths, and the clips address the skeleton as
+## `Skeleton3D:<bone>`. With the player inside the rig (default `root_node = ..`)
+## that resolves to a CHILD named "Skeleton3D", which does not exist, so the clip
+## plays and moves nothing (silently). Set `root_node` explicitly, or name the rig
+## node "Skeleton3D" and keep the player above it (what npc-body's bot.tscn does).
 
 const VISIBLE_LAYER := 1
 
