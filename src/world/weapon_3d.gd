@@ -25,6 +25,27 @@ static func marker_names_for_point(point: int) -> Array:
     _:
       return []
 
+## Hide the marker's baked children (a weapon scene's default optic) while a
+## mounted attachment occupies the point; store them for restore on unmount.
+static func hide_baked_marker_siblings(marker: Node3D, keep: Node, store: Dictionary) -> void:
+    var hidden: Array = []
+    for c in marker.get_children():
+        if c == keep:
+            continue
+        if c is Node3D and (c as Node3D).visible:
+            (c as Node3D).visible = false
+            hidden.append(c)
+    if not hidden.is_empty():
+        store[marker] = hidden
+
+static func restore_baked_marker_siblings(store: Dictionary) -> void:
+    for marker in store.keys():
+        if is_instance_valid(marker):
+            for c in store[marker]:
+                if is_instance_valid(c):
+                    (c as Node3D).visible = true
+    store.clear()
+
 var firerate_timer: Timer
 var casing_ejection: bool = true
 var magazine_3d: Magazine3D = null
@@ -200,7 +221,7 @@ func _mount_attachment(point: int, attachment: Attachment) -> void:
             rb.set("is_grabbed", false)
     _mounted_attachments[point] = inst
     if point == Weapon.AttachmentPoint.TOP_RAIL:
-        _hide_baked_optics(marker, inst)
+        Weapon3D.hide_baked_marker_siblings(marker, inst, _baked_optics_hidden)
     if point == Weapon.MAGAZINE_POINT and magazine_3d and is_instance_valid(magazine_3d):
         magazine_3d.visible = false
 
@@ -211,31 +232,9 @@ func _unmount_attachment(point: int) -> void:
             old.queue_free()
         _mounted_attachments.erase(point)
     if point == Weapon.AttachmentPoint.TOP_RAIL:
-        _restore_baked_optics()
+        Weapon3D.restore_baked_marker_siblings(_baked_optics_hidden)
     if point == Weapon.MAGAZINE_POINT and magazine_3d and is_instance_valid(magazine_3d):
         magazine_3d.visible = true
-
-## A weapon scene may ship a default optic baked into the top-rail marker
-## (AR15/AK reddot, AGLC sniper). Hide those while a mounted optic is present so
-## the rail never shows two optics; restore them when the attachment is removed.
-func _hide_baked_optics(marker: Node3D, keep: Node) -> void:
-    var hidden: Array = []
-    for c in marker.get_children():
-        if c == keep:
-            continue
-        if c is Node3D and (c as Node3D).visible:
-            (c as Node3D).visible = false
-            hidden.append(c)
-    if not hidden.is_empty():
-        _baked_optics_hidden[marker] = hidden
-
-func _restore_baked_optics() -> void:
-    for marker in _baked_optics_hidden.keys():
-        if is_instance_valid(marker):
-            for c in _baked_optics_hidden[marker]:
-                if is_instance_valid(c):
-                    (c as Node3D).visible = true
-    _baked_optics_hidden.clear()
 
 func _unmount_all_attachments() -> void:
     for point in _mounted_attachments.keys():
