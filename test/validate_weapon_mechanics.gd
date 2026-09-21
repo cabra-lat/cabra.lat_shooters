@@ -1,6 +1,6 @@
 # res://addons/cabra.lat_shooters/test/validate_weapon_mechanics.gd
 #
-# FORMAL headless math harness for Fase 2 weapon mechanics (Tarkov): malfunctions
+# FORMAL headless math harness for Fase 2 weapon mechanics: malfunctions
 # from feed_failure/misfire, durability wear, repair max-durability curve,
 # ergonomics -> ADS time. CI gate.
 #

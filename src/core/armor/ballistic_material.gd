@@ -33,7 +33,7 @@ enum Type {
 @export var thickness: float = 1.0         # mm
 @export var effectiveness: float = 1.0
 
-# ─── TARKOV MATERIAL / WEAR MODEL ──────────────────
+# ─── MATERIAL / WEAR MODEL ──────────────────
 # Genre-typical armour material families, each with a destructibility factor.
 enum MaterialClass { ARAMID, UHMWPE, COMBINED, TITAN, ALUMINIUM, ARMOR_STEEL, CERAMIC, GLASS }
 

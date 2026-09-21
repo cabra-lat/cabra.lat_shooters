@@ -4,7 +4,7 @@ extends Resource
 ## Stamina / energy / hydration + encumbrance. Pure logic, no scene deps, so
 ## headless harnesses can drive it directly (see test harnesses).
 ##
-## Reference numbers (docs/tarkov-feature-survey.md §5-6, ../tarkov-wiki):
+## Reference numbers (genre reference survey §5-6):
 ## overweight ~22-25 kg, Endurance gives +1%/level stamina (skill system not
 ## built yet -> endurance_bonus_per_level hook), jump costs stamina and
 ## Strength reduces that drain (strength_bonus_per_level hook).

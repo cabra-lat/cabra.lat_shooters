@@ -1,10 +1,10 @@
-# res://addons/cabra.lat_shooters/test/validate_tarkov_ballistics.gd
+# res://addons/cabra.lat_shooters/test/validate_ballistics.gd
 #
-# FORMAL headless math harness for the Fase 1 Tarkov munitions/armour model.
+# FORMAL headless math harness for the Fase 1 munitions/armour model.
 # Proves the numeric behaviours, not just asset loading. CI gate.
 #
 # Run:
-#   godot --headless --path . --script res://addons/cabra.lat_shooters/test/validate_tarkov_ballistics.gd
+#   godot --headless --path . --script res://addons/cabra.lat_shooters/test/validate_ballistics.gd
 #
 # Exit code: 0 = all checks pass, 1 = at least one failure.
 extends SceneTree
@@ -50,7 +50,7 @@ func _armor(std: int, lvl: int, dur: int = 1000) -> Armor:
 	return a
 
 func _initialize() -> void:
-	print("=== validate_tarkov_ballistics ===")
+	print("=== validate_ballistics ===")
 	var m855 := load("res://resources/ammo/5_56_45mm_M855_NIJ_RF2.tres") as Ammo
 	_check(m855 != null, "M855 file loads")
 

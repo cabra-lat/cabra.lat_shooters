@@ -51,7 +51,7 @@ enum Type {
 @export_range(0.0, 1.0) var fragment_chance: float = 0.0
 @export var accuracy: float = 1.0  # mm R50 at 300m
 
-# ─── TARKOV TERMINAL / MALFUNCTION DATA (from wiki infoboxes) ───
+# ─── TERMINAL / MALFUNCTION DATA (from reference infoboxes) ───
 # Rating scale used by the genre for feedfailure / misfire.
 enum Rating { NONE, VERY_LOW, LOW, MEDIUM, HIGH, VERY_HIGH }
 

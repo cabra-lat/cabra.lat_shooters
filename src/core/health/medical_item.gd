@@ -2,7 +2,7 @@
 class_name MedicalItem
 extends Item
 ## Consumable medical / provision item. Data mirror of the genre reference wiki (CC-BY-SA)
-## infoboxes (../tarkov-wiki/pages_wikitext, use time / effects / weight).
+## infoboxes (use time / effects / weight).
 ##
 ## Applied by the player after `use_time` seconds; the effect lands through
 ## Health (wounds, pain, fractures, destroyed limbs) and PlayerSurvival
