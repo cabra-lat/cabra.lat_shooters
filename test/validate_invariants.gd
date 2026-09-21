@@ -36,6 +36,7 @@ func _run() -> void:
 	_inv06_wrapped_item_mass()
 	_inv07_undefined_cert_level()
 	_inv11_container_grid_dims()
+	_inv16_attachment_wiring()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -179,6 +180,45 @@ func _grid_dims(c: InventoryContainer) -> String:
 	if c == null or c.grid == null:
 		return "nil"
 	return "%dx%d" % [c.grid.width, c.grid.height]
+
+# ─── INV-16: attachment .tres must point at a mountable model ───────
+# ORIGIN (attachments order 2026-09-21): the 15 attachment resources had NO
+# model reference at all, so attachments never appeared in the game. Every
+# Attachment.tres must carry a model_scene, and MAGAZINE-type ones must ride
+# the existing MagazinePoint/ammo_feed path (no attach_points rail bit).
+func _inv16_attachment_wiring() -> void:
+	var dir := DirAccess.open("res://resources/attachments")
+	var missing: Array[String] = []
+	var total := 0
+	if dir:
+		dir.list_dir_begin()
+		var n := dir.get_next()
+		while n != "":
+			if n.ends_with(".tres"):
+				total += 1
+				var a = load("res://resources/attachments/" + n)
+				if a == null or a.model_scene == null:
+					missing.append(n)
+			n = dir.get_next()
+		dir.list_dir_end()
+	var all_wired: bool = total > 0 and missing.is_empty()
+
+	# Magazine path: equips without a rail bit, scales ammo_feed, restores.
+	var wres := (load("res://resources/weapons/AK_47.tres") as Weapon)
+	var mag := (load("res://resources/attachments/Magpul_PMAG_40.tres") as Attachment)
+	var base_cap := wres.ammo_feed.max_capacity
+	var equipped: bool = wres.attach_attachment(0, mag) and wres.attachments.has(Weapon.MAGAZINE_POINT)
+	var scaled_cap := base_cap
+	if equipped:
+		scaled_cap = wres.ammo_feed.max_capacity
+	wres.detach_attachment(Weapon.MAGAZINE_POINT)
+	var restored: bool = wres.ammo_feed.max_capacity == base_cap
+
+	_check("INV-16", "attachment_model_scene_wired",
+		all_wired and equipped and scaled_cap != base_cap and restored,
+		"assets=%d missing=%d mag_equipped=%s cap %d->%d->%d" % [
+			total, missing.size(), str(equipped), base_cap, scaled_cap, wres.ammo_feed.max_capacity],
+		"attachment .tres had no model_scene (never appeared) or magazine path did not feed")
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:

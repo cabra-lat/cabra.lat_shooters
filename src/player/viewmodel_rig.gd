@@ -46,6 +46,7 @@ var _ads := 0.0 # 0 = hip pose, 1 = ADS eye-alignment pose
 var _ads_rate := ADS_K # blend rate; ergonomics/attachments scale it
 var _ads_offset := DEFAULT_ADS_OFFSET # resolved per weapon in setup()
 var _grabbed_layers := {} # RigidBody3D -> [layer, mask] to restore on teardown
+var _mounted_attachments := {} # point -> Node3D mounted on the held gun
 
 func setup(player: PlayerController, gun: Weapon3D) -> void:
 	_player = player
@@ -69,6 +70,13 @@ func setup(player: PlayerController, gun: Weapon3D) -> void:
 	var w: Weapon = gun.data as Weapon
 	if w and not w.cartridge_fired.is_connected(_on_fired):
 		w.cartridge_fired.connect(_on_fired)
+	if w:
+		if not w.attachment_added.is_connected(_on_attachment_added):
+			w.attachment_added.connect(_on_attachment_added)
+		if not w.attachment_removed.is_connected(_on_attachment_removed):
+			w.attachment_removed.connect(_on_attachment_removed)
+		for point in w.attachments.keys():
+			_mount_attachment(point, w.attachments[point])
 	if not player.reloaded.is_connected(_on_reload_started):
 		player.reloaded.connect(_on_reload_started)
 	# The gun ROOT is a RigidBody3D itself (weapon scene root), so zero it
@@ -108,6 +116,12 @@ func teardown(restore_collision: bool = true) -> void:
 		var w: Weapon = _gun.data as Weapon
 		if w and w.cartridge_fired.is_connected(_on_fired):
 			w.cartridge_fired.disconnect(_on_fired)
+		if w:
+			if w.attachment_added.is_connected(_on_attachment_added):
+				w.attachment_added.disconnect(_on_attachment_added)
+			if w.attachment_removed.is_connected(_on_attachment_removed):
+				w.attachment_removed.disconnect(_on_attachment_removed)
+	_unmount_all_attachments()
 	if is_instance_valid(_player) and _player.reloaded.is_connected(_on_reload_started):
 		_player.reloaded.disconnect(_on_reload_started)
 	if restore_collision:
@@ -236,6 +250,54 @@ func update_rig(delta: float) -> void:
 func _on_fired(_weapon: Weapon, _cartridge: Ammo) -> void:
 	_kick = min(_kick + 0.035, 0.09)
 	_kick_pitch = min(_kick_pitch + 0.05, 0.14)
+
+func _on_attachment_added(_weapon: Weapon, attachment: Attachment, point: int) -> void:
+	_mount_attachment(point, attachment)
+
+func _on_attachment_removed(_weapon: Weapon, attachment: Attachment, point: int) -> void:
+	_unmount_attachment(point)
+
+func _attachment_marker(point: int) -> Node3D:
+	if not is_instance_valid(_gun):
+		return null
+	for marker_name in Weapon3D.marker_names_for_point(point):
+		var n := _gun.get_node_or_null(marker_name)
+		if n is Node3D:
+			return n
+	return _gun
+
+func _mount_attachment(point: int, attachment: Attachment) -> void:
+	_unmount_attachment(point)
+	if attachment == null or attachment.model_scene == null or not is_instance_valid(_gun):
+		return
+	var marker := _attachment_marker(point)
+	if marker == null:
+		return
+	var inst := attachment.model_scene.instantiate()
+	if inst == null:
+		return
+	marker.add_child(inst)
+	if inst is Node3D:
+		(inst as Node3D).transform = attachment.model_transform
+	if inst is RigidBody3D:
+		_stash_and_zero(inst as RigidBody3D)
+		_freeze_body(inst as RigidBody3D)
+	_mounted_attachments[point] = inst
+	# An optic reticle may have appeared; re-resolve eye alignment.
+	_ads_offset = resolve_ads_offset(_gun)
+
+func _unmount_attachment(point: int) -> void:
+	if _mounted_attachments.has(point):
+		var old = _mounted_attachments[point]
+		if is_instance_valid(old):
+			old.queue_free()
+		_mounted_attachments.erase(point)
+		if is_instance_valid(_gun):
+			_ads_offset = resolve_ads_offset(_gun)
+
+func _unmount_all_attachments() -> void:
+	for point in _mounted_attachments.keys():
+		_unmount_attachment(point)
 
 func _on_reload_started(_player_ref: PlayerController) -> void:
 	_dip = 1.0

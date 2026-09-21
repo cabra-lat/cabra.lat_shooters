@@ -35,6 +35,13 @@ enum ReticleType {
 @export var attachment_point: int  # Weapon.AttachmentPoint (bit flag)
 @export var cost: int = 100
 
+# ─── 3D MODEL WIRING ───────────────────────────────
+## Scene mounted on the weapon at the attachment point (Node3D root; optics
+## may expose a Marker3D "Reticle*" for the viewmodel sight alignment).
+@export var model_scene: PackedScene
+## Local offset applied when mounting model_scene under the weapon marker.
+@export var model_transform: Transform3D = Transform3D.IDENTITY
+
 # ─── STAT MODIFIERS ────────────────────────────────
 @export var accuracy_modifier: float = 1.0
 @export var recoil_modifier: float = 1.0
@@ -79,7 +86,9 @@ var current_weapon: Weapon = null
 
 # ─── PUBLIC METHODS ────────────────────────────────
 func attach_to_weapon(weapon: Weapon) -> bool:
-  if not _is_compatible(weapon):
+  # Magazines bypass the rail-bit check: they ride the existing
+  # MagazinePoint / ammo_feed path (see Weapon.attach_attachment).
+  if type != AttachmentType.MAGAZINE and not _is_compatible(weapon):
     return false
   if not _can_coexist(weapon):
     return false

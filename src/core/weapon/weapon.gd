@@ -30,6 +30,10 @@ enum AttachmentPoint {
   UNDER      = 1 << 4,
 }
 
+## Internal key for magazine-type attachments. Magazines ride the existing
+## MagazinePoint / ammo_feed path instead of an attach_points rail bit.
+const MAGAZINE_POINT := -1
+
 # Genre-typical weapon faults. NONE = healthy.
 enum Malfunction {
   NONE,
@@ -104,6 +108,7 @@ var is_cycled: bool = true
 var current_durability: float = 100.0
 var attachments: Dictionary = {}
 var active_malfunction: int = Malfunction.NONE
+var _magazine_base_capacity: int = -1
 var clearing_t: float = 0.0
 var repair_count: int = 0
 var wear_accumulated: float = 0.0
@@ -155,12 +160,18 @@ func _refresh_firemode() -> void:
 # ─── EJECTION ──────────────────────────────────────
 # ─── ATTACHMENTS ───────────────────────────────────
 func attach_attachment(point: int, attachment: Attachment) -> bool:
-  if not (attach_points & point) or attachments.has(point):
+  var is_magazine := attachment.type == Attachment.AttachmentType.MAGAZINE
+  var key := MAGAZINE_POINT if is_magazine else point
+  if not is_magazine and not (attach_points & point):
+    return false
+  if attachments.has(key):
     return false
   if not attachment.attach_to_weapon(self):
     return false
-  attachments[point] = attachment
-  attachment_added.emit(self, attachment, point)
+  attachments[key] = attachment
+  if is_magazine:
+    _apply_magazine_capacity(attachment)
+  attachment_added.emit(self, attachment, key)
   return true
 
 func detach_attachment(point: int) -> bool:
@@ -169,8 +180,23 @@ func detach_attachment(point: int) -> bool:
   var attachment = attachments[point]
   attachment.detach_from_weapon()
   attachments.erase(point)
+  if attachment.type == Attachment.AttachmentType.MAGAZINE:
+    _restore_magazine_capacity()
   attachment_removed.emit(self, attachment, point)
   return true
+
+## Magazine attachments feed the weapon by scaling the live ammo_feed capacity.
+func _apply_magazine_capacity(a: Attachment) -> void:
+  if ammo_feed == null:
+    return
+  if _magazine_base_capacity < 0:
+    _magazine_base_capacity = ammo_feed.max_capacity
+  ammo_feed.max_capacity = maxi(1, int(round(_magazine_base_capacity * a.capacity_multiplier)))
+
+func _restore_magazine_capacity() -> void:
+  if ammo_feed != null and _magazine_base_capacity >= 0:
+    ammo_feed.max_capacity = _magazine_base_capacity
+  _magazine_base_capacity = -1
 
 func get_attachment(point: int) -> Attachment:
   return attachments.get(point)

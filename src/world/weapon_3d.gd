@@ -5,9 +5,30 @@ const EJECTION_POINT_NAME = "EjectionPoint"
 const MAGAZINE_ATTACHMENT_POINT = "MagazinePoint"
 const MUZZLE_ATTACHMENT_POINT = "MuzzlePoint"
 
+## Candidate marker names per Weapon.AttachmentPoint, most specific first.
+## Scenes are not uniform (ScopePoint on AK/AGLC, Scope on AR15, Handguard
+## fallback for rails), so mount code probes this list in order.
+static func marker_names_for_point(point: int) -> Array:
+  match point:
+    Weapon.AttachmentPoint.MUZZLE:
+      return ["MuzzlePoint"]
+    Weapon.AttachmentPoint.TOP_RAIL:
+      return ["TopRail", "ScopePoint", "Scope"]
+    Weapon.AttachmentPoint.UNDER:
+      return ["Underbarrel", "Handguard"]
+    Weapon.AttachmentPoint.LEFT_RAIL:
+      return ["LeftRail", "Handguard"]
+    Weapon.AttachmentPoint.RIGHT_RAIL:
+      return ["RightRail", "Handguard"]
+    Weapon.MAGAZINE_POINT:
+      return ["MagazinePoint"]
+    _:
+      return []
+
 var firerate_timer: Timer
 var casing_ejection: bool = true
 var magazine_3d: Magazine3D = null
+var _mounted_attachments: Dictionary = {}
 
 # Muzzle flash system
 var muzzle_flash_effect: MuzzleFlash3D
@@ -83,6 +104,7 @@ func _on_muzzle_flash_finished():
 func _set_data(value: Weapon):
     if data is Weapon:
         _disconnect_weapon_signals(data as Weapon)
+        _unmount_all_attachments()
         _remove_magazine_3d()
 
     data = value
@@ -91,6 +113,8 @@ func _set_data(value: Weapon):
     if data:
         _connect_weapon_signals(data as Weapon)
         _setup_magazine()
+        for point in (data as Weapon).attachments.keys():
+            _mount_attachment(point, (data as Weapon).attachments[point])
 
 func _setup_magazine():
     _remove_magazine_3d()
@@ -118,6 +142,8 @@ func _remove_magazine_3d():
 func _connect_weapon_signals(weapon: Weapon):
     weapon.shell_ejected.connect(_on_weapon_shell_ejected)
     weapon.ammo_feed_changed.connect(_on_weapon_ammo_feed_changed)
+    weapon.attachment_added.connect(_on_attachment_added)
+    weapon.attachment_removed.connect(_on_attachment_removed)
     if weapon.has_signal("weapon_malfunctioned"):
         weapon.weapon_malfunctioned.connect(_on_weapon_malfunctioned)
     if weapon.has_signal("malfunction_cleared"):
@@ -128,10 +154,65 @@ func _disconnect_weapon_signals(weapon: Weapon):
         weapon.shell_ejected.disconnect(_on_weapon_shell_ejected)
     if weapon.ammo_feed_changed.is_connected(_on_weapon_ammo_feed_changed):
         weapon.ammo_feed_changed.disconnect(_on_weapon_ammo_feed_changed)
+    if weapon.attachment_added.is_connected(_on_attachment_added):
+        weapon.attachment_added.disconnect(_on_attachment_added)
+    if weapon.attachment_removed.is_connected(_on_attachment_removed):
+        weapon.attachment_removed.disconnect(_on_attachment_removed)
     if weapon.has_signal("weapon_malfunctioned") and weapon.weapon_malfunctioned.is_connected(_on_weapon_malfunctioned):
         weapon.weapon_malfunctioned.disconnect(_on_weapon_malfunctioned)
     if weapon.has_signal("malfunction_cleared") and weapon.malfunction_cleared.is_connected(_on_malfunction_cleared):
         weapon.malfunction_cleared.disconnect(_on_malfunction_cleared)
+
+## Instantiates attachment.model_scene under the point's marker. Rigid bodies
+## from the pickup scenes are frozen/ignored so a held attachment can't simulate.
+func _on_attachment_added(_weapon: Weapon, attachment: Attachment, point: int) -> void:
+    _mount_attachment(point, attachment)
+
+func _on_attachment_removed(_weapon: Weapon, attachment: Attachment, point: int) -> void:
+    _unmount_attachment(point)
+
+func _attachment_marker(point: int) -> Node3D:
+    for marker_name in marker_names_for_point(point):
+        var n := get_node_or_null(marker_name)
+        if n is Node3D:
+            return n
+    return self  # fallback: mount at the weapon root
+
+func _mount_attachment(point: int, attachment: Attachment) -> void:
+    _unmount_attachment(point)
+    if attachment == null or attachment.model_scene == null:
+        return
+    var marker := _attachment_marker(point)
+    var inst := attachment.model_scene.instantiate()
+    if inst == null:
+        return
+    marker.add_child(inst)
+    if inst is Node3D:
+        (inst as Node3D).transform = attachment.model_transform
+    if inst is RigidBody3D:
+        var rb := inst as RigidBody3D
+        rb.freeze = true
+        rb.contact_monitor = false
+        rb.collision_layer = 0
+        rb.collision_mask = 0
+        if rb.get("is_grabbed") != null:
+            rb.set("is_grabbed", false)
+    _mounted_attachments[point] = inst
+    if point == Weapon.MAGAZINE_POINT and magazine_3d and is_instance_valid(magazine_3d):
+        magazine_3d.visible = false
+
+func _unmount_attachment(point: int) -> void:
+    if _mounted_attachments.has(point):
+        var old = _mounted_attachments[point]
+        if is_instance_valid(old):
+            old.queue_free()
+        _mounted_attachments.erase(point)
+    if point == Weapon.MAGAZINE_POINT and magazine_3d and is_instance_valid(magazine_3d):
+        magazine_3d.visible = true
+
+func _unmount_all_attachments() -> void:
+    for point in _mounted_attachments.keys():
+        _unmount_attachment(point)
 
 ## A fault stops any automatic fire until the weapon is cleared.
 func _on_weapon_malfunctioned(_weapon: Weapon, _kind: int):
