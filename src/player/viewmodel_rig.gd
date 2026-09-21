@@ -179,7 +179,7 @@ static func _is_optic_marker(gun: Node, m: Marker3D) -> bool:
 	var n: Node = m.get_parent()
 	while n != null and n != gun:
 		var lname := n.name.to_lower()
-		for key in ["scope", "sight", "optic", "reddot", "reflex", "acog", "aimpoint", "holo"]:
+		for key in ["scope", "sight", "optic", "reddot", "reflex", "holo"]:
 			if key in lname:
 				return true
 		n = n.get_parent()
