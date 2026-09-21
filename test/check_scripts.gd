@@ -15,6 +15,20 @@
 #   godot --headless --path . --script res://addons/cabra.lat_shooters/test/check_scripts.gd
 #
 # Exit code: 0 = every script compiles, 1 = at least one failed.
+#
+# ── HARNESS HAZARD — do NOT report "the game is broken" ──────────────
+# A `godot --script` runner that NAMES a global class depending on an autoload
+# (`PlayerController`, `Weapon`, ...) forces that class to compile BEFORE the
+# autoloads register. `Debug` is then "Identifier not found" (e.g.
+# controller.gd:703), the session cache is poisoned, and the player node loads as
+# a bare CharacterBody3D (no script) — so the arena LOOKS broken (game_mode/
+# player/gunsmith == null, "connect nonexistent signal 'aimed'"). That is a
+# FALSE-BLOCKED, not a game bug (found by the verifier while probing the gunsmith
+# hook, 2026-09-21).
+# RULE for probe/harness runners: never name global classes — use duck typing
+# (`node.get("field")`, `node.call(...)`) + `load("res://path.gd")`. Proven:
+# with class names -> player_is_PC=false + errors; duck-typed -> arena boots 100%
+# (0 errors). Evidence: /tmp/shooter/gs_recon2.log vs /tmp/shooter/gs_recon3.log.
 extends SceneTree
 
 const ROOTS: Array[String] = [
