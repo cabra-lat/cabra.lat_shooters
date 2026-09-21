@@ -60,8 +60,53 @@ func _run() -> void:
 	_check_tooltip()
 	_check_nested_container_branch()
 	_check_generated_icons_wired()
+	await _check_no_self_drop()
 	await _check_context_menu_right_click()
 	_finish()
+
+## Regression: a container (backpack/rig) must never be dropped into itself or
+## into a container nested inside it. Bug: the backpack could be dragged into
+## its own grid, creating a cycle and orphaning the subtree. Covers the core
+## guard, the transfer path and the UI drop-validation (the real drop path).
+func _check_no_self_drop() -> void:
+	var bp := Backpack.new()
+	bp.name = "SelfDropPack"
+	bp.grid_width = 6
+	bp.grid_height = 6
+	var bp_item := _item(Vector2i(2, 2), bp)
+
+	_check(not bp.accepts_item(bp_item), "self-drop: container refuses itself")
+	_check(not bp.can_add_item(bp_item), "self-drop: can_add_item refuses itself")
+
+	# A container nested inside the pack is also off-limits for the pack item.
+	var nested := Backpack.new()
+	nested.grid_width = 3
+	nested.grid_height = 3
+	var nested_item := _item(Vector2i(1, 1), nested)
+	_check(bp.add_item(nested_item, Vector2i(0, 0)), "self-drop: nested container added")
+	_check(not nested.accepts_item(bp_item), "self-drop: descendant refuses the ancestor")
+
+	# No false positive: an unrelated container still accepts it.
+	var other := Backpack.new()
+	other.grid_width = 3
+	other.grid_height = 3
+	_check(other.accepts_item(bp_item), "self-drop: unrelated container accepts")
+
+	# The transfer path refuses (nothing moved).
+	_check(not InventorySystem.transfer_item_to_position(null, bp, bp_item), "self-drop: transfer refused")
+	_check(not (bp_item in bp.items), "self-drop: pack item not added")
+
+	# The UI drop-validation drives the real drop path and must show it invalid.
+	var ui = load(CONTAINER_UI_SCENE).instantiate()
+	get_root().add_child(ui)
+	get_root().size = Vector2i(1280, 720)
+	await process_frame  # let @onready resolve before open_container
+	ui.open_container(bp)
+	var slot = ui.get_slot_by_grid_position(Vector2i(0, 0))
+	_check(slot != null, "self-drop: grid slot exists")
+	if slot != null:
+		_check(not slot._validate_drop(bp_item), "self-drop: UI drop-validation refuses")
+	ui.queue_free()
 
 ## The context menu must open on a REAL right-click over a slot. Regression for
 ## the bug where a full-grid overlay Control (ItemsContainer, MOUSE_FILTER_STOP)

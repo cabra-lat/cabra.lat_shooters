@@ -66,6 +66,9 @@ func _handle_container_drop(data: Dictionary, target_slot: InventorySlotUI):
         # Dropping onto an occupied cell of the SAME container = swap (tetris).
         var item: InventoryItem = data["item"]
         var source = data["source"]
+        # A container cannot be dropped into itself / its own subtree.
+        if not container.accepts_item(item):
+            return
         var other := container.get_item_at(pos)
         if other != null and other != item and source is InventoryContainer and (source as InventoryContainer).grid == container.grid:
             if container.swap_items(item, other):

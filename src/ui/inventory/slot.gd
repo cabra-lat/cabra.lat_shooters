@@ -52,6 +52,10 @@ func _validate_drop(item: InventoryItem) -> bool:
 
     if container_ui and container_ui.current_inventory_source:
         var container = container_ui.current_inventory_source as InventoryContainer
+        # Never let a container be dropped into itself / its own subtree.
+        if not container.accepts_item(item):
+            _show_drop_preview(item.dimensions, false)
+            return false
         # Temporarily ignore the dragged item for collision detection
         container.grid.set_temp_ignored_item(item)
         var can_place = container.grid.can_add_item(item, grid_position)

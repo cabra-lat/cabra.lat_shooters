@@ -31,6 +31,11 @@ static func transfer_item_to_position(
     print("ERROR: Item not compatible with target")
     return false
 
+    # A container item must never be dropped into itself or a descendant.
+  if target is InventoryContainer and not (target as InventoryContainer).accepts_item(item):
+    print("ERROR: refusing to drop a container into itself/descendant")
+    return false
+
     # Store original position for rollback
   var original_position = item.position
   var original_container = null

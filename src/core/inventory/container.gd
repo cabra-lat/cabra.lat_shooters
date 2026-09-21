@@ -63,9 +63,34 @@ func _init():
 func can_add_item(item: InventoryItem) -> bool:
     if not is_open:
         return false
+    if not accepts_item(item):
+        return false
     if total_weight + (item.get_mass() * item.stack_count) > max_weight:
         return false
     return true
+
+## A container item (backpack/rig) must never be dropped into itself or into
+## any container nested inside it — that would make a cycle and orphan the
+## subtree. `item.extra` is the container the item owns.
+func accepts_item(item: InventoryItem) -> bool:
+    if item == null:
+        return false
+    var nested = item.extra
+    if nested is InventoryContainer:
+        if _contains_container(nested as InventoryContainer, self, 0):
+            return false
+    return true
+
+func _contains_container(root: InventoryContainer, target: InventoryContainer, depth: int) -> bool:
+    if root == target:
+        return true
+    if depth > 64:
+        return true  # treat a corrupted/cyclic tree as "contains" (refuse)
+    for it in root.items:
+        var nested = it.extra
+        if nested is InventoryContainer and _contains_container(nested as InventoryContainer, target, depth + 1):
+            return true
+    return false
 
 func add_item(item: InventoryItem, position: Vector2i = Vector2i.ZERO) -> bool:
     if not can_add_item(item):
@@ -121,6 +146,8 @@ func swap_items(a: InventoryItem, b: InventoryItem) -> bool:
 ## True when the item under `position` can be swapped with `item`.
 func can_swap_at(item: InventoryItem, position: Vector2i) -> bool:
     if grid == null or item == null:
+        return false
+    if not accepts_item(item):
         return false
     var other := grid.get_item_at(position)
     if other == null or other == item:
