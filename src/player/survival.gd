@@ -28,14 +28,14 @@ signal exhausted_changed(exhausted: bool)
 @export var max_wobble: float = 0.02 # radians-ish camera jitter amplitude
 
 # ─── SKILL HOOKS (skills are Fase 3/4) ─────────────
-@export var endurance_level: int = 0 # +1%/level stamina (Tarkov Endurance)
-@export var strength_level: int = 0 # reduces jump drain (Tarkov Strength)
+@export var endurance_level: int = 0 # +1%/level stamina (genre-typical Endurance skill)
+@export var strength_level: int = 0 # reduces jump drain (genre-typical Strength skill)
 @export var endurance_bonus_per_level: float = 0.01
 @export var strength_jump_reduction_per_level: float = 0.01
 
 # ─── WEIGHT / ENCUMBRANCE ──────────────────────────
 @export var max_weight: float = 100.0 # hard limit (PlayerConfig.max_weight)
-@export var overweight_at: float = 24.0 # Tarkov "overweight" notion ~22-25 kg
+@export var overweight_at: float = 24.0 # "overweight" notion ~22-25 kg
 @export var speed_penalty_per_kg: float = 0.004 # -0.4%/kg under the threshold
 @export var overweight_speed_penalty: float = 0.35 # extra -35% when overweight
 @export var drain_penalty_per_kg: float = 0.02 # +2% stamina drain per kg
@@ -58,11 +58,9 @@ var total_weight: float = 0.0
 var exhausted: bool = false
 
 var _regen_timer: float = 0.0
-var _max_stamina_effective: float = 100.0
 
 func _init() -> void:
 	stamina = _compute_max_stamina()
-	_max_stamina_effective = stamina
 	energy = max_energy
 	hydration = max_hydration
 
@@ -178,7 +176,11 @@ func update(delta: float, sprinting: bool, moving: bool) -> void:
 	if sprinting:
 		exertion = sprint_drain_multiplier
 
-	# Energy / hydration burn.
+	# Energy / hydration burn. Snapshot before: emit only on an actual change,
+	# otherwise a pool clamped at 0 churns the HUD signal every physics frame
+	# (QA-017).
+	var prev_energy := energy
+	var prev_hydration := hydration
 	energy = maxf(energy - energy_drain_per_second * exertion * delta, 0.0)
 	hydration = maxf(hydration - hydration_drain_per_second * exertion * delta, 0.0)
 
@@ -189,13 +191,15 @@ func update(delta: float, sprinting: bool, moving: bool) -> void:
 		_regen_timer = maxf(_regen_timer - delta, 0.0)
 		if _regen_timer <= 0.0:
 			var r := stamina_ratio()
-			# Regen slows as the pool fills (Tarkov-ish curve).
+			# Regen slows as the pool fills (asymptotic curve).
 			var rate := regen_per_second * (1.0 - 0.5 * r)
 			stamina = minf(stamina + rate * delta, get_max_stamina())
 			_emit_stamina()
 
-	energy_changed.emit(energy, max_energy)
-	hydration_changed.emit(hydration, max_hydration)
+	if energy != prev_energy:
+		energy_changed.emit(energy, max_energy)
+	if hydration != prev_hydration:
+		hydration_changed.emit(hydration, max_hydration)
 	_refresh_exhausted()
 
 func _refresh_exhausted() -> void:

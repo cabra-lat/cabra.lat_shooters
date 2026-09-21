@@ -1,4 +1,4 @@
-# res://src/core/inventory/backpack.gd (UPDATED)
+# res://addons/cabra.lat_shooters/src/core/inventory/backpack.gd
 class_name Backpack
 extends InventoryContainer
 

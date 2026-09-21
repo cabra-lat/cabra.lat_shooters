@@ -42,6 +42,9 @@ signal consumed(item: InventoryItem, result: Dictionary)
 signal consume_started(item: InventoryItem)
 signal consume_cancelled(item: InventoryItem)
 signal noise_emitted(position: Vector3, loudness: float, source: String)
+## A weapon was asked to be modified from the inventory (context menu). The
+## arena listens and opens the gunsmith screen for `weapon`.
+signal weapon_modify_requested(weapon: Weapon)
 
 # ─── REFERENCES ────────────────────────────────────────────────────────────────
 @export var input: PlayerInput
@@ -102,6 +105,10 @@ const INVENTORY_UI_SCENE_PATH := "res://addons/cabra.lat_shooters/src/ui/invento
 const CAPSULE_STAND: float = 1.0
 const CAPSULE_CROUCH: float = 0.55
 const CAPSULE_PRONE: float = 0.35
+# Stance/FOV smoothing rate: exponential (1 - exp(-k*dt)), frame-rate
+# independent. k=6.0 matches the old per-frame lerp(...,0.1) feel at 60 Hz
+# (~0.16 s time constant) without the frame-rate dependence (QA-016).
+const STANCE_SMOOTH_RATE: float = 6.0
 # Lean / peek. Leaning must actually let you SEE around a corner, so the core
 # effect is a LATERAL TRANSLATION of the eye (the camera lives on the
 # SpringArm3D; `head` is only a RemoteTransform3D driving the IK head bone and
@@ -281,13 +288,17 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
   if weapon and weapon.view_model:
     var new_vm: Weapon3D = weapon.view_model.instantiate()
     new_vm.name = VIEW_MODEL_NAME
-    new_vm.data = weapon
     # Rigid procedural hold (see ViewmodelRig): freeze the body and pose it
     # from the camera every frame. Never spring-simulate a held item.
-    new_vm.attractors.clear()
     new_vm.freeze = true
     new_vm.contact_monitor = false
+    # add_child BEFORE data: Weapon3D._set_data -> _setup_magazine -> grab()
+    # reads get_global_transform(), which needs the tree (else the engine warns
+    # and the initial pose is wrong). Clear attractors AFTER Item3D._ready
+    # repopulates them from the parent (QA-014).
     get_tree().current_scene.add_child(new_vm)
+    new_vm.attractors.clear()
+    new_vm.data = weapon
     viewmodel_rig = ViewmodelRig.new()
     viewmodel_rig.setup(self, new_vm)
     current_hands = new_vm
@@ -368,6 +379,13 @@ func _update_survival(delta: float) -> void:
         "dehydration" if dehydrated else "starvation")
 
   _tick_consumable(delta)
+
+## Inventory -> gunsmith entry point. The inventory UI owns the context menu and
+## calls this; the arena listens to `weapon_modify_requested` and opens the UI.
+func request_weapon_modify(weapon: Weapon) -> void:
+  if weapon == null:
+    return
+  weapon_modify_requested.emit(weapon)
 
 ## Start using a medical/provision item. Returns false when busy or invalid.
 func start_use(item: InventoryItem) -> bool:
@@ -899,13 +917,15 @@ func _update_movement_parameters(delta: float = 0.0):
   if survival != null:
     current_camera_fov *= survival.stamina_fov_multiplier()
 
-  # Apply camera effects
+  # Apply camera effects. Exponential, delta-based smoothing so stance/FOV
+  # transitions are frame-rate independent (QA-016).
+  var stance_t := 1.0 - exp(-STANCE_SMOOTH_RATE * delta)
   if camera:
-    camera.fov = lerp(camera.fov, current_camera_fov, 0.1)
+    camera.fov = lerp(camera.fov, current_camera_fov, stance_t)
   if head:
-    head.position.y = lerp(head.position.y, current_camera_height, 0.1)
+    head.position.y = lerp(head.position.y, current_camera_height, stance_t)
   if spring_arm:
-    spring_arm.position.y = lerp(spring_arm.position.y, current_camera_height, 0.1)
+    spring_arm.position.y = lerp(spring_arm.position.y, current_camera_height, stance_t)
   _apply_capsule_stance(capsule_factor)
   _apply_camera_bob_and_lean(delta)
 
@@ -1028,11 +1048,6 @@ func _handle_state_logic():
     if firing.state == TRIGGER_PULLED:
       Input.action_release("sprint")
 
-  # Handle sprint blocking when firing
-  if moving and firing:
-    if firing.state == TRIGGER_PULLED:
-      Input.action_release("sprint")
-
 func _apply_movement_and_physics(delta):
   # Apply movement
   velocity.x = current_direction.x * current_speed
@@ -1044,11 +1059,12 @@ func _apply_movement_and_physics(delta):
   velocity.x *= 1 - exp(-current_damping * delta)
   velocity.z *= 1 - exp(-current_damping * delta)
 
-  # Handle landing
+  # Ground contact zeroes the fall velocity. The Moving SM's Falling->Stopped
+  # transition owns the SINGLE landed.emit (see _on_state_exited); keep
+  # max_velocity intact here so that emit reports the real impact speed — the
+  # landing noise scales with it (QA-008).
   if moving and moving.state == FALLING and is_on_floor():
-    landed.emit(self, max_velocity, delta)
     velocity.y = 0
-    max_velocity = 0.0
 
 # ─── STATE HANDLERS ────────────────────────────────────────────────────────────
 func _on_state_entered(state: String, state_machine_name: String):
@@ -1156,8 +1172,6 @@ func _on_state_changed(new_state: String, old_state: String, state_machine_name:
     match [old_state, new_state]:
       [AIMING, IDLE]:
         aimed.emit(self, true)
-      [ BARE_HANDED, _ ]:
-        pass
       [ _, BARE_HANDED ]:
         if old_state != "" and current_hands:
           current_hands.throw(-global_basis.z.normalized())
@@ -1166,6 +1180,10 @@ func _on_state_changed(new_state: String, old_state: String, state_machine_name:
 
 # ─── TIMER HANDLERS ────────────────────────────────────────────────────────────
 func _on_firemode_timeout():
+  # A firemode timer can still be running when the weapon is unequipped
+  # (current_weapon is set null) -> guard the deref (QA-015).
+  if current_weapon == null:
+    return
   current_weapon.safe_firemode()
 
 func _on_reload_timeout():

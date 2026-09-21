@@ -1,4 +1,4 @@
-# res://src/core/inventory/equipment.gd
+# res://addons/cabra.lat_shooters/src/core/inventory/equipment.gd
 class_name Equipment
 extends Resource
 
