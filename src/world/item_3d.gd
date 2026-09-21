@@ -42,7 +42,7 @@ func _get_data():
 
 func _set_data(value):
   data = value
-  mass = data.mass
+  mass = data.mass if data != null else 0.0
 
 # Physics management
 func _enable_physics():

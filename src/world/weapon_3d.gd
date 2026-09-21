@@ -109,7 +109,7 @@ func _set_data(value: Weapon):
         _remove_magazine_3d()
 
     data = value
-    mass = data.mass
+    mass = data.mass if data != null else 0.0
 
     if data:
         _connect_weapon_signals(data as Weapon)
