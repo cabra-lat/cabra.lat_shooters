@@ -202,6 +202,10 @@ void vertex() {
 }
 
 uniform float body_near_cutoff : hint_range(0.0, 2.0) = 0.05;
+// White damage flash for shared-rig consumers (NPC bots): 0 = off, 1 = full
+// white. Applied to the albedo so it works with the PSX look; the consumer
+// sets it on a PER-INSTANCE material copy (never the shared resource).
+uniform float flash_amount : hint_range(0.0, 1.0) = 0.0;
 // (A head-local sphere cut was prototyped here but the view->world
 // reconstruction did not take effect; the camera-distance cut below does the
 // job and is what the brief specifies.)
@@ -238,6 +242,10 @@ void fragment() {
 #endif
 
     ALBEDO = color_base.rgb * texture_color.rgb;
+    ALBEDO = mix(ALBEDO, vec3(1.0), clamp(flash_amount, 0.0, 1.0));
+    // Damage flash must read in the dark: albedo alone goes through the
+    // lambert lighting, so add emissive white too (NPC hit feedback).
+    EMISSION += vec3(flash_amount * 2.0);
 
 #ifdef LIGHT_VOLUME
     ALPHA = 1.0 - UV.y;

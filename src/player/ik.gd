@@ -17,8 +17,12 @@ extends Skeleton3D
 @export var hip_height: float = 1.0
 @export_flags_3d_physics var terrain_collision_mask: int = 1
 
-var _player: PlayerController
-var _player_collision_rid: RID
+## The body this rig is attached to. Any CharacterBody3D works (player or
+## bot) — only the foot-IK ground query needs it; the rest of the rig
+## (skeleton, mesh, IK effectors, look modifiers) is body-agnostic. See the
+## shared-rig interface (HumanoidRig).
+var _body: CharacterBody3D
+var _body_collision_rid: RID
 
 # Foot state variables
 var left_foot_pos: Vector3
@@ -33,18 +37,14 @@ var is_left_foot_moving: bool = false
 var is_right_foot_moving: bool = false
 
 func _ready() -> void:
-  _player = get_parent() as PlayerController
-  if not _player:
-    push_error("Skeleton3D parent must be PlayerController!")
+  _body = get_parent() as CharacterBody3D
+  if not _body:
+    # Generic rig without a body (e.g. a detached prop): skip foot IK, the
+    # rest of the rig still works. The player/NPC always have a body.
+    push_warning("HumanoidRig: foot IK needs a CharacterBody3D parent; skipping.")
     return
 
-  # Get player collision RID for exclusion
-  if _player is CollisionObject3D:
-    _player_collision_rid = _player.get_rid()
-  else:
-    var collision_object = _player.find_child("*", true, false) as CollisionObject3D
-    if collision_object:
-      _player_collision_rid = collision_object.get_rid()
+  _body_collision_rid = _body.get_rid()
 
   # Initialize foot positions relative to skeleton
   var base_pos = Vector3.ZERO
@@ -58,7 +58,7 @@ func _ready() -> void:
       ik.start()
 
 func _physics_process(delta: float) -> void:
-  if not _player:
+  if not _body:
     return
 
   for ik in get_children():
@@ -70,10 +70,10 @@ func _physics_process(delta: float) -> void:
 # ─── FOOT IK METHODS (existing code) ──────────────────────────────────────────
 
 func _update_foot_placement(delta: float) -> void:
-  if not _player:
+  if not _body:
     return
 
-  var body_velocity = _player.velocity
+  var body_velocity = _body.velocity
   var speed = body_velocity.length()
   var is_moving = speed > 0.1
 
@@ -176,8 +176,8 @@ func _get_ground_position(world_pos: Vector3) -> Vector3:
   var ray_end = world_pos + Vector3.DOWN * raycast_length
 
   var query = PhysicsRayQueryParameters3D.create(ray_start, ray_end)
-  if _player_collision_rid.is_valid():
-    query.exclude = [_player_collision_rid]
+  if _body_collision_rid.is_valid():
+    query.exclude = [_body_collision_rid]
   query.collision_mask = terrain_collision_mask
   query.collide_with_areas = false
 

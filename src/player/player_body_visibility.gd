@@ -29,9 +29,19 @@ const HIDDEN_FROM_FPS_LAYER := 4
 ## so they are tagged here too — see the note in `tag_own_colliders`.
 const SHOT_EXCLUDE_GROUP := "viewmodel"
 
-static func apply(player: Node, near_cutoff: float = DEFAULT_NEAR_CUTOFF) -> bool:
+static func apply(player: Node, near_cutoff: float = DEFAULT_NEAR_CUTOFF, first_person: bool = true) -> bool:
 	if player == null or not player.is_inside_tree():
 		return false
+	# B2 (bot invulnerability): the FPS head-cut, the layer scheme AND the
+	# collider tagging are PLAYER-ONLY. A world consumer (NPC) MUST pass
+	# first_person=false -> whole body on VISIBLE_LAYER and, critically, NO
+	# collider enters SHOT_EXCLUDE_GROUP. ShotRay excludes that group across
+	# the WHOLE tree, so tagging an NPC collider would make the player shoot
+	# straight through the bot (shot_resolver never reaches `collider is NpcBot`).
+	if not first_person:
+		for other in all_meshes(player):
+			other.layers = VISIBLE_LAYER
+		return true
 	var mesh := body_mesh(player)
 	if mesh == null:
 		return false
