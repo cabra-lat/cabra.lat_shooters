@@ -16,9 +16,23 @@ extends RefCounted
 ## spine.005_06 = neck, spine.006_07 = head. spine.006_end is not weighted.
 const DEFAULT_HEAD_BONES: Array[int] = [6, 7]
 
+## Neck bone carrying the collar cap + cap tuning (GPU-measured 2026-09-23:
+## the split leaves the neck OPEN and the double-sided PSX body shows the
+## hollow interior when pitching down — the "head in front of the camera").
+const NECK_BONE := "spine.005_06"
+const CAP_NAME := "MESH_NECK_CAP"
+const CAP_RADIUS := 0.10
+const CAP_SQUASH := 0.45
+## Collar color: the body's orange comes from its decal TEXTURE (sphere UVs
+## sample a white texel region — measured white dome on GPU 2026-09-23), so the
+## cap carries its own flat material on the near-clip shader instead.
+const CAP_SHADER := "res://addons/cabra.lat_shooters/src/player/psx_lit_body_nearclip.gdshader"
+const CAP_COLOR := Color(1.0, 0.38, 0.05)
+
 ## Split [member] into body + head parts. Returns the new head MeshInstance3D
 ## (child of [param mi]'s parent, skinned to the same skeleton) or null when the
-## mesh is not skinned / already split.
+## mesh is not skinned / already split. Also builds the neck collar cap
+## (see _neck_cap) so the stump is plugged; read it via neck_cap().
 static func split(mi: MeshInstance3D, head_bones: Array[int] = DEFAULT_HEAD_BONES) -> MeshInstance3D:
 	if mi == null or mi.mesh == null or mi.mesh.get_surface_count() == 0:
 		return null
@@ -79,7 +93,63 @@ static func split(mi: MeshInstance3D, head_bones: Array[int] = DEFAULT_HEAD_BONE
 	# Body keeps everything else on the FPS-visible layer.
 	mi.mesh = body_mesh
 	mi.set_meta("body_split_head", head_mi)
+	_neck_cap(mi)
 	return head_mi
+
+## Collar cap plugging the open neck stump: a squashed sphere riding the neck
+## bone (BoneAttachment3D, so it follows head/lean animation), skinned-look via
+## the body's own surface material. From outside it hides UNDER the head mesh;
+## from the FPS lens it closes the hollow hole. Idempotent via meta.
+## Returns the cap or null (non-skeleton parent / missing neck bone).
+## Flat collar material: near-clip shader (same discard as the body) with the
+## suit orange baked in. Params survive apply()'s install_nearclip by name.
+static func _cap_material() -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load(CAP_SHADER) as Shader
+	m.set_shader_parameter("modulate_color", CAP_COLOR)
+	m.set_shader_parameter("body_near_cutoff", 0.05)
+	return m
+
+static func _neck_cap(mi: MeshInstance3D) -> MeshInstance3D:
+	var old = neck_cap(mi)
+	if old != null:
+		return old
+	var skel := mi.get_parent() as Skeleton3D
+	if skel == null:
+		return null
+	if skel.find_bone(NECK_BONE) < 0:
+		return null
+	var attach := BoneAttachment3D.new()
+	attach.name = "NeckCapAttachment"
+	attach.bone_name = NECK_BONE
+	skel.add_child(attach)
+	var sphere := SphereMesh.new()
+	sphere.radius = CAP_RADIUS
+	sphere.height = CAP_RADIUS * 2.0
+	sphere.radial_segments = 12
+	sphere.rings = 6
+	var cap := MeshInstance3D.new()
+	cap.name = CAP_NAME
+	cap.mesh = sphere
+	cap.scale = Vector3(1.0, CAP_SQUASH, 1.0)
+	# material_override (NOT the surface override): install_nearclip() duplicates
+	# from material_override, and a mesh-level override wins over the surface
+	# one — a surface-level cap material would be buried under an empty
+	# near-clip copy and render white (measured on GPU).
+	cap.material_override = _cap_material()
+	cap.cast_shadow = mi.cast_shadow
+	attach.add_child(cap)
+	mi.set_meta("body_split_cap", cap)
+	return cap
+
+## Existing collar cap for a split mesh, or null (not split / cap freed).
+static func neck_cap(mi: MeshInstance3D) -> MeshInstance3D:
+	if mi != null and mi.has_meta("body_split_cap"):
+		var cap := mi.get_meta("body_split_cap") as MeshInstance3D
+		if cap != null and is_instance_valid(cap):
+			return cap
+		mi.remove_meta("body_split_cap")
+	return null
 
 ## Does this triangle belong to the head? Dominant bone = largest summed
 ## weight across the three vertices (weights are untouched, only indices split).

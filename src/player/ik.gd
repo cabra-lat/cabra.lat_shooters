@@ -1,11 +1,15 @@
 # res://addons/cabra.lat_shooters/src/player/ik.gd
-# Foot IK for the PLAYER rig (`player_ik.tscn`), which owns the GodotIK effectors.
+# Foot IK for the PLAYER rig (`player_ik.tscn`). Arm IK comes from the parent
+# (HumanoidRig.set_ik_target, analytic) — the GodotIK arm effectors in this
+# scene are legacy (the GDExtension proved to never apply its solve) and no
+# code path may depend on them for arms. Legs still use the effector nodes as
+# plain targets for the foot placement below (no GodotIK solve involved).
 #
 # M1 DEBT (coordinator 2026-09-21): the skeleton in `player_ik.tscn` is a COPY of
 # `humanoid_rig.tscn` (the SINGLE SOURCE). They must stay in sync until the dedupe
 # (merge this foot IK into `HumanoidRig.set_foot_ik` and make the player instance
 # the shared scene). Drift is guarded by an invariant (bone count + names/order).
-extends Skeleton3D
+extends HumanoidRig
 
 @export_category("Foot IK Settings")
 @export var left_foot_target: Node3D
@@ -44,6 +48,7 @@ var is_left_foot_moving: bool = false
 var is_right_foot_moving: bool = false
 
 func _ready() -> void:
+  super._ready()
   _body = get_parent() as CharacterBody3D
   if not _body:
     # Generic rig without a body (e.g. a detached prop): skip foot IK, the

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://ly33hk8t667t"]
+[gd_scene format=3 uid="uid://ly33hk8t667t"]
 
 [ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
 [ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="3_gsogp"]
@@ -15,19 +15,17 @@
 [sub_resource type="BoxShape3D" id="BoxShape3D_hwib0"]
 size = Vector3(0.32958984, 0.18075562, 1.7158623)
 
-[node name="Player" type="CharacterBody3D"]
+[node name="Player" type="CharacterBody3D" unique_id=1763691474]
 script = ExtResource("1_thwj1")
 
-[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="."]
+[node name="AudioStreamPlayer3D" type="AudioStreamPlayer3D" parent="." unique_id=1120703448]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8508735, 0)
 
-[node name="StateMachine" type="AnimationPlayer" parent="."]
-libraries = {
-&"": SubResource("AnimationLibrary_le7o6")
-}
+[node name="StateMachine" type="AnimationPlayer" parent="." unique_id=179439291]
+libraries/ = SubResource("AnimationLibrary_le7o6")
 script = ExtResource("3_gsogp")
 
-[node name="Moving" type="AnimationTree" parent="StateMachine"]
+[node name="Moving" type="AnimationTree" parent="StateMachine" unique_id=1920589211]
 unique_name_in_owner = true
 root_node = NodePath("%Moving/../..")
 tree_root = ExtResource("4_gsogp")
@@ -37,7 +35,7 @@ parameters/conditions/on_ground = false
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
-[node name="Crouching" type="AnimationTree" parent="StateMachine"]
+[node name="Crouching" type="AnimationTree" parent="StateMachine" unique_id=526721490]
 unique_name_in_owner = true
 root_node = NodePath("%Crouching/../..")
 tree_root = ExtResource("5_4275n")
@@ -46,7 +44,7 @@ anim_player = NodePath("..")
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
-[node name="Leaning" type="AnimationTree" parent="StateMachine"]
+[node name="Leaning" type="AnimationTree" parent="StateMachine" unique_id=1096935518]
 unique_name_in_owner = true
 root_node = NodePath("%Leaning/../..")
 tree_root = ExtResource("7_a20rg")
@@ -55,7 +53,7 @@ anim_player = NodePath("..")
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
-[node name="Aiming" type="AnimationTree" parent="StateMachine"]
+[node name="Aiming" type="AnimationTree" parent="StateMachine" unique_id=1467684962]
 unique_name_in_owner = true
 root_node = NodePath("%Aiming/../..")
 tree_root = ExtResource("8_a20rg")
@@ -64,7 +62,7 @@ anim_player = NodePath("..")
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
-[node name="Firing" type="AnimationTree" parent="StateMachine"]
+[node name="Firing" type="AnimationTree" parent="StateMachine" unique_id=1425232624]
 unique_name_in_owner = true
 root_node = NodePath("%Firing/../..")
 tree_root = ExtResource("6_y0q3g")
@@ -73,61 +71,62 @@ anim_player = NodePath("..")
 script = ExtResource("4_a20rg")
 metadata/_custom_type_script = "uid://x8rsaq0qwxag"
 
-[node name="FocusTimer" type="Timer" parent="."]
+[node name="FocusTimer" type="Timer" parent="." unique_id=1582595684]
 unique_name_in_owner = true
 one_shot = true
 
-[node name="ReloadTimer" type="Timer" parent="."]
+[node name="ReloadTimer" type="Timer" parent="." unique_id=629718465]
 unique_name_in_owner = true
 one_shot = true
 
-[node name="FiremodeTimer" type="Timer" parent="."]
+[node name="FiremodeTimer" type="Timer" parent="." unique_id=34839496]
 unique_name_in_owner = true
 wait_time = 0.4
 one_shot = true
 
-[node name="SpringArm3D" type="SpringArm3D" parent="."]
+[node name="SpringArm3D" type="SpringArm3D" parent="." unique_id=419691515]
 transform = Transform3D(0.9999999, 0, 0, 0, 0.99999946, 0, 0, 0, 0.99999976, 0, 1.6204195, 0)
 spring_length = 2.0
 
-[node name="Camera3D" type="Camera3D" parent="SpringArm3D"]
+[node name="Camera3D" type="Camera3D" parent="SpringArm3D" unique_id=1637058165]
 unique_name_in_owner = true
 transform = Transform3D(1.0000001, 0, 0, 0, 1.0000006, 0, 0, 0, 1.0000002, 0, 0, -0.07708262)
+cull_mask = 1
 fov = 55.37519
 near = 0.01
 far = 937.3
 
-[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+[node name="SubViewportContainer" type="SubViewportContainer" parent="." unique_id=1809386457]
 offset_left = 910.0
 offset_top = 31.0
 offset_right = 1118.0
 offset_bottom = 239.0
 stretch = true
 
-[node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer" unique_id=1134612382]
 handle_input_locally = false
 size = Vector2i(208, 208)
 render_target_update_mode = 4
 
-[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport"]
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport" unique_id=1717610088]
 transform = Transform3D(-0.70710677, 0, 0.7071068, 0, 1.0000001, 0, -0.70710677, 0, -0.7071068, 2, 1, -2)
 fov = 46.0
 near = 0.01
 far = 937.3
 
-[node name="SubViewportContainer2" type="SubViewportContainer" parent="."]
+[node name="SubViewportContainer2" type="SubViewportContainer" parent="." unique_id=783495347]
 offset_left = 915.0
 offset_top = 257.0
 offset_right = 1007.0
 offset_bottom = 349.0
 stretch = true
 
-[node name="SubViewport" type="SubViewport" parent="SubViewportContainer2"]
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer2" unique_id=2119528485]
 handle_input_locally = false
 size = Vector2i(92, 92)
 render_target_update_mode = 4
 
-[node name="Camera3D" type="Camera3D" parent="SubViewportContainer2/SubViewport"]
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer2/SubViewport" unique_id=768978987]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3688043, 2.956617)
 projection = 1
 fov = 46.0
@@ -135,63 +134,63 @@ size = 2.0
 near = 0.01
 far = 937.3
 
-[node name="SubViewportContainer3" type="SubViewportContainer" parent="."]
+[node name="SubViewportContainer3" type="SubViewportContainer" parent="." unique_id=212704916]
 offset_left = 1023.0
 offset_top = 258.0
 offset_right = 1115.0
 offset_bottom = 350.0
 stretch = true
 
-[node name="SubViewport" type="SubViewport" parent="SubViewportContainer3"]
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer3" unique_id=1634534678]
 handle_input_locally = false
 size = Vector2i(92, 92)
 render_target_update_mode = 4
 
-[node name="Camera3D" type="Camera3D" parent="SubViewportContainer3/SubViewport"]
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer3/SubViewport" unique_id=1040762203]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 2, 1.328588, 0)
 projection = 1
 size = 2.0
 near = 0.01
 far = 937.3
 
-[node name="FrontCamera" type="RemoteTransform3D" parent="."]
+[node name="FrontCamera" type="RemoteTransform3D" parent="." unique_id=862936825]
 transform = Transform3D(-0.70710677, 0, 0.7071068, 0, 1.0000001, 0, -0.70710677, 0, -0.7071068, 2, 1, -2)
 remote_path = NodePath("../SubViewportContainer/SubViewport/Camera3D")
 
-[node name="SideCamera" type="RemoteTransform3D" parent="."]
+[node name="SideCamera" type="RemoteTransform3D" parent="." unique_id=1441366273]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3688043, 2.956617)
 remote_path = NodePath("../SubViewportContainer2/SubViewport/Camera3D")
 
-[node name="SideCameraOther" type="RemoteTransform3D" parent="."]
+[node name="SideCameraOther" type="RemoteTransform3D" parent="." unique_id=247309031]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 2, 1.328588, 0)
 remote_path = NodePath("../SubViewportContainer3/SubViewport/Camera3D")
 
-[node name="Skeleton3D" parent="." instance=ExtResource("9_gsogp")]
+[node name="Skeleton3D" parent="." unique_id=1815195662 instance=ExtResource("9_gsogp")]
 unique_name_in_owner = true
 transform = Transform3D(-4.3711385e-08, -0.9999999, -4.371139e-08, 0, -4.3711385e-08, 1, -0.9999999, 4.3711385e-08, 1.9106855e-15, 0, 0.8513874, 0)
 bones/2/rotation = Quaternion(0.011, 0, 0, 1)
 
-[node name="Head" type="RemoteTransform3D" parent="."]
+[node name="Head" type="RemoteTransform3D" parent="." unique_id=1210954488]
 unique_name_in_owner = true
 transform = Transform3D(0.9999999, 0, 0, 0, 0.99999946, 0, 0, 0, 0.99999976, 0, 1.7, 0)
 remote_path = NodePath("../Skeleton3D/GodotIK/IK_head")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1964349747]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 0.024833467, -0.9996916, 0, 0.9996916, 0.024833467, -0.006, 0.8585762, 0.020812184)
 shape = SubResource("BoxShape3D_hwib0")
 debug_color = Color(0.6745098, 0.7019608, 0, 0.41960785)
 
-[node name="Shoulder" type="Marker3D" parent="."]
+[node name="Shoulder" type="Marker3D" parent="." unique_id=1844769329]
 unique_name_in_owner = true
 transform = Transform3D(0.9999999, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, 0.15397662, 1.3624618, -0.24626511)
 
-[node name="LeftHand" type="RemoteTransform3D" parent="Shoulder"]
+[node name="LeftHand" type="RemoteTransform3D" parent="Shoulder" unique_id=1528285956]
 unique_name_in_owner = true
 transform = Transform3D(0.47894728, 0.75863093, -0.44168842, 0.8688235, -0.48159662, 0.11493725, -0.12552074, -0.43879816, -0.8897755, -0.14697623, 0.024205446, -0.45700005)
 remote_path = NodePath("../../Skeleton3D/GodotIK/IK_leftarm")
 
-[node name="RightHand" type="RemoteTransform3D" parent="Shoulder"]
+[node name="RightHand" type="RemoteTransform3D" parent="Shoulder" unique_id=1683249252]
 unique_name_in_owner = true
 transform = Transform3D(0.9999999, 0, 0, 0, -5.960467e-08, 1.0000004, 0, -1.0000001, -1.192093e-07, -0.07346437, -0.10571957, -0.19100001)
 remote_path = NodePath("../../Skeleton3D/GodotIK/IK_rightarm")

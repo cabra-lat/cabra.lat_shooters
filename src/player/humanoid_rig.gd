@@ -6,8 +6,12 @@ extends Skeleton3D
 ## WORLD MODE by default: whole body, normal PSX material, NO foot IK, NO
 ## colliders, NO first-person head-cut. A bot instantiates this as a child of
 ## its CharacterBody3D and drives tint/flash/LOD through this API. The player
-## layers its FPS behaviour ON TOP (GodotIK + foot IK + PlayerBodyVisibility),
-## reusing the same skeleton/mesh so nothing is duplicated.
+## layers its FPS behaviour ON TOP (analytic arm IK below + foot IK +
+## PlayerBodyVisibility), reusing the same skeleton/mesh so nothing is
+## duplicated. The arm solver is analytic (law of cosines, skeleton-local
+## global-pose overrides) — the GodotIK GDExtension proved to never apply its
+## solve (effector moved 1 m, hand moved 0.0000, isolated, 2026-09-22), so no
+## code path may depend on it for arms.
 ##
 ## Hard rules (consumer MUSTs): material is duplicated PER INSTANCE (never the
 ## shared resource); world mode never tags colliders into the shot-exclude group
@@ -186,6 +190,175 @@ func bone_global_position(bone_name: String) -> Vector3:
 	if idx < 0:
 		return global_position
 	return global_transform * get_bone_global_rest(idx).origin
+
+# ─── ANALYTIC ARM IK (replaces the GodotIK arm path) ─────────────────────────
+## Two-bone analytic solve (shoulder→elbow→wrist) driven by live Node3D grips.
+## The ViewmodelRig passes its gun-child grips; this solver poses
+## upper_arm/forearm/hand from the grip every _process via persistent
+## skeleton-local global-pose overrides (which compose ON TOP of whatever the
+## AnimationPlayer wrote that frame — clips and IK never fight over one
+## writer because the override always wins for these 3 bones).
+## Until the clip cleanup lands (phase 2, coordinator order), the hand/forearm
+## animation tracks still drive the REST pose underneath; the override hides
+## them whenever a target is set.
+const UPPER_L := "upper_arm.L_09"
+const FORE_L := "forearm.L_010"
+const HAND_L := "hand.L_011"
+const UPPER_R := "upper_arm.R_032"
+const FORE_R := "forearm.R_033"
+const HAND_R := "hand.R_034"
+
+## side ("right_hand" | "left_hand") -> target Node3D (grip, live-followed).
+var _ik_targets: Dictionary = {}
+var _ik_idx: Dictionary = {}
+
+## side -> target Node3D. Accepts "right_hand"/"left_hand" ("R"/"L" short).
+## A null target clears that side. Targets are followed live in _process.
+func set_ik_target(side: StringName, target: Node3D) -> void:
+	var s := _ik_side(side)
+	if s == &"":
+		push_warning("HumanoidRig: unknown IK side '%s' (want right_hand/left_hand)." % side)
+		return
+	if target == null:
+		clear_ik_target(s)
+		return
+	_ik_targets[s] = target
+
+func clear_ik_target(side: StringName) -> void:
+	var s := _ik_side(side)
+	_ik_targets.erase(s)
+	# Skeleton3D only clears ALL overrides at once; the remaining sides are
+	# re-applied on the next _process (same frame cost, no stale pose).
+	clear_bones_global_pose_override()
+
+func clear_all_ik_targets() -> void:
+	_ik_targets.clear()
+	clear_bones_global_pose_override()
+
+func has_ik_target(side: StringName) -> bool:
+	return _ik_targets.has(_ik_side(side))
+
+## World-space distance hand-bone origin -> its target origin. -1 when off
+## (no target, unknown bones, or target freed). Probe/spotter readout.
+func arm_ik_error(side: StringName) -> float:
+	var s := _ik_side(side)
+	if not _ik_targets.has(s) or not is_inside_tree():
+		return -1.0
+	var t: Node3D = _ik_targets[s] as Node3D
+	if t == null or not is_instance_valid(t):
+		return -1.0
+	var bones := _ik_bones(s)
+	var h: int = _ik_bone(bones[2])
+	if h < 0:
+		return -1.0
+	var hand_world: Vector3 = global_transform * get_bone_global_pose(h).origin
+	return hand_world.distance_to(t.global_transform.origin)
+
+func _ik_side(side: StringName) -> StringName:
+	var s := side.to_lower()
+	if s in [&"right_hand", &"right", &"r"]:
+		return &"right_hand"
+	if s in [&"left_hand", &"left", &"l"]:
+		return &"left_hand"
+	return &""
+
+func _ik_bones(s: StringName) -> Array:
+	if s == &"right_hand":
+		return [UPPER_R, FORE_R, HAND_R]
+	return [UPPER_L, FORE_L, HAND_L]
+
+func _ik_bone(bone_name: String) -> int:
+	if _ik_idx.has(bone_name):
+		return int(_ik_idx[bone_name])
+	var i := find_bone(bone_name)
+	_ik_idx[bone_name] = i
+	return i
+
+func _process(_delta: float) -> void:
+	if _ik_targets.is_empty() or not is_inside_tree():
+		return
+	for s in _ik_targets.keys():
+		_apply_arm_ik(StringName(s))
+
+## One arm, all in skeleton-local space (bone global poses live there).
+func _apply_arm_ik(s: StringName) -> void:
+	var t: Node3D = _ik_targets.get(s) as Node3D
+	if t == null or not is_instance_valid(t):
+		_ik_targets.erase(s)
+		return
+	var names := _ik_bones(s)
+	var u := _ik_bone(names[0])
+	var f := _ik_bone(names[1])
+	var h := _ik_bone(names[2])
+	if u < 0 or f < 0 or h < 0:
+		return
+	var inv: Transform3D = global_transform.affine_inverse()
+	var t_local: Transform3D = inv * t.global_transform
+	_solve_arm(u, f, h, t_local.origin, t_local.basis.orthonormalized())
+
+func _solve_arm(u: int, f: int, h: int, goal: Vector3, goal_basis: Basis) -> void:
+	var rs: Transform3D = get_bone_global_rest(u)
+	var re: Transform3D = get_bone_global_rest(f)
+	var rw: Transform3D = get_bone_global_rest(h)
+	var S := rs.origin
+	var E0 := re.origin
+	var W0 := rw.origin
+	var L1 := S.distance_to(E0)
+	var L2 := E0.distance_to(W0)
+	if L1 < 1e-6 or L2 < 1e-6:
+		return
+	# Clamp the goal to the reachable shell (never divide by ~0 at S).
+	var T := goal
+	var d := S.distance_to(T)
+	var max_reach := (L1 + L2) * 0.999
+	if d > max_reach:
+		T = S + (T - S) / d * max_reach
+		d = max_reach
+	if d < 1e-5:
+		return
+	var dir := (T - S) / d
+	# Shoulder angle (law of cosines) between upper segment and S->T.
+	var cos_a := clampf((L1 * L1 + d * d - L2 * L2) / (2.0 * L1 * d), -1.0, 1.0)
+	var sin_a := sqrt(maxf(0.0, 1.0 - cos_a * cos_a))
+	# Bend plane: keep the rest-time elbow side (pole) so the arm cannot flip.
+	var pole := (E0 - S) - dir * (E0 - S).dot(dir)
+	if pole.length() < 1e-6:
+		# Rest arm is straight along dir: elbows point down + slightly back
+		# (skeleton faces -Z, so back is +Z).
+		pole = Vector3(0.0, -1.0, 0.35) - dir * Vector3(0.0, -1.0, 0.35).dot(dir)
+	if pole.length() < 1e-8:
+		pole = dir.cross(Vector3.UP)
+		if pole.length() < 1e-8:
+			pole = dir.cross(Vector3.RIGHT)
+	pole = pole.normalized()
+	var E := S + dir * (L1 * cos_a) + pole * (L1 * sin_a)
+	var W := T
+	# Rest segment directions -> desired directions (quaternion deltas).
+	var du := (E0 - S).normalized()
+	var df := (W0 - E0).normalized()
+	var want_u := (E - S).normalized()
+	var q_u := _quat_from_to(du, want_u)
+	var carried_f := (q_u * df).normalized()
+	var want_f := df
+	if W.distance_to(E) > 1e-8:
+		want_f = (W - E).normalized()
+	var q_f := _quat_from_to(carried_f, want_f)
+	var bu := Basis(q_u) * rs.basis
+	var bf := Basis(q_f) * Basis(q_u) * re.basis
+	set_bone_global_pose_override(u, Transform3D(bu, S), 1.0, true)
+	set_bone_global_pose_override(f, Transform3D(bf, E), 1.0, true)
+	set_bone_global_pose_override(h, Transform3D(goal_basis, W), 1.0, true)
+
+func _quat_from_to(a: Vector3, b: Vector3) -> Quaternion:
+	var d := clampf(a.normalized().dot(b.normalized()), -1.0, 1.0)
+	if d > 0.9999:
+		return Quaternion.IDENTITY
+	if d < -0.9999:
+		var axis := a.cross(Vector3.UP)
+		if axis.length() < 1e-4:
+			axis = a.cross(Vector3.RIGHT)
+		return Quaternion(axis.normalized(), PI)
+	return Quaternion(a.normalized(), b.normalized())
 
 ## Lazy + recursive (F3): the AnimationPlayer may be nested, and play() can be
 ## called before _ready().

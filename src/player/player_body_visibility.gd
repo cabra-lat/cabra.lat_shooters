@@ -51,17 +51,22 @@ static func apply(player: Node, near_cutoff: float = DEFAULT_NEAR_CUTOFF, first_
 	var head := BodyMeshSplit.split(mesh)
 	if head != null:
 		head.layers = HIDDEN_FROM_FPS_LAYER
+	# The collar cap plugs the open neck stump: it MUST stay on the FPS-visible
+	# layer, otherwise the lens looks into the hollow body (double-sided PSX).
+	var cap := BodyMeshSplit.neck_cap(mesh)
 	# Body visible (legs/feet), everything else the player carries stays out of
 	# the FPS camera like before (a backpack filling the lens when you look down
 	# was the first artifact of a naive "show every mesh").
 	for other in all_meshes(player):
-		if other == mesh:
+		if other == mesh or other == cap:
 			other.layers = VISIBLE_LAYER
 		elif other == head:
 			other.layers = HIDDEN_FROM_FPS_LAYER
 		else:
 			other.layers = HIDDEN_FROM_FPS_LAYER
-	_install_nearclip(mesh, near_cutoff)
+	install_nearclip(mesh, near_cutoff)
+	if cap != null:
+		install_nearclip(cap, near_cutoff)
 	tag_own_colliders(player)
 	return true
 
@@ -89,11 +94,11 @@ static func body_mesh(player: Node) -> MeshInstance3D:
 			return c
 	return null
 
-## Swap the body's materials for near-clip copies, preserving the look (same
+## Swap a mesh's materials for near-clip copies, preserving the look (same
 ## shader include + the material's own parameters). Both the base material and
 ## the overlay get it, otherwise the pass without the discard keeps drawing the
-## head.
-static func _install_nearclip(mesh: MeshInstance3D, near_cutoff: float) -> void:
+## head. Public so the collar cap gets the same treatment as the body.
+static func install_nearclip(mesh: MeshInstance3D, near_cutoff: float) -> void:
 	var shader := load(NEARCLIP_SHADER) as Shader
 	if shader == null:
 		return
@@ -124,9 +129,13 @@ static func set_near_cutoff(player: Node, near_cutoff: float) -> void:
 	var mesh := body_mesh(player)
 	if mesh == null:
 		return
-	for mat in [mesh.material_override, mesh.material_overlay]:
-		if mat is ShaderMaterial:
-			(mat as ShaderMaterial).set_shader_parameter("body_near_cutoff", near_cutoff)
+	var targets: Array = [mesh, BodyMeshSplit.neck_cap(mesh)]
+	for mi in targets:
+		if mi == null:
+			continue
+		for mat in [(mi as MeshInstance3D).material_override, (mi as MeshInstance3D).material_overlay]:
+			if mat is ShaderMaterial:
+				(mat as ShaderMaterial).set_shader_parameter("body_near_cutoff", near_cutoff)
 
 static func get_near_cutoff(player: Node) -> float:
 	var mesh := body_mesh(player)

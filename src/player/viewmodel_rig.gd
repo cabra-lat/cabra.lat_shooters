@@ -6,7 +6,9 @@ extends RefCounted
 ## plus critically-damped offsets (sway, head-bob, recoil kick, reload dip).
 ## Rule learned the hard way: never integrate Hooke springs on bodies for held
 ## items — offsets use exponential damping (unconditionally stable), and the
-## hands follow the gun through the arm IK effectors, not the other way round.
+## hands follow the gun through the analytic arm IK (HumanoidRig.set_ik_target),
+## not the other way round. The GodotIK arm effectors are legacy fallback only
+## (the GDExtension proved to never apply its solve).
 
 const HIP_OFFSET := Vector3(0.22, -0.20, -0.45) # right/down/forward of camera
 const GRIP_R := Vector3(0.0, -0.09, 0.02) # right hand at trigger guard
@@ -34,6 +36,7 @@ var _gun: Weapon3D
 var _cam: Camera3D
 var _eff_r: Node3D
 var _eff_l: Node3D
+var _rig: Object = null ## skeleton when it speaks set_ik_target (analytic path).
 var _grip_r: Marker3D
 var _grip_l: Marker3D
 var _sway := Vector2.ZERO
@@ -66,8 +69,15 @@ func setup(player: PlayerController, gun: Weapon3D) -> void:
 	if skel:
 		_eff_r = skel.get_node_or_null("GodotIK/IK_rightarm") as Node3D
 		_eff_l = skel.get_node_or_null("GodotIK/IK_leftarm") as Node3D
+		if skel.has_method("set_ik_target"):
+			_rig = skel
 	_grip_r = _make_grip("RightGrip", GRIP_R)
 	_grip_l = _make_grip("LeftGrip", GRIP_L)
+	# Analytic path: the grips live on the gun and are followed every frame by
+	# HumanoidRig._process (no per-frame calls needed after this).
+	if _rig != null:
+		_rig.set_ik_target("right_hand", _grip_r)
+		_rig.set_ik_target("left_hand", _grip_l)
 	var w: Weapon = gun.data as Weapon
 	if w and not w.cartridge_fired.is_connected(_on_fired):
 		w.cartridge_fired.connect(_on_fired)
@@ -123,6 +133,9 @@ func teardown(restore_collision: bool = true) -> void:
 			if w.attachment_removed.is_connected(_on_attachment_removed):
 				w.attachment_removed.disconnect(_on_attachment_removed)
 	_unmount_all_attachments()
+	if _rig != null and is_instance_valid(_rig) and (_rig as Object).has_method("clear_all_ik_targets"):
+		(_rig as Object).call("clear_all_ik_targets")
+	_rig = null
 	if is_instance_valid(_player) and _player.reloaded.is_connected(_on_reload_started):
 		_player.reloaded.disconnect(_on_reload_started)
 	if restore_collision:
@@ -242,11 +255,14 @@ func update_rig(delta: float) -> void:
 	var off: Vector3 = HIP_OFFSET.lerp(_ads_offset, _ads) \
 		+ _bob * bob_scale + Vector3(0.0, _kick * 0.5 - _dip * 0.22, _kick)
 	_gun.global_transform = Transform3D(gb, cp + cb * off)
-	# Hands track the gun grips through the arm IK effectors.
-	if is_instance_valid(_eff_r) and is_instance_valid(_grip_r):
-		_eff_r.global_transform = _grip_r.global_transform
-	if is_instance_valid(_eff_l) and is_instance_valid(_grip_l):
-		_eff_l.global_transform = _grip_l.global_transform
+	# Hands track the gun grips. Analytic path (HumanoidRig) follows the grip
+	# nodes live; the effector write below is legacy fallback for skeletons
+	# without set_ik_target (and keeps the editor-visible nodes honest).
+	if _rig == null:
+		if is_instance_valid(_eff_r) and is_instance_valid(_grip_r):
+			_eff_r.global_transform = _grip_r.global_transform
+		if is_instance_valid(_eff_l) and is_instance_valid(_grip_l):
+			_eff_l.global_transform = _grip_l.global_transform
 
 func _on_fired(_weapon: Weapon, _cartridge: Ammo) -> void:
 	_kick = min(_kick + 0.035, 0.09)

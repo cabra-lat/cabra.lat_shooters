@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3 uid="uid://dtos2h0yuxxh8"]
+[gd_scene format=3 uid="uid://dtos2h0yuxxh8"]
 
 [ext_resource type="Script" uid="uid://dv1ghtrg8ero0" path="res://addons/cabra.lat_shooters/src/player/ik.gd" id="1_aq4gr"]
 [ext_resource type="Shader" uid="uid://caen77yke1bv" path="res://shaders/psx/psx_lit_alpha-scissor.gdshader" id="2_uvku0"]
@@ -15,7 +15,8 @@ rings = 1
 is_hemisphere = true
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ocffs"]
-albedo_color = Color(0, 0, 1, 1)
+transparency = 1
+albedo_color = Color(0, 0, 1, 0.5)
 
 [sub_resource type="QuadMesh" id="QuadMesh_kif0f"]
 material = SubResource("StandardMaterial3D_ocffs")
@@ -25,7 +26,8 @@ material = SubResource("StandardMaterial3D_ocffs")
 flip_faces = true
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kif0f"]
-albedo_color = Color(0, 1, 0, 1)
+transparency = 1
+albedo_color = Color(0, 1, 0, 0.51500005)
 
 [sub_resource type="QuadMesh" id="QuadMesh_r8gmi"]
 material = SubResource("StandardMaterial3D_kif0f")
@@ -37,7 +39,8 @@ flip_faces = true
 orientation = 0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_r8gmi"]
-albedo_color = Color(1, 0, 0, 1)
+transparency = 1
+albedo_color = Color(1, 0, 0, 0.523)
 
 [sub_resource type="QuadMesh" id="QuadMesh_rha7b"]
 material = SubResource("StandardMaterial3D_r8gmi")
@@ -392,7 +395,7 @@ _data = {
 &"test_look_target": SubResource("Animation_ocffs")
 }
 
-[node name="Skeleton3D" type="Skeleton3D" node_paths=PackedStringArray("left_foot_target", "right_foot_target")]
+[node name="Skeleton3D" type="Skeleton3D" unique_id=2036418449 node_paths=PackedStringArray("left_foot_target", "right_foot_target")]
 transform = Transform3D(-4.3711385e-08, -0.9999999, -4.371139e-08, 0, -4.3711385e-08, 1, -0.9999999, 4.3711385e-08, 1.9106855e-15, 0, 0, 0)
 bones/0/name = "_rootJoint"
 bones/0/parent = -1
@@ -1007,42 +1010,49 @@ script = ExtResource("1_aq4gr")
 left_foot_target = NodePath("GodotIK/IK_leftleg")
 right_foot_target = NodePath("GodotIK/IK_rightleg")
 
-[node name="LookTarget" type="MeshInstance3D" parent="."]
+[node name="LookTarget" type="MeshInstance3D" parent="." unique_id=1595735103]
 transform = Transform3D(1, 2.842171e-14, 6.352747e-22, -2.842171e-14, 1, -2.842171e-14, 0, 2.842171e-14, 1, 0, 0, 0)
+layers = 2
 mesh = SubResource("SphereMesh_ocffs")
 skeleton = NodePath("../BodyAlignment")
 
-[node name="LookTarget2" type="MeshInstance3D" parent="."]
+[node name="LookTarget2" type="MeshInstance3D" parent="." unique_id=1842335294]
 transform = Transform3D(0.9999998, 0, -2.9646153e-20, 0, 0.9999996, -3.5527137e-15, 2.985791e-20, 8.3518686e-23, 1, 0, 0, -0.85)
+layers = 2
 mesh = SubResource("QuadMesh_kif0f")
 skeleton = NodePath("../BodyAlignment")
 
-[node name="LookTarget7" type="MeshInstance3D" parent="."]
+[node name="LookTarget7" type="MeshInstance3D" parent="." unique_id=1411722023]
 transform = Transform3D(0.9999998, 0, -2.9434395e-20, 0, 0.9999996, -7.1054274e-15, 3.006967e-20, 8.3518686e-23, 1, 0, 0, 3.535)
+layers = 2
 mesh = SubResource("QuadMesh_b8yl2")
 skeleton = NodePath("../BodyAlignment")
 
-[node name="LookTarget3" type="MeshInstance3D" parent="."]
+[node name="LookTarget3" type="MeshInstance3D" parent="." unique_id=1200310081]
 transform = Transform3D(0.9999998, 0, -2.901088e-20, 0, 0.9999996, -2.842171e-14, 3.134022e-20, 8.3518686e-23, 1, -3.7286773, 1.1187242e-07, 0.40123338)
+layers = 2
 mesh = SubResource("QuadMesh_r8gmi")
 skeleton = NodePath("../BodyAlignment")
 
-[node name="LookTarget5" type="MeshInstance3D" parent="."]
+[node name="LookTarget5" type="MeshInstance3D" parent="." unique_id=795831335]
 transform = Transform3D(0.9999998, 0, -2.879912e-20, 0, 0.9999996, -3.1974423e-14, 3.1551977e-20, 8.3518686e-23, 1, 3.7057729, -2.1309774e-07, 0.40123338)
+layers = 2
 mesh = SubResource("QuadMesh_ocffs")
 skeleton = NodePath("../BodyAlignment")
 
-[node name="LookTarget4" type="MeshInstance3D" parent="."]
+[node name="LookTarget4" type="MeshInstance3D" parent="." unique_id=1771697652]
 transform = Transform3D(0.9999995, 2.1316282e-14, -5.759824e-20, -1.7763568e-14, 0.99999905, -6.039613e-14, 6.119813e-20, 1.4210855e-14, 1, 1.5202767e-07, 3.477987, 0.4253203)
+layers = 2
 mesh = SubResource("QuadMesh_rha7b")
 skeleton = NodePath("../BodyAlignment")
 
-[node name="LookTarget6" type="MeshInstance3D" parent="."]
+[node name="LookTarget6" type="MeshInstance3D" parent="." unique_id=242556976]
 transform = Transform3D(0.9999995, 2.4868996e-14, -5.759824e-20, -2.1316282e-14, 0.99999905, -6.3948846e-14, 6.119813e-20, 1.7763568e-14, 1, -1.5817402e-07, -3.6186001, 0.42532)
+layers = 2
 mesh = SubResource("QuadMesh_3proo")
 skeleton = NodePath("../BodyAlignment")
 
-[node name="LegsAlignment" type="LookAtModifier3D" parent="."]
+[node name="LegsAlignment" type="LookAtModifier3D" parent="." unique_id=144508311]
 transform = Transform3D(1, -2.0980977e-08, 3.7336495e-08, -2.0980979e-08, 0.52001107, 0.85415953, -3.7336495e-08, -0.8541595, 0.5200111, 0, 0, 0)
 target_node = NodePath("../LookTarget")
 bone_name = "spine_01"
@@ -1053,7 +1063,7 @@ symmetry_limitation = true
 primary_limit_angle = 1.2163199
 primary_damp_threshold = 1.0
 
-[node name="BodyAlignment" type="LookAtModifier3D" parent="."]
+[node name="BodyAlignment" type="LookAtModifier3D" parent="." unique_id=1309865193]
 target_node = NodePath("../LookTarget")
 bone_name = "spine.002_03"
 bone = 3
@@ -1065,24 +1075,24 @@ primary_damp_threshold = 1.0
 secondary_limit_angle = 1.2964306
 secondary_damp_threshold = 1.0
 
-[node name="LeftHandAlignment" type="LookAtModifier3D" parent="."]
+[node name="LeftHandAlignment" type="LookAtModifier3D" parent="." unique_id=1200347666]
 target_node = NodePath("../GodotIK/IK_rightarm")
 bone_name = "hand.L_011"
 bone = 12
 forward_axis = 0
 primary_rotation_axis = 2
 
-[node name="RightHandAlignment" type="LookAtModifier3D" parent="."]
+[node name="RightHandAlignment" type="LookAtModifier3D" parent="." unique_id=690070011]
 target_node = NodePath("../GodotIK/IK_leftarm")
 bone_name = "hand.R_034"
 bone = 40
 
-[node name="RightShoulderAlignment" type="LookAtModifier3D" parent="."]
+[node name="RightShoulderAlignment" type="LookAtModifier3D" parent="." unique_id=1677659761]
 transform = Transform3D(1, 3.5527137e-15, 0, -3.5527137e-15, 1, -3.5527137e-15, 0, 3.5527137e-15, 1, 0, 0, 0)
 bone_name = "shoulder.R_031"
 bone = 37
 
-[node name="HeadAlignment" type="LookAtModifier3D" parent="."]
+[node name="HeadAlignment" type="LookAtModifier3D" parent="." unique_id=2086781311]
 transform = Transform3D(1, 3.5527137e-15, 0, -3.5527137e-15, 1, -3.5527137e-15, 0, 3.5527137e-15, 1, 0, 0, 0)
 target_node = NodePath("../LookTarget")
 bone_name = "spine.006_07"
@@ -1094,125 +1104,127 @@ primary_damp_threshold = 1.0
 secondary_limit_angle = 0.9649925
 secondary_damp_threshold = 1.0
 
-[node name="GodotIK" type="GodotIK" parent="."]
+[node name="GodotIK" type="GodotIK" parent="." unique_id=624710391]
 use_global_rotation_poles = true
 transform = Transform3D(1.0000017, 0, 0, 0, 1.0000014, 0, 0, 0, 1.0000037, 0, 0, 0)
 
-[node name="IK_leftarm" type="GodotIKEffector" parent="GodotIK"]
+[node name="IK_leftarm" type="GodotIKEffector" parent="GodotIK" unique_id=1423742521]
 bone_name = "hand.L_011"
 bone_idx = 12
 chain_length = 3
 transform_mode = 3
 transform = Transform3D(-0.047753774, 0.86964655, 0.49135295, 0.0022180355, -0.4918199, 0.8706912, 0.99885476, 0.04266865, 0.021557417, 0.565, 0, 0.399)
 
-[node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_leftarm"]
+[node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_leftarm" unique_id=37097182]
 bone_name = "forearm.L_010"
 bone_idx = 11
 script = ExtResource("3_kif0f")
 pole_direction = Vector3(-1, 1, 1)
 metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
 
-[node name="IK_rightarm" type="GodotIKEffector" parent="GodotIK"]
+[node name="IK_rightarm" type="GodotIKEffector" parent="GodotIK" unique_id=1300195240]
 bone_name = "hand.R_034"
 bone_idx = 40
 chain_length = 3
 transform_mode = 3
 transform = Transform3D(0.06597495, 0.53192115, 0.8442203, -0.92862964, -0.27683648, 0.24699913, 0.36509487, -0.80026335, 0.4756937, 0.264, 0, 0.467)
 
-[node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_rightarm"]
+[node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_rightarm" unique_id=1031178239]
 bone_name = "upper_arm.R_032"
 bone_idx = 38
 script = ExtResource("3_kif0f")
 pole_direction = Vector3(-1, 0, 1)
 metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
 
-[node name="IK_leftleg" type="GodotIKEffector" parent="GodotIK"]
+[node name="IK_leftleg" type="GodotIKEffector" parent="GodotIK" unique_id=1547980688]
 bone_name = "foot.L_059"
 bone_idx = 75
 chain_length = 3
 transform_mode = 3
 transform = Transform3D(0.7397269, 0.56024367, -0.37272522, 0.67226964, -0.5912678, 0.44547743, 0.029195612, -0.58010393, -0.81401473, 0.18914588, 0.09113774, -0.77221036)
 
-[node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_leftleg"]
+[node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_leftleg" unique_id=103265285]
 bone_name = "shin.L_058"
 bone_idx = 74
 script = ExtResource("3_kif0f")
 pole_direction = Vector3(1, 1, 1)
 metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
 
-[node name="IK_rightleg" type="GodotIKEffector" parent="GodotIK"]
+[node name="IK_rightleg" type="GodotIKEffector" parent="GodotIK" unique_id=59737876]
 bone_name = "foot.R_064"
 bone_idx = 82
 chain_length = 3
 transform_mode = 3
 transform = Transform3D(0.7956068, 0.4835031, -0.36500305, 0.6006419, -0.708087, 0.37126195, -0.078947626, -0.5146164, -0.8537749, -0.085854106, -0.13486233, -0.76420265)
 
-[node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_rightleg"]
+[node name="PoleBoneConstraint" type="GodotIKConstraint" parent="GodotIK/IK_rightleg" unique_id=529841596]
 bone_name = "shin.R_063"
 bone_idx = 81
 script = ExtResource("3_kif0f")
 pole_direction = Vector3(1, -1, 1)
 metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
 
-[node name="IK_head" type="GodotIKEffector" parent="GodotIK"]
+[node name="IK_head" type="GodotIKEffector" parent="GodotIK" unique_id=53347997]
 bone_name = "spine.006_end_067"
 bone_idx = 8
 chain_length = 6
 transform_mode = 3
 transform = Transform3D(0.999998, -1.0658141e-14, 6.352747e-22, 1.0658141e-14, 0.9999961, 1.0658141e-14, -4.2351647e-22, -1.0658141e-14, 0.9999976, 0, 0, 1)
 
-[node name="MESH" type="MeshInstance3D" parent="."]
+[node name="MESH" type="MeshInstance3D" parent="." unique_id=1764880223]
 transform = Transform3D(1, -3.552714e-15, -4.3711395e-08, 0, 1, -4.3711385e-08, 4.3711392e-08, 4.3711385e-08, 1, 0, 0.0017259719, 0)
+layers = 4
 material_overlay = SubResource("ShaderMaterial_kif0f")
 mesh = ExtResource("4_uvku0")
 skin = SubResource("Skin_pk55j")
 
-[node name="RightShoulderAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(-0.84778607, -0.5095994, 0.14685768, 0.526798, -0.8411381, 0.12235304, 0.061176613, 0.18109372, 0.9815612, 0.056169286, -0.016902948, 0.5085178)
+[node name="RightShoulderAttachment" type="BoneAttachment3D" parent="." unique_id=1432445378]
+transform = Transform3D(-0.8396106, -0.5207799, 0.15440904, 0.53922457, -0.83337843, 0.12131355, 0.06550356, 0.1851173, 0.98053086, 0.058512434, -0.018300049, 0.50775623)
 bone_name = "shoulder.R_031"
 bone_idx = 37
 
-[node name="LeftHandAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(0.060640834, 0.8742698, 0.48163387, 0.06669155, -0.4849918, 0.87197036, 0.99593085, -0.020755976, -0.08771685, 0.4401162, 0.029614411, 0.378038)
+[node name="LeftHandAttachment" type="BoneAttachment3D" parent="." unique_id=1286477752]
+transform = Transform3D(-0.4349122, 0.7929921, 0.42662853, -0.21139823, -0.5504554, 0.8076552, 0.87530863, 0.26107, 0.40703696, 0.45875394, 0.0225728, 0.58723134)
 bone_name = "hand.L_011"
 bone_idx = 12
 
-[node name="RightHandAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(-0.19977854, 0.53414285, 0.8214531, -0.9798061, -0.11614987, -0.16276558, 0.008471519, -0.8373809, 0.5465595, 0.26555663, -0.0424318, 0.47910324)
+[node name="RightHandAttachment" type="BoneAttachment3D" parent="." unique_id=2143307390]
+transform = Transform3D(-0.13276201, 0.94127846, 0.3104415, -0.9911449, -0.12700859, -0.03877206, 0.0029336214, -0.3128397, 0.949804, 0.2377048, -0.023033276, 0.61524177)
 bone_name = "hand.R_034"
 bone_idx = 40
 
-[node name="HeadAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(-0.0145327505, 0.08242566, 0.996491, 0.9998936, 2.7506974e-05, 0.014579991, 0.001174247, 0.9965971, -0.08241741, -0.026311561, -8.7929075e-06, 0.6818718)
+[node name="HeadAttachment" type="BoneAttachment3D" parent="." unique_id=1754428443]
+transform = Transform3D(1.7266538e-07, 0.073015586, 0.9973308, 0.9999999, -1.6071281e-08, -1.420689e-07, 3.5415997e-08, 0.9973308, -0.073015615, -0.023308966, -4.960435e-09, 0.68162197)
 bone_name = "spine.006_07"
 bone_idx = 7
 
-[node name="Camera3D" type="Camera3D" parent="HeadAttachment"]
+[node name="Camera3D" type="Camera3D" parent="HeadAttachment" unique_id=254438572]
 transform = Transform3D(-1.0000005, 0, -8.7422784e-08, 0, 1.0000004, 0, 8.742282e-08, 0, -1.0000001, -0.0037137244, 0.013204217, 0.21912527)
-current = false
+cull_mask = 1
 near = 0.036
 
-[node name="LookTarget" type="MeshInstance3D" parent="HeadAttachment/Camera3D"]
+[node name="LookTarget" type="MeshInstance3D" parent="HeadAttachment/Camera3D" unique_id=852986732]
 transform = Transform3D(0.7089553, -0.012308359, 0.70514566, 0.705253, 0.012373, -0.7088475, 0, 0.9998473, 0.01745236, 1.4901161e-08, 0, -0.20409745)
+layers = 2
 mesh = SubResource("CylinderMesh_r8gmi")
 skeleton = NodePath("../BodyAlignment")
 
-[node name="LeftFeetAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(0.7397283, 0.56024516, -0.37272722, 0.6722708, -0.59126824, 0.44547924, 0.029195696, -0.5801064, -0.81401706, 0.18519484, 0.0922147, -0.7538216)
+[node name="LeftFeetAttachment" type="BoneAttachment3D" parent="." unique_id=1990635617]
+transform = Transform3D(0.7397281, 0.5602449, -0.37272704, 0.67227066, -0.5912683, 0.44547892, 0.029195577, -0.58010626, -0.8140167, 0.18530655, 0.09219123, -0.7541357)
 bone_name = "foot.L_059"
 bone_idx = 75
 
-[node name="RightFeetAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(0.7956082, 0.4835044, -0.36500514, 0.6006429, -0.7080877, 0.37126425, -0.07894794, -0.5146185, -0.8537768, -0.08753498, -0.13443993, -0.7741022)
+[node name="RightFeetAttachment" type="BoneAttachment3D" parent="." unique_id=795046550]
+transform = Transform3D(0.79560804, 0.483504, -0.36500514, 0.60064286, -0.70808774, 0.3712642, -0.07894796, -0.5146184, -0.8537766, -0.08755801, -0.13442914, -0.774389)
 bone_name = "foot.R_064"
 bone_idx = 82
 
-[node name="TorsoAttachment" type="BoneAttachment3D" parent="."]
-transform = Transform3D(-0.014641708, 0.079046994, 0.99676335, 0.99989206, 1.5870377e-05, 0.014686305, 0.0011449812, 0.9968708, -0.07903883, -0.050120547, -1.4046864e-05, 0.38335228)
+[node name="TorsoAttachment" type="BoneAttachment3D" parent="." unique_id=47883824]
+transform = Transform3D(4.1108393e-07, 0.08490651, 0.9963888, 0.9999999, -8.3133e-09, -3.8195518e-07, 5.613604e-09, 0.9963888, -0.08490654, -0.048253916, -1.6233592e-10, 0.3831961)
 bone_name = "spine.003_04"
 bone_idx = 4
 
-[node name="Backpack" parent="TorsoAttachment" instance=ExtResource("6_ocffs")]
+[node name="Backpack" parent="TorsoAttachment" unique_id=763145939 instance=ExtResource("6_ocffs")]
 physics_interpolation_mode = 1
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -0.14)
 collision_layer = 0
@@ -1223,35 +1235,33 @@ angular_spring_constant = Vector3(1000, 1000, 1000)
 attachment_mode = 1
 enable_attachment = true
 
-[node name="StaticBody3D" type="StaticBody3D" parent="TorsoAttachment"]
+[node name="StaticBody3D" type="StaticBody3D" parent="TorsoAttachment" unique_id=970444091]
 physics_interpolation_mode = 1
 collision_layer = 2
 collision_mask = 2
 physics_material_override = SubResource("PhysicsMaterial_ocffs")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="TorsoAttachment/StaticBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TorsoAttachment/StaticBody3D" unique_id=168343759]
 transform = Transform3D(1, -1.1226575e-12, -4.49063e-12, -1.0658141e-14, 1, 0, -1.2221335e-12, 0, 1, 0.0019531623, -0.12762469, 0.04473877)
 shape = SubResource("BoxShape3D_uvku0")
 
-[node name="PinJoint3DLeftHandle" type="PinJoint3D" parent="TorsoAttachment"]
+[node name="PinJoint3DLeftHandle" type="PinJoint3D" parent="TorsoAttachment" unique_id=619170895]
 transform = Transform3D(1.0000014, 0, 0, -2.3283064e-10, 1.0000023, -1.4901161e-08, -2.7939677e-09, -1.4901161e-08, 1.0000013, 0.1166878, 0.22653568, 0.031625807)
 node_a = NodePath("../StaticBody3D")
 node_b = NodePath("../Backpack")
 params/bias = 0.99
 
-[node name="PinJoint3DRightHandle" type="PinJoint3D" parent="TorsoAttachment"]
+[node name="PinJoint3DRightHandle" type="PinJoint3D" parent="TorsoAttachment" unique_id=426446720]
 transform = Transform3D(1.0000007, -3.7252903e-09, -1.4901161e-08, 0, 1.0000011, 1.8626451e-09, 0, -4.656613e-09, 1.0000007, -0.24578488, 0.34737867, 0.6364695)
 node_a = NodePath("../StaticBody3D")
 node_b = NodePath("../Backpack")
 params/bias = 0.99
 
-[node name="PinJoint3DBottomHandle" type="PinJoint3D" parent="TorsoAttachment"]
+[node name="PinJoint3DBottomHandle" type="PinJoint3D" parent="TorsoAttachment" unique_id=1309220599]
 physics_interpolation_mode = 1
 transform = Transform3D(1.0000014, 0, 0, 0, 1.000002, -4.4703484e-08, -9.313226e-10, -4.4703484e-08, 1.000001, -0.0023936497, -0.12738493, -0.11549174)
 node_a = NodePath("../StaticBody3D")
 node_b = NodePath("../Backpack")
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
-libraries = {
-&"": SubResource("AnimationLibrary_r8gmi")
-}
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=913879421]
+libraries/ = SubResource("AnimationLibrary_r8gmi")
