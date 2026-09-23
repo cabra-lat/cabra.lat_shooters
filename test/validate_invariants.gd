@@ -57,6 +57,7 @@ func _run() -> void:
 	await _inv25_26_npc_spawn_and_corpse()
 	await _inv28_npc_teams_contract()
 	await _inv29_patrol_survives_loot_window()
+	await _inv30_fps_head_chain_and_collar_cap()
 
 	# meta invariants need a scratch user:// dir; no autoload/raid/frames required
 	_meta_cleanup()
@@ -786,6 +787,69 @@ func _inv29_patrol_survives_loot_window() -> void:
 		moved_first > 0.5 and moving_after and moved_second > 0.5,
 		"first=%.2f moving_after_loot=%s second=%.2f" % [moved_first, str(moving_after), moved_second],
 		"with loot enabled and nothing to loot, the bot froze after loot_idle_delay")
+	world.queue_free()
+
+# ─── INV-30: first-person head chain + neck collar cap ────────────────
+# ORIGIN (player-rig head-in-lens bug, 2026-09-23): in 1st person the player's
+# head blocked the view at pitch -45. The coordinator's diagnosis found NO dead
+# link — apply() true, head on layer 4, cutoff 0.05, camera masks set. The real
+# cause (GPU): the bone split leaves the NECK OPEN and the double-sided PSX
+# body renders the hollow interior (a dark ring that reads as "head"). Fix: a
+# procedural collar cap (squashed sphere R=0.10 on BoneAttachment3D
+# spine.005_06, layer 1) that apply() EXEMPTS from the hide and near-clips.
+# This harness guards the chain STRUCTURE headless (apply + layers + cap +
+# cutoff + camera mask); the PIXELS (ring gone at pitch -45) are spotter's
+# strip (head_down45.png vs head_after45c.png). Sabotage: drop the cap (or the
+# exemption) and this fails.
+func _inv30_fps_head_chain_and_collar_cap() -> void:
+	var world := Node3D.new()
+	root.add_child(world)
+	var ps := load(PLAYER_SCENE) as PackedScene
+	if ps == null:
+		_check("INV-30", "fps_head_chain_and_collar_cap", false, "player.tscn missing", "head blocked the FPS lens")
+		world.queue_free()
+		return
+	var player = ps.instantiate()
+	world.add_child(player)
+	for i in 3:
+		await process_frame
+
+	var applied: bool = PlayerBodyVisibility.apply(player, 0.05, true)
+	var mesh: MeshInstance3D = PlayerBodyVisibility.body_mesh(player)
+	var head: MeshInstance3D = null
+	if mesh != null and mesh.has_meta("body_split_head"):
+		head = mesh.get_meta("body_split_head") as MeshInstance3D
+	var head_ok: bool = head != null and is_instance_valid(head) \
+		and head.layers == PlayerBodyVisibility.HIDDEN_FROM_FPS_LAYER
+	var cap: MeshInstance3D = BodyMeshSplit.neck_cap(mesh)
+	var cap_ok := false
+	var cap_mat_ok := false
+	var cap_desc := "none"
+	if cap != null and is_instance_valid(cap):
+		cap_desc = "%s/layers=%d" % [cap.name, cap.layers]
+		var attach := cap.get_parent() as BoneAttachment3D
+		var parent_ok: bool = attach != null and attach.bone_name == BodyMeshSplit.NECK_BONE
+		var cmat := cap.material_override as ShaderMaterial
+		if cmat != null:
+			cap_mat_ok = float(cmat.get_shader_parameter("body_near_cutoff")) == 0.05
+		cap_ok = cap.name == BodyMeshSplit.CAP_NAME \
+			and cap.layers == PlayerBodyVisibility.VISIBLE_LAYER \
+			and parent_ok and cap_mat_ok
+	var camera := player.get("camera") as Camera3D
+	var cam_ok: bool = camera != null \
+		and (camera.cull_mask & PlayerBodyVisibility.HIDDEN_FROM_FPS_LAYER) == 0 \
+		and (camera.cull_mask & PlayerBodyVisibility.VISIBLE_LAYER) != 0
+	var head_layers := -1
+	if head != null and is_instance_valid(head):
+		head_layers = head.layers
+	var cam_mask := -1
+	if camera != null:
+		cam_mask = camera.cull_mask
+	_check("INV-30", "fps_head_chain_and_collar_cap",
+		applied and mesh != null and head_ok and cap_ok and cam_ok,
+		"applied=%s head_layers=%d cap=%s cutoff_ok=%s cam_mask=%d" % [
+			str(applied), head_layers, cap_desc, str(cap_mat_ok), cam_mask],
+		"head in front of the FPS camera (open neck stump visible at pitch -45)")
 	world.queue_free()
 
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
