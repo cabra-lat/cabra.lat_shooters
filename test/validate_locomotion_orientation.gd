@@ -347,6 +347,8 @@ func _finish() -> void:
 		_world.queue_free()
 	print("SUMMARY locomotion checks=%d passed=%d failed=%d sabotage_expected=%s sabotage_transform=%s" % [
 		_checks, _passed, _failed, str(_sabotage), str(_sabotage_transform)])
+	print("checks passed %d" % _passed)
+	print("RESULT: %s" % ("PASS" if _failed == 0 else "FAIL"))
 	call_deferred("_quit_deferred")
 
 func _quit_deferred() -> void:
