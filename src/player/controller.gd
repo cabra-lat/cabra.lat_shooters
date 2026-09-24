@@ -99,19 +99,13 @@ var current_camera_height: float = 0.0
 var current_camera_fov: float = 0.0
 var current_head_bobbing: float = 0.0
 var current_damping: float = 0.0
+var _movement_parameters := PlayerMovementParameters.new()
 
-# Stance eye heights (applied to head + SpringArm) and capsule factors.
-const EYE_STAND: float = 1.62
-const EYE_CROUCH: float = 1.05
-const EYE_PRONE: float = 0.45
 # Inventory HUD: instanced from the scene so it lives in the tree and
 # renders (a bare InventoryUI.new() never draws anything). Runtime load
 # (not const preload): main.gd references PlayerController, so an eager
 # preload would cycle at parse time.
 const INVENTORY_UI_SCENE_PATH := "res://addons/cabra.lat_shooters/src/ui/inventory/main.tscn"
-const CAPSULE_STAND: float = 1.0
-const CAPSULE_CROUCH: float = 0.55
-const CAPSULE_PRONE: float = 0.35
 # Stance/FOV smoothing rate: exponential (1 - exp(-k*dt)), frame-rate
 # independent. k=6.0 matches the old per-frame lerp(...,0.1) feel at 60 Hz
 # (~0.16 s time constant) without the frame-rate dependence (QA-016).
@@ -858,83 +852,21 @@ func _read_states_and_apply(delta):
   # Handle state-specific logic
   _handle_state_logic()
 
-func _update_movement_parameters(delta: float = 0.0):
+func _update_movement_parameters(delta: float = 0.0) -> void:
   if not config:
     return
 
-  # Reset to defaults
-  current_speed = config.default_speed
-  current_head_bobbing = config.default_bobing
-  current_camera_height = config.stand_height
-  current_camera_fov = config.default_fov
   current_damping = config.default_damping
-
   if not moving:
+    # Preserve the old early-return behavior when the state tree is absent.
+    current_speed = config.default_speed
+    current_head_bobbing = config.default_bobing
+    current_camera_height = config.stand_height
+    current_camera_fov = config.default_fov
     return
 
-  # Moving state determines base movement
-  match moving.state:
-    STOPPED:
-      current_speed = config.default_speed
-      current_head_bobbing = config.default_bobing
-    WALKING:
-      current_speed = config.walk_speed
-      current_head_bobbing = config.walk_bobbing
-    SPRINTING:
-      current_speed = config.sprint_speed
-      current_head_bobbing = config.sprint_bobbing
-    FALLING:
-      max_velocity = max(max_velocity, velocity.length())
-
-  if crouching:
-    # Crouching state overrides height and speed
-    match crouching.state:
-      CROUCHING:
-        current_speed = config.crouch_speed
-        current_head_bobbing = config.crouch_bobbing
-        current_camera_height = config.crouch_height
-      PRONING:
-        current_speed = config.prone_speed
-        current_head_bobbing = config.prone_bobbing
-        current_camera_height = config.prone_height
-
-  _lean_dir = 0.0
-  if leaning:
-    # Leaning state affects speed and (below) the camera/head pose.
-    match leaning.state:
-      LEANING_RIGHT:
-        current_speed = config.lean_speed
-        _lean_dir = -1.0
-      LEANING_LEFT:
-        current_speed = config.lean_speed
-        _lean_dir = 1.0
-
-  if aiming:
-    # Aiming state affects FOV and bobbing
-    match aiming.state:
-      AIMING:
-        current_speed = config.crouch_speed
-        current_head_bobbing = config.NO_BOBBING
-        current_camera_fov = config.aim_fov
-      FOCUSING:
-        current_speed = config.prone_speed
-        current_head_bobbing = config.NO_BOBBING
-        current_camera_fov = config.aim_focused_fov
-
-  # Stance eye heights override config values (stand 1.62 / crouch 1.05 / prone 0.45).
-  var capsule_factor: float = CAPSULE_STAND
-  if crouching:
-    match crouching.state:
-      CROUCHING:
-        current_camera_height = EYE_CROUCH
-        capsule_factor = CAPSULE_CROUCH
-      PRONING:
-        current_camera_height = EYE_PRONE
-        capsule_factor = CAPSULE_PRONE
-      _:
-        current_camera_height = EYE_STAND
-  else:
-    current_camera_height = EYE_STAND
+  if moving.state == FALLING:
+    max_velocity = max(max_velocity, velocity.length())
 
   # Spread the physics/medical/survival scales into the final speed. Applied
   # last so the state machine keeps owning the base value.
@@ -944,9 +876,21 @@ func _update_movement_parameters(delta: float = 0.0):
     condition_mult *= survival.stamina_speed_multiplier()
   if health != null:
     condition_mult *= health.movement_penalty()
-  current_speed *= condition_mult
-  if survival != null:
-    current_camera_fov *= survival.stamina_fov_multiplier()
+  _movement_parameters.resolve(
+    config,
+    moving.state,
+    crouching.state if crouching != null else "",
+    aiming.state if aiming != null else "",
+    leaning.state if leaning != null else "",
+    condition_mult,
+    survival.stamina_fov_multiplier() if survival != null else 1.0)
+  var parameters := _movement_parameters
+
+  current_speed = parameters.speed
+  current_head_bobbing = parameters.head_bobbing
+  current_camera_height = parameters.camera_height
+  current_camera_fov = parameters.camera_fov
+  _lean_dir = parameters.lean_direction
 
   # Apply camera effects. Exponential, delta-based smoothing so stance/FOV
   # transitions are frame-rate independent (QA-016).
@@ -957,7 +901,7 @@ func _update_movement_parameters(delta: float = 0.0):
     head.position.y = lerp(head.position.y, current_camera_height, stance_t)
   if spring_arm:
     spring_arm.position.y = lerp(spring_arm.position.y, current_camera_height, stance_t)
-  _apply_capsule_stance(capsule_factor)
+  _apply_capsule_stance(parameters.capsule_factor)
   _apply_camera_bob_and_lean(delta)
 
 func _apply_capsule_stance(factor: float) -> void:
