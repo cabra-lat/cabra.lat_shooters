@@ -26,14 +26,22 @@ func _finish() -> void:
 	print("=== validate_inventory_ux summary ===")
 	print("  checks passed  %d" % _pass)
 	print("  FAILURES       %d" % _fail)
+	var exit_code := 0
 	if _fail > 0:
 		for line in _fail_lines:
 			print("  FAIL  " + line)
 		print("RESULT: FAIL")
-		quit(1)
+		exit_code = 1
 	else:
 		print("RESULT: PASS")
-		quit(0)
+	# Let this async runner unwind before asking the SceneTree to quit. The
+	# project still has a known engine/resource baseline leak report, but this
+	# keeps the harness-owned UI cleanup separate and deterministic.
+	call_deferred("_quit_after_run", exit_code)
+
+func _quit_after_run(exit_code: int) -> void:
+	await process_frame
+	quit(exit_code)
 
 func _check(cond: bool, msg: String) -> void:
 	if cond:
@@ -62,6 +70,8 @@ func _run() -> void:
 	_check_generated_icons_wired()
 	await _check_no_self_drop()
 	await _check_context_menu_right_click()
+	# Let the last UI's deferred queue_free complete before SceneTree.quit().
+	await process_frame
 	_finish()
 
 ## Regression: a container (backpack/rig) must never be dropped into itself or
@@ -106,7 +116,7 @@ func _check_no_self_drop() -> void:
 	_check(slot != null, "self-drop: grid slot exists")
 	if slot != null:
 		_check(not slot._validate_drop(bp_item), "self-drop: UI drop-validation refuses")
-	ui.queue_free()
+	await _dispose_ui(ui)
 
 ## The context menu must open on a REAL right-click over a slot. Regression for
 ## the bug where a full-grid overlay Control (ItemsContainer, MOUSE_FILTER_STOP)
@@ -133,7 +143,7 @@ func _check_context_menu_right_click() -> void:
 	var slot = ui.get_slot_by_grid_position(Vector2i(0, 0))
 	_check(slot != null and slot.associated_item == item, "context menu: weapon slot resolved")
 	if slot == null:
-		ui.queue_free()
+		await _dispose_ui(ui)
 		return
 
 	var ev := InputEventMouseButton.new()
@@ -153,7 +163,13 @@ func _check_context_menu_right_click() -> void:
 			if menu.get_item_text(i).begins_with("Modificar"):
 				has_modify = true
 	_check(has_modify, "context menu: offers Modificar (gunsmith)")
+	await _dispose_ui(ui)
+
+func _dispose_ui(ui: Node) -> void:
+	if ui == null or not is_instance_valid(ui):
+		return
 	ui.queue_free()
+	await process_frame
 
 # ─── FIXTURES ───────────────────────────────────────
 func _container(w: int, h: int, max_weight: float = 1000.0) -> InventoryContainer:

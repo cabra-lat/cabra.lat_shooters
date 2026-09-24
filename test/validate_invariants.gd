@@ -69,6 +69,7 @@ func _run() -> void:
 	_inv15_listing_fee_floor()
 
 	await _run_player_invariants()
+	await _inv33_inventory_escape_order()
 
 	print("")
 	print("=== validate_invariants summary ===")
@@ -254,13 +255,17 @@ func _inv16b_baked_optic_toggle() -> void:
 	if wres != null and ps != null:
 		var w3d := ps.instantiate()
 		root.add_child(w3d)
+		# SceneTree._initialize() runs before the tree is settled; assigning data
+		# immediately makes Magazine3D.grab() read a not-yet-inside-tree node.
+		await process_frame
 		w3d.data = wres
 		var marker := w3d.get_node_or_null("Scope") as Node3D
 		var baked: Node3D = null
 		if marker != null:
 			for c in marker.get_children():
-				if String(c.name).contains("attachment_scope_reddot"):
+				if c is Node3D and (c as Node3D).visible:
 					baked = c as Node3D
+					break
 		if marker != null and baked != null:
 			var before: bool = baked.visible
 			var optic := (load("res://resources/attachments/Sweden_R1.tres") as Attachment)
@@ -344,6 +349,20 @@ func _inv18_rig_sole_on_ground() -> void:
 		"sole_min_y=%.4f (GROUND_PLACEMENT_Y=%.3f)" % [lo, ground_y],
 		"F7: the shared rig sank 4.2 cm when placed at GROUND_PLACEMENT_Y")
 	rig.queue_free()
+
+	# Also assert the idle clip keeps the sole grounded (task_3a87ab394b):
+	# Retargeted Mixamo clips initially had spine_01 y=0.967, which hovered soles ~2.8 cm above ground.
+	var lib := load("res://addons/cabra.lat_shooters/src/player/humanoid_body_anims.res") as AnimationLibrary
+	if lib != null and lib.has_animation(&"idle"):
+		var idle_anim := lib.get_animation(&"idle")
+		for t in idle_anim.get_track_count():
+			if idle_anim.track_get_path(t) == NodePath("Skeleton3D:spine_01") and idle_anim.track_get_type(t) == Animation.TYPE_POSITION_3D:
+				var y0: float = (idle_anim.track_get_key_value(t, 0) as Vector3).y
+				var idle_ok: bool = y0 < 0.945
+				_check("INV-18", "idle_clip_sole_grounded", idle_ok,
+					"idle_spine01_y=%.5f (want < 0.945)" % y0,
+					"task_3a87ab394b: idle clip spine_01 was 0.967, hovering soles ~2.8 cm above floor")
+				break
 
 # ─── INV-19: the rig's EFFECTIVE body material supports tint + damage flash (F6) ─
 # ORIGIN (npc-body rig acceptance, 2026-09-21): the body shader must declare the
@@ -852,6 +871,65 @@ func _inv30_fps_head_chain_and_collar_cap() -> void:
 		"head in front of the FPS camera (open neck stump visible at pitch -45)")
 	world.queue_free()
 
+# ─── INV-33: real Esc closes inventory without toggling arena pause ───
+# ORIGIN: PlayerController's child _unhandled_input could close the shared
+# InventoryUI first; ArenaManager then received the same ui_cancel and toggled
+# pause. The arena now consumes Esc in _input before child unhandled handlers.
+func _inv33_inventory_escape_order() -> void:
+	var arena_scene := load("res://scenes/arena_blockout.tscn") as PackedScene
+	var arena: Node = null
+	var opened := false
+	var closed := false
+	var pause_clear := false
+	var paused_after_event := true
+	var pause_panel_hidden := false
+
+	paused = false
+	if arena_scene != null:
+		arena = arena_scene.instantiate()
+		root.add_child(arena)
+		current_scene = arena
+		for _i in 8:
+			await process_frame
+
+		var player = arena.get("player")
+		var inventory = null
+		if player != null:
+			inventory = player.get("inventory_ui")
+		if inventory != null:
+			inventory.open_inventory(player)
+			await process_frame
+			opened = inventory.visible
+
+			var cancel := InputEventAction.new()
+			cancel.action = "ui_cancel"
+			cancel.pressed = true
+			Input.parse_input_event(cancel)
+			for _i in 4:
+				await process_frame
+
+			closed = not inventory.visible
+			paused_after_event = paused
+			pause_clear = not paused
+			var pause_panel = arena.get("pause_panel")
+			pause_panel_hidden = pause_panel != null and not pause_panel.visible
+
+	paused = false
+	if arena != null:
+		# Stop the scene before deferred deletion; its spawned player rig keeps
+		# processing until the end of the frame otherwise and can touch a freed IK
+		# target during this headless probe.
+		arena.process_mode = Node.PROCESS_MODE_DISABLED
+		arena.queue_free()
+		for _i in 3:
+			await process_frame
+
+	_check("INV-33", "inventory_escape_closes_without_pause",
+		opened and closed and pause_clear and pause_panel_hidden,
+		"opened=%s closed=%s paused_after_event=%s pause_panel_hidden=%s" % [
+			opened, closed, paused_after_event, pause_panel_hidden],
+		"child PlayerController closes first; parent ArenaManager toggles pause on the same ui_cancel")
+
 # ─── PLAYER-SCENE INVARIANTS ────────────────────────────────────────
 func _run_player_invariants() -> void:
 	var world := Node3D.new()
@@ -883,8 +961,215 @@ func _run_player_invariants() -> void:
 	_inv08_lean_translates(player, spring_arm)
 	_inv09_aim_ray_any_pitch(camera)
 	await _inv10_held_viewmodel(player)
+	await _inv31_inventory_combat_gate()
+	await _inv32_gunsmith_origin_roundtrip()
 
+	# Let the deferred deletion finish before the next scene probe starts;
+	# otherwise the old player rig can process one last frame against a freed IK
+	# target and flood the headless log with misleading script errors.
+	world.process_mode = Node.PROCESS_MODE_DISABLED
 	world.queue_free()
+	for _i in 3:
+		await process_frame
+
+# ─── INV-31: inventory visibility gates polled combat input ─────────
+# ORIGIN (range, 2026-09-23): fire_held is POLLED from Input, so GUI event
+# handling cannot prevent a click from pulling the trigger. The real arena
+# probe measured one cartridge fired while the inventory remained visible.
+# Keep the upstream gate under a permanent assertion: a visible CanvasItem
+# makes combat reads false, and hiding it restores the normal poll.
+func _inv31_inventory_combat_gate() -> void:
+	var input := PlayerInput.new()
+	var inventory := Control.new()
+	inventory.visible = true
+	root.add_child(input)
+	root.add_child(inventory)
+	await process_frame
+	input.inventory_ui = inventory
+	var gated := not input.is_combat_allowed()
+	Input.action_press("fire")
+	input._process(0.0)
+	var fire_blocked := not input.fire_held
+	Input.action_release("fire")
+	inventory.visible = false
+	input._process(0.0)
+	var reopened := input.is_combat_allowed()
+	Input.action_press("fire")
+	input._process(0.0)
+	var fire_restored := input.fire_held
+	Input.action_release("fire")
+	input.queue_free()
+	inventory.queue_free()
+	_check("INV-31", "inventory_gates_polled_combat",
+		gated and fire_blocked and reopened and fire_restored,
+		"visible_gate=%s fire_blocked=%s reopened=%s fire_restored=%s" % [
+			str(gated), str(fire_blocked), str(reopened), str(fire_restored)],
+		"polled fire input fired a cartridge while the inventory UI was open")
+
+# ─── INV-32: Gunsmith inventory ownership survives attach/detach ───
+# ORIGIN (inventory-ux, 2026-09-23): the disposable drag/drop probe found that
+# mounting an attachment from an inventory source lost the wrapper's origin;
+# detaching then could not return the exact item to its source. Keep the
+# lifecycle contract permanent: same source/item identity, preferred position,
+# weapon-switch isolation, stale-source rollback, and retryable closed source.
+# The runtime script is loaded at RUNTIME to avoid the GunsmithUI/PlayerController
+# autoload compile cycle in --script mode.
+func _inv32_gunsmith_origin_roundtrip() -> void:
+	var ui_script := load("res://scenes/gunsmith_ui.gd") as GDScript
+	var att := load("res://resources/attachments/Sweden_R1.tres") as Attachment
+	if ui_script == null or att == null:
+		_check("INV-32", "gunsmith_origin_roundtrip", false,
+			"ui=%s attachment=%s" % [str(ui_script != null), str(att != null)],
+			"Gunsmith origin-loss regression: runtime assets unavailable")
+		return
+	var ui = ui_script.new()
+	root.add_child(ui)
+	await process_frame
+	var point: int = Weapon.AttachmentPoint.TOP_RAIL
+	var results: Array[bool] = []
+	var failures: Array[String] = []
+
+	# Happy path: source ownership moves to the weapon and back.
+	var w1 := _inv32_weapon("GunsmithInv32A", point)
+	var c1 := _inv32_source()
+	var i1 := _inv32_item(att)
+	_inv32_record(results, failures, c1.add_item(i1, Vector2i(2, 1)),
+		"fixture: source accepts item")
+	ui.open_for_weapon(w1)
+	ui._drop_on_row(point, {"item": i1, "source": c1})
+	var attached1 := _inv32_apply_pending(ui)
+	_inv32_record(results, failures,
+		attached1 and w1.get_attachment(point) == att,
+		"attach: timed action mounts")
+	_inv32_record(results, failures, not (i1 in c1.items),
+		"attach: exact source wrapper leaves inventory")
+	ui._queue_detach(point)
+	var detached1 := _inv32_apply_pending(ui)
+	_inv32_record(results, failures,
+		detached1 and w1.get_attachment(point) == null,
+		"detach: timed action removes")
+	_inv32_record(results, failures, i1 in c1.items,
+		"detach: exact source wrapper returns")
+	_inv32_record(results, failures, i1.position == Vector2i(2, 1),
+		"detach: preferred position restored")
+
+	# Same-weapon close/reopen must retain the origin map.
+	var w2 := _inv32_weapon("GunsmithInv32B", point)
+	var c2 := _inv32_source()
+	var i2 := _inv32_item(att)
+	_inv32_record(results, failures, c2.add_item(i2, Vector2i(1, 2)),
+		"reopen fixture: source accepts item")
+	ui.open_for_weapon(w2)
+	ui._drop_on_row(point, {"item": i2, "source": c2})
+	var attached2 := _inv32_apply_pending(ui)
+	ui.close()
+	ui.open_for_weapon(w2)
+	ui._queue_detach(point)
+	var detached2 := _inv32_apply_pending(ui)
+	_inv32_record(results, failures,
+		attached2 and detached2 and i2 in c2.items,
+		"reopen: same weapon returns wrapper to source")
+
+	# Switching weapons and back must not use another weapon's origin map.
+	var w3 := _inv32_weapon("GunsmithInv32C", point)
+	var c3 := _inv32_source()
+	var i3 := _inv32_item(att)
+	_inv32_record(results, failures, c3.add_item(i3, Vector2i(3, 0)),
+		"switch fixture: source accepts item")
+	ui.open_for_weapon(w3)
+	ui._drop_on_row(point, {"item": i3, "source": c3})
+	var attached3 := _inv32_apply_pending(ui)
+	var other := _inv32_weapon("GunsmithInv32Other", point)
+	ui.open_for_weapon(other)
+	ui.open_for_weapon(w3)
+	ui._queue_detach(point)
+	var detached3 := _inv32_apply_pending(ui)
+	_inv32_record(results, failures,
+		attached3 and detached3 and i3 in c3.items,
+		"switch: returning to weapon restores its wrapper")
+
+	# Source disappears before timed attach: mount must roll back.
+	var w4 := _inv32_weapon("GunsmithInv32D", point)
+	var c4 := _inv32_source()
+	var i4 := _inv32_item(att)
+	_inv32_record(results, failures, c4.add_item(i4, Vector2i(0, 0)),
+		"stale-source fixture: source accepts item")
+	ui.open_for_weapon(w4)
+	ui._drop_on_row(point, {"item": i4, "source": c4})
+	var queued4: bool = not ui._pending.is_empty()
+	if queued4:
+		var action4 = ui._pending.pop_front()
+		c4.remove_item(i4)
+		ui._apply(action4)
+	_inv32_record(results, failures,
+		queued4 and w4.get_attachment(point) == null,
+		"stale source: attach rolls back")
+	_inv32_record(results, failures, not (i4 in c4.items),
+		"stale source: no duplicate wrapper")
+
+	# Closed source cannot accept the return: detach stays mounted and is retryable.
+	var w5 := _inv32_weapon("GunsmithInv32E", point)
+	var c5 := _inv32_source()
+	var i5 := _inv32_item(att)
+	_inv32_record(results, failures, c5.add_item(i5, Vector2i(0, 0)),
+		"closed-source fixture: source accepts item")
+	ui.open_for_weapon(w5)
+	ui._drop_on_row(point, {"item": i5, "source": c5})
+	_inv32_apply_pending(ui)
+	c5.is_open = false
+	ui._queue_detach(point)
+	var detached5 := _inv32_apply_pending(ui)
+	_inv32_record(results, failures,
+		detached5 and w5.get_attachment(point) == att,
+		"closed source: detach keeps attachment mounted")
+	c5.is_open = true
+	ui._queue_detach(point)
+	var retried5 := _inv32_apply_pending(ui)
+	_inv32_record(results, failures,
+		retried5 and w5.get_attachment(point) == null and i5 in c5.items,
+		"closed source: retry returns wrapper")
+
+	ui.queue_free()
+	await process_frame
+	var passed_cases := 0
+	for result in results:
+		if result:
+			passed_cases += 1
+	var detail := "cases=%d/%d" % [passed_cases, results.size()]
+	if not failures.is_empty():
+		detail += " failures=" + ", ".join(failures)
+	_check("INV-32", "gunsmith_origin_roundtrip",
+		results.size() == 16 and failures.is_empty(), detail,
+		"Gunsmith origin loss duplicated or orphaned an inventory wrapper")
+
+func _inv32_record(results: Array[bool], failures: Array[String], ok: bool, label: String) -> void:
+	results.append(ok)
+	if not ok:
+		failures.append(label)
+
+func _inv32_weapon(weapon_name: String, point: int) -> Weapon:
+	var weapon := Weapon.new()
+	weapon.name = weapon_name
+	weapon.attach_points = point
+	return weapon
+
+func _inv32_source() -> InventoryContainer:
+	var container := InventoryContainer.new()
+	container.grid_width = 6
+	container.grid_height = 6
+	container.max_weight = 1000.0
+	return container
+
+func _inv32_item(att: Attachment) -> InventoryItem:
+	var item := InventoryItem.slurp(att)
+	item.dimensions = Vector2i.ONE
+	return item
+
+func _inv32_apply_pending(ui) -> bool:
+	if ui._pending.is_empty():
+		return false
+	ui._apply(ui._pending.pop_front())
+	return true
 
 # ─── INV-01: mouse pitch must reach the CAMERA's rig ────────────────
 # ORIGIN: the `head` (IK RemoteTransform) inclined but the camera never did, so
