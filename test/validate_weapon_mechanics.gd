@@ -182,6 +182,22 @@ func _test_trigger_integration() -> void:
 # authority, QA-007 firemode from mask, QA-013 feed_missing reachable).
 func _test_qa_fixes() -> void:
 	print("-- qa fixes")
+	# QA-014: a full feed must reject insertion without reporting a false success
+	# or emitting inserted_ammo. AmmoFeed.insert previously ignored Reservoir's
+	# capacity result after emitting the success signal.
+	var full_feed := AmmoFeed.new()
+	full_feed.max_capacity = 1
+	var inserted_events := [0]
+	full_feed.inserted_ammo.connect(func(_feed, _ammo): inserted_events[0] += 1)
+	var first := _ammo(Ammo.Rating.LOW, Ammo.Rating.LOW)
+	var rejected := _ammo(Ammo.Rating.LOW, Ammo.Rating.LOW)
+	_check(full_feed.insert(first), "non-full AmmoFeed accepts a round")
+	_check(not full_feed.insert(rejected), "full AmmoFeed rejects a round")
+	_check(full_feed.capacity == 1 and full_feed.contents[0] != rejected,
+		"rejected round does not enter a full AmmoFeed")
+	_check(inserted_events[0] == 1,
+		"inserted_ammo emits only for the accepted round (events=%d)" % inserted_events[0])
+
 	# QA-001: copying a magazine must not alias the source's contents.
 	var src := AmmoFeed.new()
 	src.max_capacity = 30

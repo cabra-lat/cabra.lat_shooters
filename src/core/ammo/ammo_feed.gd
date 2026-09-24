@@ -29,8 +29,9 @@ func insert(ammo: Resource) -> bool:
   if not is_compatible(ammo):
     incompatible_ammo.emit(self, ammo)
     return false
+  if not super.insert(ammo):
+    return false
   inserted_ammo.emit(self, ammo)
-  super.insert(ammo)
   return true
 
 func eject() -> Ammo:
