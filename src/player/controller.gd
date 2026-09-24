@@ -21,6 +21,11 @@ const RELOADING = "Reloading"
 const SPRINTING = "Sprinting"
 const WALKING = "Walking"
 const VIEW_MODEL_NAME = "WeaponModel"
+## Split-world view: the main camera renders world layer 1 while a full-screen
+## viewmodel camera renders the held gun/player overlay on layer 2. The two
+## cameras share the world (and lighting) but never render each other's layer.
+const VIEWMODEL_LAYER := 2
+const WORLD_LAYER := 1
 
 # ─── SIGNALS ───────────────────────────────────────────────────────────────────
 signal moved(player: PlayerController, delta: float)
@@ -84,6 +89,12 @@ var current_weapon: Weapon = null
 var active_weapon_slot: String = "primary"
 var current_hands: Item3D = null
 var viewmodel_rig: ViewmodelRig = null
+var split_world_enabled: bool = true
+var first_person_view: bool = true
+var viewmodel_viewport: SubViewport = null
+var viewmodel_camera: Camera3D = null
+var viewmodel_layer: CanvasLayer = null
+var viewmodel_container: SubViewportContainer = null
 var last_look_delta := Vector2.ZERO
 var current_direction: Vector3 = Vector3.ZERO
 var _pitch: float = 0.0 # eye pitch (radians), mirrored from the look input
@@ -159,6 +170,7 @@ func _ready():
   survival.max_weight = config.max_weight
   _install_status_hud()
   _install_starter_medical()
+  _install_split_world_view()
   # Body visibility is applied deferred: a scene's _ready (which used to hide
   # every body mesh) runs AFTER its children are ready, so restoring the layers
   # immediately would be undone. Idempotent, so scenes may call it too.
@@ -307,7 +319,7 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
     var tree := get_tree()
     if tree == null:
       return
-    var host := tree.current_scene if tree.current_scene != null else tree.root
+    var host: Node = viewmodel_viewport if split_world_enabled and viewmodel_viewport != null else (tree.current_scene if tree.current_scene != null else tree.root)
     if host == null:
       return
     if not host.is_node_ready():
@@ -326,9 +338,17 @@ func _setup_viewmodel_on_hand(weapon: Weapon):
     host.add_child(new_vm)
     new_vm.attractors.clear()
     new_vm.data = weapon
+    if split_world_enabled:
+      _set_viewmodel_layer(new_vm, VIEWMODEL_LAYER)
     viewmodel_rig = ViewmodelRig.new()
     viewmodel_rig.setup(self, new_vm)
     current_hands = new_vm
+
+func _set_viewmodel_layer(node: Node, layer: int) -> void:
+  if node is VisualInstance3D:
+    (node as VisualInstance3D).layers = layer
+  for child in node.get_children():
+    _set_viewmodel_layer(child, layer)
 
 func _remove_viewmodel_from_hand():
   _teardown_viewmodel()
@@ -639,7 +659,122 @@ func _install_status_hud() -> void:
 ## See PlayerBodyVisibility: keep the body visible to the FPS camera and cut
 ## only the shell near the lens.
 func _install_body_visibility() -> void:
-  PlayerBodyVisibility.apply(self, PlayerBodyVisibility.DEFAULT_NEAR_CUTOFF)
+  _apply_view_visibility()
+
+## Build the full-screen viewmodel pass. It shares the current World3D so the
+## existing lighting/materials remain identical, but its camera only sees layer
+## 2; the main camera is restricted to world layer 1. The viewport is a
+## transparent overlay, so the world pass remains visible underneath.
+func _install_split_world_view() -> void:
+  if viewmodel_viewport != null:
+    return
+  viewmodel_layer = CanvasLayer.new()
+  viewmodel_layer.name = "SplitWorldViewLayer"
+  viewmodel_layer.layer = 100
+  add_child(viewmodel_layer)
+
+  viewmodel_container = SubViewportContainer.new()
+  viewmodel_container.name = "ViewmodelViewportContainer"
+  # Keep the render target manually sized so headless probes and GPU windows
+  # report the same dimensions without SubViewportContainer auto-resize.
+  viewmodel_container.stretch = false
+  viewmodel_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+  viewmodel_layer.add_child(viewmodel_container)
+
+  viewmodel_viewport = SubViewport.new()
+  viewmodel_viewport.name = "ViewmodelViewport"
+  viewmodel_viewport.own_world_3d = false
+  viewmodel_viewport.world_3d = get_viewport().world_3d
+  viewmodel_viewport.transparent_bg = true
+  viewmodel_viewport.handle_input_locally = false
+  viewmodel_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+  viewmodel_container.add_child(viewmodel_viewport)
+
+  # The world camera is authoritative for layer 1; keep it explicit even when
+  # a scene authored a different mask so the split cannot duplicate the gun.
+  camera.cull_mask = WORLD_LAYER
+  viewmodel_camera = Camera3D.new()
+  viewmodel_camera.name = "ViewmodelCamera"
+  viewmodel_camera.cull_mask = VIEWMODEL_LAYER
+  viewmodel_camera.fov = camera.fov if camera != null else 75.0
+  viewmodel_camera.near = camera.near if camera != null else 0.01
+  viewmodel_camera.far = camera.far if camera != null else 1000.0
+  viewmodel_camera.current = true
+  viewmodel_viewport.add_child(viewmodel_camera)
+  viewmodel_viewport.size = _viewport_size()
+  viewmodel_container.position = Vector2.ZERO
+  viewmodel_container.size = _viewport_size()
+  if not get_viewport().size_changed.is_connected(_on_viewport_size_changed):
+    get_viewport().size_changed.connect(_on_viewport_size_changed)
+  _apply_view_visibility()
+  _sync_split_world_view()
+
+func _viewport_size() -> Vector2i:
+  var size := get_viewport().get_visible_rect().size
+  return Vector2i(maxi(1, int(size.x)), maxi(1, int(size.y)))
+
+func _on_viewport_size_changed() -> void:
+  if viewmodel_viewport == null:
+    return
+  var size := _viewport_size()
+  viewmodel_viewport.size = size
+  if viewmodel_container != null:
+    viewmodel_container.position = Vector2.ZERO
+    viewmodel_container.size = size
+  _sync_split_world_view()
+
+func _sync_split_world_view() -> void:
+  if viewmodel_camera == null or camera == null:
+    return
+  viewmodel_camera.global_transform = camera.global_transform
+  viewmodel_camera.fov = camera.fov
+  viewmodel_camera.keep_aspect = camera.keep_aspect
+
+## Enable/disable the split pass for controlled A/B runs. Disabled mode
+## restores the legacy single-camera world path and is not a production mode.
+func set_split_world_enabled(enabled: bool) -> void:
+  split_world_enabled = enabled
+  if enabled and viewmodel_viewport == null:
+    _install_split_world_view()
+  if is_instance_valid(current_hands):
+    _set_viewmodel_layer(current_hands, VIEWMODEL_LAYER if enabled else WORLD_LAYER)
+  _apply_view_visibility()
+  if viewmodel_viewport != null:
+    viewmodel_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+    viewmodel_container.visible = enabled and first_person_view
+
+## Toggle the approved visibility contract. First person renders the held
+## overlay and hides the world body; third person restores the body to the
+## main camera and hides the viewmodel pass.
+func set_view_mode(first_person: bool) -> void:
+  first_person_view = first_person
+  if spring_arm != null:
+    spring_arm.spring_length = 0.1 if first_person else 2.0
+  _apply_view_visibility()
+  if viewmodel_container != null:
+    viewmodel_container.visible = split_world_enabled and first_person_view
+  _sync_split_world_view()
+
+func _apply_view_visibility() -> void:
+  if not split_world_enabled:
+    PlayerBodyVisibility.apply(self, PlayerBodyVisibility.DEFAULT_NEAR_CUTOFF, true)
+    if is_instance_valid(current_hands):
+      _set_viewmodel_layer(current_hands, WORLD_LAYER)
+    return
+  if not first_person_view:
+    PlayerBodyVisibility.apply(self, PlayerBodyVisibility.DEFAULT_NEAR_CUTOFF, false)
+    if is_instance_valid(current_hands):
+      _set_viewmodel_layer(current_hands, VIEWMODEL_LAYER)
+    return
+  PlayerBodyVisibility.apply(self, PlayerBodyVisibility.DEFAULT_NEAR_CUTOFF, true)
+  var body := PlayerBodyVisibility.body_mesh(self)
+  var head := BodyMeshSplit.split(body) if body != null else null
+  var cap := BodyMeshSplit.neck_cap(body) if body != null else null
+  for mesh in PlayerBodyVisibility.all_meshes(self):
+    if mesh == body or mesh == head or mesh == cap:
+      mesh.layers = VIEWMODEL_LAYER
+  if is_instance_valid(current_hands):
+    _set_viewmodel_layer(current_hands, VIEWMODEL_LAYER)
 
 # ─── INPUT HANDLING ────────────────────────────────────────────────────────────
 func _input(event):
@@ -786,6 +921,7 @@ func _physics_process(delta: float) -> void:
 
   if viewmodel_rig:
     viewmodel_rig.update_rig(delta)
+  _sync_split_world_view()
 
   frame_timer.call()
 

@@ -30,6 +30,7 @@ const SWAY_K := 10.0
 const KICK_K := 12.0
 const DIP_K := 5.0
 const BOB_FREQ := 9.0
+const VIEWMODEL_LAYER := 2
 
 var _player: PlayerController
 var _gun: Weapon3D
@@ -96,6 +97,7 @@ func setup(player: PlayerController, gun: Weapon3D) -> void:
 		_stash_and_zero(gun as RigidBody3D)
 		_freeze_body(gun as RigidBody3D)
 	_freeze_gun_descendants(gun)
+	_set_viewmodel_layer(gun)
 
 ## Remember the body's collision layers, then take it off the shoot ray.
 func _stash_and_zero(rb: RigidBody3D) -> void:
@@ -215,6 +217,10 @@ static func gun_relative_pos(gun: Node3D, target: Node3D) -> Vector3:
 func update_rig(delta: float) -> void:
 	if not is_instance_valid(_gun) or not is_instance_valid(_cam) or not is_instance_valid(_player):
 		return
+	if _player.split_world_enabled:
+		# Some weapon/attachment nodes apply their hidden-from-world layer
+		# during deferred _ready; keep the split contract authoritative.
+		_set_viewmodel_layer(_gun)
 	var cb: Basis = _cam.global_transform.basis
 	var cp: Vector3 = _cam.global_position
 	# Sway lags behind look velocity, decays to zero on its own.
@@ -304,6 +310,7 @@ func _mount_attachment(point: int, attachment: Attachment) -> void:
 	if inst is RigidBody3D:
 		_stash_and_zero(inst as RigidBody3D)
 		_freeze_body(inst as RigidBody3D)
+	_set_viewmodel_layer(inst)
 	_mounted_attachments[point] = inst
 	if point == Weapon.AttachmentPoint.TOP_RAIL:
 		Weapon3D.hide_baked_marker_siblings(marker, inst, _baked_optics_hidden)
@@ -312,6 +319,12 @@ func _mount_attachment(point: int, attachment: Attachment) -> void:
 func _unmount_attachment(point: int) -> void:
 	Weapon3D.unmount_attachment_entry(_mounted_attachments, point, _baked_optics_hidden)
 	_refresh_ads_after_change()
+
+func _set_viewmodel_layer(node: Node) -> void:
+	if node is VisualInstance3D:
+		(node as VisualInstance3D).layers = VIEWMODEL_LAYER
+	for child in node.get_children():
+		_set_viewmodel_layer(child)
 
 ## Shared tail of mount/unmount: re-resolve eye alignment (an optic reticle may
 ## have appeared or gone).
