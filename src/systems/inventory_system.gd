@@ -3,13 +3,31 @@ class_name InventorySystem
 extends Resource
 
 static func transfer_item(source: Resource, target: Resource, item: InventoryItem) -> bool:
+  if item == null:
+    return false
   print("=== TRANSFER ITEM START ===")
   print("Transfer: %s -> %s" % [source, target])
-  print("Item: %s (dimensions: %s)" % [item.name if item else "Unknown", item.dimensions])
+  print("Item: %s (dimensions: %s)" % [item.name, item.dimensions])
   var result = transfer_item_to_position(source, target, item, Vector2i(-1, -1))
   print("Transfer result: %s" % result)
   print("=== TRANSFER ITEM END ===")
   return result
+
+## Public half-transaction used by consumers that own a separate destination
+## operation (for example, Gunsmith's timed weapon mount). The core still
+## owns source lookup/removal, so callers never inspect container internals.
+static func take_item(source: Resource, item: InventoryItem) -> bool:
+  if source == null or item == null:
+    return false
+  return _remove_from_source(source, item)
+
+## Public return path for a timed consumer. It shares the same insertion and
+## rollback helpers as transfer_item_to_position; preferred_position is honored
+## when free, with the same fallback behavior as a normal container return.
+static func return_item(source: Resource, item: InventoryItem, preferred_position: Vector2i = Vector2i(-1, -1)) -> bool:
+  if source == null or item == null:
+    return false
+  return _insert_into_destination(source, item, preferred_position, false, true, true)
 
 static func transfer_item_to_position(
   source: Resource,
@@ -36,94 +54,102 @@ static func transfer_item_to_position(
     print("ERROR: refusing to drop a container into itself/descendant")
     return false
 
-    # Store original position for rollback
+    # Store original source and position for rollback
   var original_position = item.position
-  var original_container = null
+  var original_source: Resource = source
 
-    # Remove from source first
-  var removed = false
-  if source is InventoryContainer:
-    original_container = source
-    if item in source.items:
-      print("Removing from container: %s" % source)
-      removed = source.remove_item(item)
-    else:
-      print("ERROR: Item not found in source container")
-  elif source is Equipment:
-    original_container = source
-    print("Removing from equipment")
-        # Find which slot the item is in and remove it
-    for slot_name in source.slots:
-      var slot = source.slots[slot_name]
-      if item in slot.items:
-        removed = slot.remove_item(item)
-        print("Removed from slot %s: %s" % [slot_name, removed])
-        break
-  else:
-    removed = true
-
+  # Remove from source first. Null is the existing quick-equip/return path:
+  # there is no source to remove from, so the target insertion owns the result.
+  var removed := source == null or _remove_from_source(source, item)
   if not removed:
     print("ERROR: Failed to remove from source")
     return false
 
-    # Add to target
-  var added = false
-  if target is InventoryContainer:
-    var target_pos = position
-    if position != Vector2i(-1, -1):
-            # Try exact position first
-      print("Trying exact position: %s" % position)
-      if target.grid.can_add_item(item, position):
-        print("Exact position available")
-        added = target.grid.add_item(item, position)
-      else:
-        print("Exact position not available, finding best position")
-                # If exact position fails, find the best position
-        target_pos = _find_best_position_for_item(item, position, target)
-        if target_pos != Vector2i(-1, -1):
-          print("Found best position: %s" % target_pos)
-          added = target.grid.add_item(item, target_pos)
-    else:
-            # Find any free space
-      print("Finding any free space")
-      target_pos = target.grid.find_free_space_for_item(item)
-      if target_pos != Vector2i(-1, -1):
-        print("Found free space: %s" % target_pos)
-        added = target.grid.add_item(item, target_pos)
-  elif target is Equipment:
-    var slot_name = _infer_slot(item)
-    if slot_name != "":
-      print("Equipping to slot: %s" % slot_name)
-      added = target.equip(item, slot_name)
-      print("Equip result: %s" % added)
-    else:
-      print("ERROR: Could not infer slot for item")
-
+  # Add to target through the same insertion helper used by return_item().
+  var added := _insert_into_destination(target, item, position, true, false, true)
   if not added:
     print("ERROR: Failed to add to target, rolling back")
-        # Rollback: put item back in original position
-    if original_container is InventoryContainer:
-            # Try to add back to original position
-      if original_container.grid.can_add_item(item, original_position):
-        original_container.grid.add_item(item, original_position)
-      else:
-                # If original position is taken, find any free space
-        var free_pos = original_container.grid.find_free_space_for_item(item)
-        if free_pos != Vector2i(-1, -1):
-          original_container.grid.add_item(item, free_pos)
-    elif original_container is Equipment:
-            # Try to re-equip in any compatible slot
-      for slot_name in original_container.slots:
-        var slot = original_container.slots[slot_name]
-        if slot.can_add_item(item):
-          slot.add_item(item)
-          print("Rollback: re-equipped to slot %s" % slot_name)
-          break
+    if original_source != null:
+      _restore_to_source(original_source, item, original_position)
     return false
 
   print("Transfer successful!")
   print("=== TRANSFER TO POSITION END ===")
   return true
+
+static func _remove_from_source(source: Resource, item: InventoryItem) -> bool:
+  if source is InventoryContainer:
+    var container := source as InventoryContainer
+    if item in container.items:
+      print("Removing from container: %s" % source)
+      return container.remove_item(item)
+    print("ERROR: Item not found in source container")
+    return false
+  if source is Equipment:
+    print("Removing from equipment")
+    for slot_name in source.slots:
+      var slot := source.slots[slot_name] as EquipmentSlot
+      if slot != null and item in slot.items:
+        var removed := slot.remove_item(item)
+        print("Removed from slot %s: %s" % [slot_name, removed])
+        return removed
+    return false
+  if source.has_method("remove_item"):
+    return bool(source.call("remove_item", item))
+  return false
+
+
+## Shared insertion boundary for normal transfers, timed returns, and rollback.
+## search_near=true preserves transfer_item_to_position()'s radius search;
+## use_container_api/use_equipment_equip preserve the existing caller-specific
+## signal and validation behavior while keeping the branch in one place.
+static func _insert_into_destination(
+  destination: Resource,
+  item: InventoryItem,
+  preferred_position: Vector2i,
+  search_near: bool,
+  use_container_api: bool,
+  use_equipment_equip: bool
+) -> bool:
+  if destination is InventoryContainer:
+    var container := destination as InventoryContainer
+    if container.grid == null:
+      return false
+    var target_pos := Vector2i(-1, -1)
+    if preferred_position != Vector2i(-1, -1) and search_near:
+      target_pos = _find_best_position_for_item(item, preferred_position, container)
+    elif preferred_position != Vector2i(-1, -1) and container.grid.is_area_free(preferred_position, item.dimensions):
+      target_pos = preferred_position
+    else:
+      target_pos = container.grid.find_free_space_for_item(item)
+    if target_pos == Vector2i(-1, -1):
+      return false
+    if use_container_api:
+      return container.add_item(item, target_pos)
+    return container.grid.add_item(item, target_pos)
+  if destination is Equipment:
+    var equipment := destination as Equipment
+    if use_equipment_equip:
+      var slot_name := _infer_slot(item)
+      if slot_name == "" or not equipment.slots.has(slot_name):
+        return false
+      return equipment.equip(item, slot_name)
+    for slot_name in equipment.slots:
+      var slot := equipment.slots[slot_name] as EquipmentSlot
+      if slot != null and slot.can_add_item(item):
+        return slot.add_item(item)
+    return false
+  if destination.has_method("add_item"):
+    return bool(destination.call("add_item", item))
+  return false
+
+
+static func _restore_to_source(source: Resource, item: InventoryItem, original_position: Vector2i) -> bool:
+  # Rollback must be able to restore a just-removed item even when normal
+  # container rules would reject the add, so use the direct grid/equipment
+  # insertion modes here.
+  return _insert_into_destination(source, item, original_position, false, false, false)
+
 
 static func _find_best_position_for_item(item: InventoryItem, preferred_position: Vector2i, target: InventoryContainer) -> Vector2i:
   print("Finding best position for %s around %s" % [item.dimensions, preferred_position])
