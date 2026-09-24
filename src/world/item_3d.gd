@@ -2,6 +2,10 @@
 class_name Item3D
 extends Grabbable3D
 
+## RigidBody3D rejects non-positive mass. Resource data may intentionally carry
+## zero as a placeholder; keep physics valid without changing that data.
+const MIN_PHYSICS_MASS := 0.001
+
 # Signals for interaction
 signal item_picked_up(world_item: Item3D, player: PlayerController)
 signal item_dropped(world_item: Item3D)
@@ -42,7 +46,10 @@ func _get_data():
 
 func _set_data(value):
   data = value
-  mass = data.mass if data != null else 0.0
+  var resource_mass := 0.0
+  if data != null:
+    resource_mass = float(data.mass)
+  mass = resource_mass if resource_mass > 0.0 else MIN_PHYSICS_MASS
 
 # Physics management
 func _enable_physics():

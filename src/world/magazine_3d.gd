@@ -15,8 +15,11 @@ func _set_data(value: AmmoFeed):
   _unload_casings()
 
   data = value
+  var resource_mass := 0.0
   if data:
-    mass = data.mass
+    resource_mass = float(data.mass)
+  mass = resource_mass if resource_mass > 0.0 else MIN_PHYSICS_MASS
+  if data:
     print("Magazine data set, contents size: ", data.contents.size() if data.contents else 0)
 
         # Preload casings now that we have data
