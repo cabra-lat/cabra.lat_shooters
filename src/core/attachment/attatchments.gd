@@ -86,6 +86,12 @@ var current_weapon: Weapon = null
 
 # ─── PUBLIC METHODS ────────────────────────────────
 func attach_to_weapon(weapon: Weapon) -> bool:
+  if weapon == null:
+    return false
+  # An Attachment is single-owner state. Two InventoryItem wrappers may point
+  # at the same resource, so only the clean unattached state is mountable.
+  if is_attached or current_weapon != null:
+    return false
   # Magazines bypass the rail-bit check: they ride the existing
   # MagazinePoint / ammo_feed path (see Weapon.attach_attachment).
   if type != AttachmentType.MAGAZINE and not _is_compatible(weapon):
@@ -97,8 +103,8 @@ func attach_to_weapon(weapon: Weapon) -> bool:
   attachment_attached.emit(self, weapon)
   return true
 
-func detach_from_weapon() -> bool:
-  if not is_attached:
+func detach_from_weapon(weapon: Weapon) -> bool:
+  if weapon == null or not is_attached or current_weapon != weapon:
     return false
   var old_weapon = current_weapon
   current_weapon = null

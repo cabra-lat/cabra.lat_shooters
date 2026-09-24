@@ -160,12 +160,20 @@ func _refresh_firemode() -> void:
 # ─── EJECTION ──────────────────────────────────────
 # ─── ATTACHMENTS ───────────────────────────────────
 func attach_attachment(point: int, attachment: Attachment) -> bool:
+  if attachment == null:
+    return false
   var is_magazine := attachment.type == Attachment.AttachmentType.MAGAZINE
   var key := MAGAZINE_POINT if is_magazine else point
   if not is_magazine and not (attach_points & point):
     return false
   if attachments.has(key):
     return false
+  # Do not let a stale/foreign owner state mutate this weapon's dictionary.
+  if attachment.is_attached or attachment.current_weapon != null:
+    return false
+  for existing in attachments.values():
+    if existing == attachment:
+      return false
   if not attachment.attach_to_weapon(self):
     return false
   attachments[key] = attachment
@@ -177,8 +185,9 @@ func attach_attachment(point: int, attachment: Attachment) -> bool:
 func detach_attachment(point: int) -> bool:
   if not attachments.has(point):
     return false
-  var attachment = attachments[point]
-  attachment.detach_from_weapon()
+  var attachment := attachments[point] as Attachment
+  if attachment == null or not attachment.detach_from_weapon(self):
+    return false
   attachments.erase(point)
   if attachment.type == Attachment.AttachmentType.MAGAZINE:
     _restore_magazine_capacity()

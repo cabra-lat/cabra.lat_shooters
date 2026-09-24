@@ -63,6 +63,7 @@ func _initialize() -> void:
 	_test_bleed()
 	_test_effectiveness(m855)
 	_test_shotgun_data()
+	_test_attachment_ownership()
 
 	print("")
 	print("checks: %d pass, %d fail" % [_pass, _fail])
@@ -260,3 +261,55 @@ func _test_shotgun_data() -> void:
 		_check(buck.base_damage == 50.0 and _approx(buck.reference_penetration, 0.6),
 			"magnum buckshot 50 dmg / low pen")
 		_check(buck.heavy_bleed_chance == 0.1 and buck.light_bleed_chance == 0.2, "buckshot bleed 20/10%%")
+
+# 8. Shared attachment resources have one owner and reject stale detach.
+func _test_attachment_ownership() -> void:
+	print("-- attachment ownership")
+	var weapon_a := Weapon.new()
+	var weapon_b := Weapon.new()
+	weapon_a.attach_points = Weapon.AttachmentPoint.TOP_RAIL
+	weapon_b.attach_points = Weapon.AttachmentPoint.TOP_RAIL
+
+	var shared := Attachment.new()
+	shared.name = "Shared optic"
+	shared.type = Attachment.AttachmentType.OPTICS
+	shared.attachment_point = Weapon.AttachmentPoint.TOP_RAIL
+	var wrapper_a := InventoryItem.slurp(shared)
+	var wrapper_b := InventoryItem.slurp(shared)
+	var attachment_a := wrapper_a.extra as Attachment
+	var attachment_b := wrapper_b.extra as Attachment
+	_check(attachment_a == attachment_b, "two wrappers share one attachment resource")
+
+	var mounted_a := weapon_a.attach_attachment(Weapon.AttachmentPoint.TOP_RAIL, attachment_a)
+	var rejected_b := weapon_b.attach_attachment(Weapon.AttachmentPoint.TOP_RAIL, attachment_b)
+	_check(mounted_a and not rejected_b, "second weapon rejects a shared attachment")
+	_check(weapon_a.get_attachment(Weapon.AttachmentPoint.TOP_RAIL) == shared,
+		"owner dictionary retains the attachment")
+	_check(weapon_b.get_attachment(Weapon.AttachmentPoint.TOP_RAIL) == null,
+		"rejected weapon dictionary stays unchanged")
+	_check(shared.current_weapon == weapon_a and shared.is_attached,
+		"attachment owner remains weapon A")
+
+	# Simulate a stale dictionary entry: the owner check must refuse to erase it.
+	weapon_b.attachments[Weapon.AttachmentPoint.TOP_RAIL] = attachment_b
+	var wrong_weapon_detach := weapon_b.detach_attachment(Weapon.AttachmentPoint.TOP_RAIL)
+	_check(not wrong_weapon_detach and weapon_b.get_attachment(Weapon.AttachmentPoint.TOP_RAIL) == attachment_b,
+		"mismatched weapon detach refuses and preserves its dictionary")
+	weapon_b.attachments.erase(Weapon.AttachmentPoint.TOP_RAIL)
+
+	var wrong_owner_detach := shared.detach_from_weapon(weapon_b)
+	_check(not wrong_owner_detach and shared.current_weapon == weapon_a and shared.is_attached,
+		"wrong owner cannot detach the attachment")
+	var detached_a := weapon_a.detach_attachment(Weapon.AttachmentPoint.TOP_RAIL)
+	_check(detached_a and weapon_a.get_attachment(Weapon.AttachmentPoint.TOP_RAIL) == null,
+		"owner detaches and removes the dictionary entry")
+	_check(not shared.is_attached and shared.current_weapon == null,
+		"detach releases the attachment owner state")
+	_check(weapon_b.get_attachment(Weapon.AttachmentPoint.TOP_RAIL) == null,
+		"unmounted second weapon remains empty")
+
+	var remounted_b := weapon_b.attach_attachment(Weapon.AttachmentPoint.TOP_RAIL, attachment_b)
+	_check(remounted_b and weapon_b.get_attachment(Weapon.AttachmentPoint.TOP_RAIL) == shared,
+		"released attachment remounts on weapon B")
+	_check(weapon_b.detach_attachment(Weapon.AttachmentPoint.TOP_RAIL),
+		"cleanup detaches the remounted attachment")
