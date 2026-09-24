@@ -41,7 +41,7 @@ advance_expression = "!is_on_floor()"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="13"]
 advance_mode = 2
-advance_expression = "input.motion.length() = 0"
+advance_expression = "input.motion.length() == 0"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="14"]
 advance_mode = 2
