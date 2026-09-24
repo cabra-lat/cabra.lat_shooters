@@ -8,6 +8,8 @@ extends SceneTree
 
 const PLAYER_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player.tscn"
 const BOT_SCENE := "res://src/npcs/bot/bot.tscn"
+const CONFIG_SCRIPT := "res://addons/cabra.lat_shooters/src/player/config.gd"
+const MOVEMENT_PARAMETERS_SCRIPT := "res://addons/cabra.lat_shooters/src/player/player_movement_parameters.gd"
 const MOVE_FRAMES := 50
 const STOP_MID_FRAME := 65
 const STOP_TAIL_FRAMES := 30
@@ -25,6 +27,9 @@ const NPC_RIG_Y := 0.893
 const REST_X := Vector3(0.0, 0.0, -1.0)
 const REST_Y := Vector3(-1.0, 0.0, 0.0)
 const REST_Z := Vector3(0.0, 1.0, 0.0)
+const PILOT_SEED := 0x5EEDC0DE
+
+enum PilotAction { MOVE, TURN, STOP, REVERSE }
 
 var _world: Node3D
 var _player: CharacterBody3D
@@ -34,18 +39,21 @@ var _passed := 0
 var _failed := 0
 var _sabotage := false
 var _sabotage_transform := false
+var _sabotage_action := false
 
 func _initialize() -> void:
+	seed(PILOT_SEED)
 	var args := OS.get_cmdline_args()
 	var mode := OS.get_environment("LOCOMOTION_SABOTAGE")
 	_sabotage = args.has("--sabotage") or mode == "1" or mode == "expected"
 	_sabotage_transform = args.has("--sabotage-transform") or mode == "transform"
+	_sabotage_action = args.has("--sabotage-action") or mode == "action"
 	_run()
 
 func _run() -> void:
 	_build_world()
 	if not _spawn_actors():
-		_finish()
+		await _finish()
 		return
 
 	# SceneTree._initialize() is not fully inside-tree yet; let one frame settle
@@ -67,7 +75,9 @@ func _run() -> void:
 	_check("LOC-08", "grounded_after_locomotion",
 		_player.is_on_floor() and _bot.is_on_floor(),
 		"player_floor=%s npc_floor=%s" % [str(_player.is_on_floor()), str(_bot.is_on_floor())])
-	_finish()
+	_check_movement_parameter_cases()
+	_check_survival_state()
+	await _finish()
 
 func _build_world() -> void:
 	_world = Node3D.new()
@@ -116,6 +126,7 @@ func _spawn_actors() -> bool:
 	_bot.set("loot_enabled", false)
 	_bot.set("sight_range", 0.0)
 	_bot.set("use_cover", false)
+	_bot.set("visual_variation", false)
 	_bot.collision_layer = 4
 	_bot.collision_mask = 1
 	_bot.position = Vector3(3.0, 0.08, 0.0)
@@ -139,12 +150,12 @@ func _run_straight() -> void:
 	var expected_bot := Vector3(0.0, 0.0, -1.0)
 	var player_start := _player.global_position
 	var bot_start := _bot.global_position
-	Input.action_press("forward")
+	_apply_action(PilotAction.MOVE)
 	_bot.call("setup", [_bot.global_position + expected_bot * 8.0])
 	_neutralize_npc_perception()
 	await _wait_frames(MOVE_FRAMES)
 	_check_motion("straight", player_start, bot_start, expected_player, expected_bot)
-	Input.action_release("forward")
+	_apply_action(PilotAction.STOP)
 	_check_nested_transforms("straight")
 
 func _run_turn() -> void:
@@ -154,18 +165,18 @@ func _run_turn() -> void:
 	var expected_bot := Vector3(1.0, 0.0, 0.0)
 	var player_start := _player.global_position
 	var bot_start := _bot.global_position
-	Input.action_press("forward")
+	_apply_action(PilotAction.TURN)
 	_bot.call("setup", [_bot.global_position + expected_bot * 8.0])
 	_neutralize_npc_perception()
 	await _wait_frames(MOVE_FRAMES)
 	_check_motion("turn", player_start, bot_start, expected_player, expected_bot)
 	_check("LOC-07", "player_turn_yaw", absf(absf(rad_to_deg(_player.rotation.y)) - 90.0) < 0.5,
 		"yaw=%.3f" % rad_to_deg(_player.rotation.y))
-	Input.action_release("forward")
+	_apply_action(PilotAction.STOP)
 	_check_nested_transforms("turn")
 
 func _run_stop() -> void:
-	Input.action_release("forward")
+	_apply_action(PilotAction.STOP)
 	_bot.set("waypoints", [])
 	_bot.set("_wp_index", 0)
 	_neutralize_npc_perception()
@@ -177,8 +188,7 @@ func _run_stop() -> void:
 	_check_nested_transforms("stop")
 
 func _run_reverse() -> void:
-	Input.action_release("forward")
-	Input.action_press("back")
+	_apply_action(PilotAction.REVERSE)
 	var expected_player := -_player_forward()
 	var expected_bot := -_bot_forward()
 	var player_start := _player.global_position
@@ -187,11 +197,11 @@ func _run_reverse() -> void:
 	_neutralize_npc_perception()
 	await _wait_frames(MOVE_FRAMES)
 	_check_motion("reverse", player_start, bot_start, expected_player, expected_bot)
-	Input.action_release("back")
+	_apply_action(PilotAction.STOP)
 	_check_nested_transforms("reverse")
 
 func _run_final_stop() -> void:
-	Input.action_release("back")
+	_apply_action(PilotAction.STOP)
 	_bot.set("waypoints", [])
 	_bot.set("_wp_index", 0)
 	_neutralize_npc_perception()
@@ -201,6 +211,127 @@ func _run_final_stop() -> void:
 	await _wait_frames(STOP_TAIL_FRAMES)
 	_check_stop("final_stop", player_mid, bot_mid)
 	_check_nested_transforms("final_stop")
+
+func _apply_action(action: PilotAction) -> void:
+	Input.action_release("forward")
+	Input.action_release("back")
+	match action:
+		PilotAction.MOVE, PilotAction.TURN:
+			Input.action_press("forward")
+		PilotAction.REVERSE:
+			Input.action_press("back")
+		PilotAction.STOP:
+			pass
+
+func _check_survival_state() -> void:
+	var moving := _player.get("moving")
+	var moving_state := "<none>"
+	if moving != null:
+		moving_state = str(moving.get("state"))
+	var player_basis := _player.global_transform.basis
+	var bot_basis := _bot.global_transform.basis
+	var finite := _finite_vector(_player.global_position) \
+		and _finite_vector(_bot.global_position) \
+		and _finite_vector(_player.velocity) and _finite_vector(_bot.velocity) \
+		and _finite_vector(player_basis.x) and _finite_vector(player_basis.y) \
+		and _finite_vector(player_basis.z) and _finite_vector(bot_basis.x) \
+		and _finite_vector(bot_basis.y) and _finite_vector(bot_basis.z)
+	var no_stuck := moving_state == "Stopped" \
+		and _horizontal(_player.velocity).length() <= STOP_MAX_SPEED \
+		and _horizontal(_bot.velocity).length() <= STOP_MAX_SPEED \
+		and not bool(_bot.get("_moving"))
+	_check("SURV-01", "survivor_not_stuck", no_stuck,
+		"state=%s player_speed=%.3f npc_speed=%.3f npc_moving=%s" % [
+			moving_state, _horizontal(_player.velocity).length(),
+			_horizontal(_bot.velocity).length(), str(_bot.get("_moving"))])
+	_check("SURV-02", "finite_motion_and_transforms", finite,
+		"player_position=%s npc_position=%s player_velocity=%s" % [
+			str(_player.global_position), str(_bot.global_position), str(_player.velocity)])
+	if _sabotage_action:
+		Input.action_press("forward")
+	var input_clear := not Input.is_action_pressed("forward") \
+		and not Input.is_action_pressed("back")
+	_check("SURV-03", "survivor_input_released", input_clear,
+		"forward=%s back=%s" % [str(Input.is_action_pressed("forward")),
+			str(Input.is_action_pressed("back"))])
+
+func _check_movement_parameter_cases() -> void:
+	var config_script := load(CONFIG_SCRIPT) as Script
+	var parameters_script := load(MOVEMENT_PARAMETERS_SCRIPT) as Script
+	if config_script == null or parameters_script == null:
+		_check("MOVE", "parameter_scripts_load", false,
+			"config=%s parameters=%s" % [str(config_script != null),
+				str(parameters_script != null)])
+		return
+	var config = config_script.new()
+	var parameters = parameters_script.new()
+	if config == null or parameters == null:
+		_check("MOVE", "parameter_instances_create", false,
+			"config_instance=%s parameter_instance=%s" % [str(config != null),
+				str(parameters != null)])
+		return
+	var constants: Dictionary = parameters_script.get_script_constant_map()
+	var eye_stand := float(constants.get("EYE_STAND", 1.62))
+	var eye_crouch := float(constants.get("EYE_CROUCH", 1.05))
+	var eye_prone := float(constants.get("EYE_PRONE", 0.45))
+	var capsule_stand := float(constants.get("CAPSULE_STAND", 1.0))
+	var capsule_crouch := float(constants.get("CAPSULE_CROUCH", 0.55))
+	var capsule_prone := float(constants.get("CAPSULE_PRONE", 0.35))
+	_check_parameter_case(config, parameters, "stand",
+		"Stopped", "Standing", "NotAiming", "NotLeaning", 1.0, 1.0,
+		config.default_speed, config.default_bobing,
+		eye_stand, config.default_fov, capsule_stand, 0.0)
+	_check_parameter_case(config, parameters, "walk",
+		"Walking", "Standing", "NotAiming", "NotLeaning", 1.0, 1.0,
+		config.walk_speed, config.walk_bobbing,
+		eye_stand, config.default_fov, capsule_stand, 0.0)
+	_check_parameter_case(config, parameters, "crouch",
+		"Walking", "Crouching", "NotAiming", "NotLeaning", 1.0, 1.0,
+		config.crouch_speed, config.crouch_bobbing,
+		eye_crouch, config.default_fov, capsule_crouch, 0.0)
+	_check_parameter_case(config, parameters, "prone",
+		"Walking", "Proning", "NotAiming", "NotLeaning", 1.0, 1.0,
+		config.prone_speed, config.prone_bobbing,
+		eye_prone, config.default_fov, capsule_prone, 0.0)
+	_check_parameter_case(config, parameters, "lean_right",
+		"Walking", "Standing", "NotAiming", "LeaningRight", 1.0, 1.0,
+		config.lean_speed, config.walk_bobbing,
+		eye_stand, config.default_fov, capsule_stand, -1.0)
+	_check_parameter_case(config, parameters, "lean_left",
+		"Walking", "Standing", "NotAiming", "LeaningLeft", 1.0, 1.0,
+		config.lean_speed, config.walk_bobbing,
+		eye_stand, config.default_fov, capsule_stand, 1.0)
+	_check_parameter_case(config, parameters, "aim",
+		"Walking", "Standing", "Aiming", "NotLeaning", 1.0, 1.0,
+		config.crouch_speed, config.NO_BOBBING,
+		eye_stand, config.aim_fov, capsule_stand, 0.0)
+	_check_parameter_case(config, parameters, "focus",
+		"Walking", "Standing", "HoldingBreath", "NotLeaning", 1.0, 1.0,
+		config.prone_speed, config.NO_BOBBING,
+		eye_stand, config.aim_focused_fov, capsule_stand, 0.0)
+	_check_parameter_case(config, parameters, "condition_and_stamina",
+		"Walking", "Standing", "NotAiming", "NotLeaning", 0.5, 0.8,
+		config.walk_speed * 0.5, config.walk_bobbing,
+		eye_stand, config.default_fov * 0.8, capsule_stand, 0.0)
+
+func _check_parameter_case(config, parameters,
+		label: String, moving_state: String, crouching_state: String,
+		aiming_state: String, leaning_state: String, condition_multiplier: float,
+		stamina_fov_multiplier: float, expected_speed: float, expected_bobbing: float,
+		expected_height: float, expected_fov: float, expected_capsule: float,
+		expected_lean: float) -> void:
+	parameters.resolve(config, moving_state, crouching_state, aiming_state,
+		leaning_state, condition_multiplier, stamina_fov_multiplier)
+	var ok := absf(parameters.speed - expected_speed) <= 0.001 \
+		and absf(parameters.head_bobbing - expected_bobbing) <= 0.001 \
+		and absf(parameters.camera_height - expected_height) <= 0.001 \
+		and absf(parameters.camera_fov - expected_fov) <= 0.001 \
+		and absf(parameters.capsule_factor - expected_capsule) <= 0.001 \
+		and absf(parameters.lean_direction - expected_lean) <= 0.001
+	_check("MOVE", label, ok,
+		"speed=%.3f bob=%.3f height=%.3f fov=%.3f capsule=%.3f lean=%.1f" % [
+			parameters.speed, parameters.head_bobbing, parameters.camera_height,
+			parameters.camera_fov, parameters.capsule_factor, parameters.lean_direction])
 
 func _check_motion(label: String, player_start: Vector3, bot_start: Vector3,
 		expected_player: Vector3, expected_bot: Vector3) -> void:
@@ -304,6 +435,9 @@ func _check_nested_transforms(stage: String) -> void:
 func _vector_close(value: Vector3, expected: Vector3, tolerance := 0.002) -> bool:
 	return value.distance_to(expected) <= tolerance
 
+func _finite_vector(value: Vector3) -> bool:
+	return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
+
 func _check(id: String, label: String, ok: bool, detail: String) -> void:
 	_checks += 1
 	if ok:
@@ -342,11 +476,26 @@ func _expected(value: Vector3) -> Vector3:
 func _finish() -> void:
 	Input.action_release("forward")
 	Input.action_release("back")
-	if _world != null and is_instance_valid(_world):
-		_world.process_mode = Node.PROCESS_MODE_DISABLED
-		_world.queue_free()
-	print("SUMMARY locomotion checks=%d passed=%d failed=%d sabotage_expected=%s sabotage_transform=%s" % [
-		_checks, _passed, _failed, str(_sabotage), str(_sabotage_transform)])
+	var world := _world
+	var had_world := world != null and is_instance_valid(world)
+	var orphan_before := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
+	if had_world:
+		world.process_mode = Node.PROCESS_MODE_DISABLED
+		world.queue_free()
+	for _i in 2:
+		await process_frame
+	var orphan_after := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
+	var cleaned := had_world and not is_instance_valid(world) \
+		and not is_instance_valid(_player) and not is_instance_valid(_bot) \
+		and orphan_after <= orphan_before
+	_check("SURV-04", "scene_cleanup", cleaned,
+		"had_world=%s world_valid=%s player_valid=%s npc_valid=%s orphan_delta=%d" % [
+			str(had_world), str(is_instance_valid(world)),
+			str(is_instance_valid(_player)), str(is_instance_valid(_bot)),
+			orphan_after - orphan_before])
+	print("SUMMARY locomotion checks=%d passed=%d failed=%d sabotage_expected=%s sabotage_transform=%s sabotage_action=%s" % [
+		_checks, _passed, _failed, str(_sabotage), str(_sabotage_transform),
+		str(_sabotage_action)])
 	print("checks passed %d" % _passed)
 	print("RESULT: %s" % ("PASS" if _failed == 0 else "FAIL"))
 	call_deferred("_quit_deferred")
