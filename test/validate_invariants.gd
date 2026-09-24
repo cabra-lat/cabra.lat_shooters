@@ -11,6 +11,7 @@
 #
 # Headless, editor-independent. Run:
 #   godot --headless --path . --script res://addons/cabra.lat_shooters/test/validate_invariants.gd
+#   INVARIANTS_SABOTAGE=1 godot --headless --path . --script res://addons/cabra.lat_shooters/test/validate_invariants.gd
 #
 # Exit code: 0 = all invariants pass, 1 = at least one failed.
 #
@@ -33,8 +34,10 @@ const META_SAVE := "user://inv_meta_test/profile.save"
 var _pass := 0
 var _fail := 0
 var _fail_lines: Array[String] = []
+var _sabotage := false
 
 func _initialize() -> void:
+	_sabotage = OS.get_environment("INVARIANTS_SABOTAGE") in ["1", "gunsmith"]
 	_run()
 
 func _run() -> void:
@@ -46,6 +49,7 @@ func _run() -> void:
 	_inv11_container_grid_dims()
 	_inv16_attachment_wiring()
 	_inv16b_baked_optic_toggle()
+	_inv36_inventory_null_transfer()
 	await _inv17_world_mode_tags_no_npcs()
 	await _inv18_rig_sole_on_ground()
 	await _inv19_rig_body_material_supports_flash()
@@ -963,6 +967,7 @@ func _run_player_invariants() -> void:
 	await _inv10_held_viewmodel(player)
 	await _inv31_inventory_combat_gate()
 	await _inv32_gunsmith_origin_roundtrip()
+	await _inv34_gunsmith_ownership_regressions()
 
 	# Let the deferred deletion finish before the next scene probe starts;
 	# otherwise the old player rig can process one last frame against a freed IK
@@ -1170,6 +1175,255 @@ func _inv32_apply_pending(ui) -> bool:
 		return false
 	ui._apply(ui._pending.pop_front())
 	return true
+
+# ─── INV-36: null inventory transfers are rejected at the API boundary ──
+# ORIGIN (QA-01, inventory-ux, 2026-09-24): a null item reached transfer's
+# logging/transfer path and could fail with an opaque script error. Keep the
+# public API contract explicit and independent of any UI fixture.
+func _inv36_inventory_null_transfer() -> void:
+	var rejected: bool = not InventorySystem.transfer_item(null, null, null)
+	_check("INV-36", "inventory_null_transfer_rejected", rejected,
+		"transfer_item(null, null, null)=%s" % str(not rejected),
+		"null item entered the inventory transfer path")
+
+# ─── INV-34/35: Gunsmith ownership and transaction regressions ─────
+# ORIGIN (inventory-ux/QA, 2026-09-24): a timed Gunsmith action must be
+# transactional even when its source changes, its source is Equipment, its UI
+# is reopened for another weapon, or a drag payload is malformed. These probes
+# drive GunsmithUI's real queue/apply path; the core Attachment owner contract
+# is repeated here so the shared invariants gate cannot regress independently of
+# the ballistics harness.
+func _inv34_gunsmith_ownership_regressions() -> void:
+	var results: Array[bool] = []
+	var failures: Array[String] = []
+	var ui_script := load("res://scenes/gunsmith_ui.gd") as GDScript
+	var ui = null
+	if ui_script != null:
+		ui = await _inv34_new_ui()
+	if ui == null:
+		_inv32_record(results, failures, false, "GunsmithUI unavailable")
+	else:
+		var point: int = Weapon.AttachmentPoint.TOP_RAIL
+
+		# Rollback loss: source disappears during the timed attach. Mounting
+		# first must be undone, with no orphaned owner or duplicate wrapper.
+		var rollback_weapon := _inv32_weapon("GunsmithRollback", point)
+		var rollback_source := _inv32_source()
+		var rollback_att := _inv34_attachment("Rollback optic")
+		var rollback_item := _inv32_item(rollback_att)
+		rollback_source.add_item(rollback_item, Vector2i(1, 1))
+		ui.open_for_weapon(rollback_weapon)
+		ui._drop_on_row(point, {"item": rollback_item, "source": rollback_source})
+		var queued_rollback: bool = not ui._pending.is_empty()
+		rollback_source.remove_item(rollback_item)
+		var applied_rollback := _inv32_apply_pending(ui)
+		_inv32_record(results, failures,
+			queued_rollback and applied_rollback \
+				and rollback_weapon.get_attachment(point) == null \
+				and not rollback_att.is_attached and rollback_att.current_weapon == null \
+				and rollback_item not in rollback_source.items,
+			"rollback loss: stale source leaves no mount/owner")
+
+		# Equipment return slot: the public return path must put the exact
+		# wrapper in the inferred primary slot, not merely report success.
+		var equipment := Equipment.new()
+		var equipment_item := InventoryItem.slurp(Weapon.new())
+		var inventory_system_script := load("res://addons/cabra.lat_shooters/src/systems/inventory_system.gd") as Script
+		var has_return_api := inventory_system_script != null \
+			and _inv34_script_has_method(inventory_system_script, "return_item")
+		var equipment_returned := false
+		if has_return_api:
+			equipment_returned = bool(InventorySystem.return_item(equipment, equipment_item))
+		_inv32_record(results, failures,
+			has_return_api and equipment_returned \
+				and equipment_item in equipment.get_equipped("primary"),
+			"Equipment return slot: wrapper returns to primary")
+
+		# Stale live-origin pruning: an attachment removed by another system
+		# must not retain its source/wrapper provenance while its Weapon lives.
+		var stale_weapon := _inv32_weapon("GunsmithStaleOrigin", point)
+		var stale_source := _inv32_source()
+		var stale_att := _inv34_attachment("Stale origin optic")
+		var stale_item := _inv32_item(stale_att)
+		stale_source.add_item(stale_item, Vector2i(0, 0))
+		ui.open_for_weapon(stale_weapon)
+		ui._drop_on_row(point, {"item": stale_item, "source": stale_source})
+		var stale_applied := _inv32_apply_pending(ui)
+		var had_origin: bool = ui._mounted_origins_by_weapon.has(stale_weapon.get_instance_id())
+		stale_weapon.detach_attachment(point)
+		ui._prune_origin_weapon_entries()
+		var stale_pruned: bool = not ui._mounted_origins_by_weapon.has(stale_weapon.get_instance_id())
+		_inv32_record(results, failures,
+			stale_applied and had_origin and stale_pruned,
+			"stale live origin: detached point is pruned")
+
+		# Pending weapon switch: a queued action from weapon A must not apply
+		# after the UI switches to weapon B, even if the stale action is forced.
+		var switch_a := _inv32_weapon("GunsmithSwitchA", point)
+		var switch_b := _inv32_weapon("GunsmithSwitchB", point)
+		var switch_att := _inv34_attachment("Switch optic")
+		ui.open_for_weapon(switch_a)
+		ui._queue_attach(point, switch_att)
+		var switch_queued: bool = not ui._pending.is_empty()
+		var stale_action = ui._pending[0].duplicate(true) if not ui._pending.is_empty() else {}
+		ui.open_for_weapon(switch_b)
+		var switch_cleared: bool = ui._pending.is_empty() and ui._active.is_empty()
+		var stale_ignored := false
+		if stale_action is Dictionary and not stale_action.is_empty():
+			ui._apply(stale_action)
+			stale_ignored = switch_b.get_attachment(point) == null
+			if not stale_ignored:
+				switch_b.detach_attachment(point)
+		_inv32_record(results, failures,
+			switch_queued and switch_cleared and stale_ignored,
+			"pending weapon switch: stale action is cancelled")
+
+		# Malformed drag payloads must be rejected without entering the queue
+		# or raising a script error (the gate scans logs for SCRIPT ERROR).
+		ui.open_for_weapon(_inv32_weapon("GunsmithMalformed", point))
+		var malformed: Array = [null, {}, {"item": null}, {"item": "not-an-inventory-item"}, {"item": {"extra": null}}]
+		var malformed_rejected := true
+		for payload in malformed:
+			if ui._can_drop_on_row(point, payload):
+				malformed_rejected = false
+			ui._drop_on_row(point, payload)
+			if not ui._pending.is_empty():
+				malformed_rejected = false
+				ui._pending.clear()
+		_inv32_record(results, failures, malformed_rejected,
+			"malformed drag payload: rejected without queueing")
+
+	var owner_results: Array[bool] = []
+	var owner_failures: Array[String] = []
+	_inv34_attachment_owner_contract(owner_results, owner_failures)
+	if _sabotage:
+		failures.append("sabotage: forced Gunsmith transaction failure")
+	_check("INV-34", "gunsmith_ownership_transactions",
+		results.size() == 5 and failures.is_empty(),
+		"cases=%d/%d%s" % [_inv34_passed(results), results.size(),
+			"" if failures.is_empty() else " failures=" + ", ".join(failures)],
+		"Gunsmith transaction lost a wrapper, retained stale origin, or accepted invalid input")
+	_check("INV-35", "attachment_single_owner_contract",
+		owner_results.size() == 14 and owner_failures.is_empty(),
+		"cases=%d/%d%s" % [_inv34_passed(owner_results), owner_results.size(),
+			"" if owner_failures.is_empty() else " failures=" + ", ".join(owner_failures)],
+		"two wrappers/weapons could mutate one Attachment owner or reject path")
+	if ui != null and is_instance_valid(ui):
+		await _inv34_dispose_ui(ui)
+
+func _inv34_new_ui():
+	var ui_script := load("res://scenes/gunsmith_ui.gd") as GDScript
+	if ui_script == null:
+		return null
+	var ui = ui_script.new()
+	if ui == null:
+		return null
+	root.add_child(ui)
+	await process_frame
+	return ui
+
+func _inv34_dispose_ui(ui) -> void:
+	if ui == null or not is_instance_valid(ui):
+		return
+	if ui.has_method("close"):
+		ui.call("close")
+	ui.queue_free()
+	await process_frame
+
+func _inv34_attachment(label: String) -> Attachment:
+	var attachment := Attachment.new()
+	attachment.name = label
+	attachment.type = Attachment.AttachmentType.OPTICS
+	attachment.attachment_point = Weapon.AttachmentPoint.TOP_RAIL
+	return attachment
+
+func _inv34_passed(results: Array[bool]) -> int:
+	var passed := 0
+	for result in results:
+		if result:
+			passed += 1
+	return passed
+
+func _inv34_script_has_method(script: Script, method_name: String) -> bool:
+	for method in script.get_script_method_list():
+		if str(method.get("name", "")) == method_name:
+			return true
+	return false
+
+func _inv34_attachment_owner_contract(results: Array[bool], failures: Array[String]) -> void:
+	var point: int = Weapon.AttachmentPoint.TOP_RAIL
+	var weapon_a := Weapon.new()
+	var weapon_b := Weapon.new()
+	weapon_a.name = "OwnerA"
+	weapon_b.name = "OwnerB"
+	weapon_a.attach_points = point
+	weapon_b.attach_points = point
+
+	var null_rejected := not weapon_a.attach_attachment(point, null) \
+		and weapon_a.attachments.is_empty()
+	_inv32_record(results, failures, null_rejected,
+		"null attachment is rejected without dictionary mutation")
+
+	var wrong_point := _inv34_attachment("Wrong point optic")
+	wrong_point.attachment_point = Weapon.AttachmentPoint.MUZZLE
+	var inconsistent_rejected := not weapon_a.attach_attachment(point, wrong_point) \
+		and weapon_a.attachments.is_empty() and not wrong_point.is_attached
+	_inv32_record(results, failures, inconsistent_rejected,
+		"inconsistent mount point is rejected without owner mutation")
+
+	var shared := _inv34_attachment("Shared optic")
+	var wrapper_a := InventoryItem.slurp(shared)
+	var wrapper_b := InventoryItem.slurp(shared)
+	var attachment_a := wrapper_a.extra as Attachment
+	var attachment_b := wrapper_b.extra as Attachment
+	_inv32_record(results, failures, attachment_a == attachment_b,
+		"two wrappers share one attachment resource")
+
+	var mounted_a := weapon_a.attach_attachment(point, attachment_a)
+	var rejected_b := weapon_b.attach_attachment(point, attachment_b)
+	_inv32_record(results, failures, mounted_a and not rejected_b,
+		"second weapon rejects a shared attachment")
+	_inv32_record(results, failures,
+		weapon_a.get_attachment(point) == shared,
+		"owner dictionary retains the attachment")
+	_inv32_record(results, failures,
+		weapon_b.get_attachment(point) == null,
+		"rejected weapon dictionary stays unchanged")
+	_inv32_record(results, failures,
+		shared.current_weapon == weapon_a and shared.is_attached,
+		"attachment owner remains weapon A")
+
+	weapon_b.attachments[point] = attachment_b
+	var wrong_weapon_detach := weapon_b.detach_attachment(point)
+	_inv32_record(results, failures,
+		not wrong_weapon_detach \
+			and weapon_b.get_attachment(point) == attachment_b,
+		"mismatched weapon detach refuses and preserves its dictionary")
+	weapon_b.attachments.erase(point)
+
+	var wrong_owner_detach := shared.detach_from_weapon(weapon_b)
+	_inv32_record(results, failures,
+		not wrong_owner_detach and shared.current_weapon == weapon_a \
+			and shared.is_attached,
+		"wrong owner cannot detach the attachment")
+	var detached_a := weapon_a.detach_attachment(point)
+	_inv32_record(results, failures,
+		detached_a and weapon_a.get_attachment(point) == null,
+		"owner detaches and removes the dictionary entry")
+	_inv32_record(results, failures,
+		not shared.is_attached and shared.current_weapon == null,
+		"detach releases the attachment owner state")
+	_inv32_record(results, failures,
+		weapon_b.get_attachment(point) == null,
+		"unmounted second weapon remains empty")
+
+	var remounted_b := weapon_b.attach_attachment(point, attachment_b)
+	_inv32_record(results, failures,
+		remounted_b and weapon_b.get_attachment(point) == shared,
+		"released attachment remounts on weapon B")
+	var cleaned_b := weapon_b.detach_attachment(point)
+	_inv32_record(results, failures, cleaned_b,
+		"cleanup detaches the remounted attachment")
 
 # ─── INV-01: mouse pitch must reach the CAMERA's rig ────────────────
 # ORIGIN: the `head` (IK RemoteTransform) inclined but the camera never did, so
