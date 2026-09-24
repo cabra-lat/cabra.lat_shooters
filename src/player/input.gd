@@ -32,6 +32,25 @@ var equipment_source: Equipment = null
 var sprint_allowed: bool = true
 var jump_allowed: bool = true
 
+# Combat gates (inventory UI / menus): when suppressed, combat actions
+# (fire, aim, reload, etc.) read false so clicks in the UI do not pull triggers.
+var combat_allowed: bool = true
+var inventory_ui: CanvasItem = null
+
+func is_combat_allowed() -> bool:
+  if not combat_allowed:
+    return false
+  if inventory_ui != null:
+    if inventory_ui.visible:
+      return false
+  else:
+    var parent = get_parent()
+    if parent != null:
+      var inv = parent.get("inventory_ui")
+      if inv != null and inv.visible:
+        return false
+  return true
+
 # Mouse look
 @export var mouse_delta := Vector2()
 
@@ -107,16 +126,18 @@ func _process(_delta: float) -> void:
     if not prone_toggle:
       unprone = true
 
-  aim_held        = Input.is_action_pressed("aim")
-  focus_held      = Input.is_action_pressed("focus")
-  fire_held       = Input.is_action_pressed("fire")
-  reload_held     = Input.is_action_pressed("reload")
-  firemode_held   = Input.is_action_pressed("firemode")
-  lean_left       = Input.is_action_pressed("lean_left")
-  lean_right      = Input.is_action_pressed("lean_right")
-  weapon_equip    = Input.is_action_just_pressed("weapon_slot1")
-  weapon_drop     = Input.is_action_just_pressed("weapon_drop")
-  clear_malfunction = InputMap.has_action("clear_malfunction") \
+  var can_fight := is_combat_allowed()
+
+  aim_held        = can_fight and Input.is_action_pressed("aim")
+  focus_held      = can_fight and Input.is_action_pressed("focus")
+  fire_held       = can_fight and Input.is_action_pressed("fire")
+  reload_held     = can_fight and Input.is_action_pressed("reload")
+  firemode_held   = can_fight and Input.is_action_pressed("firemode")
+  lean_left       = can_fight and Input.is_action_pressed("lean_left")
+  lean_right      = can_fight and Input.is_action_pressed("lean_right")
+  weapon_equip    = can_fight and Input.is_action_just_pressed("weapon_slot1")
+  weapon_drop     = can_fight and Input.is_action_just_pressed("weapon_drop")
+  clear_malfunction = can_fight and InputMap.has_action("clear_malfunction") \
     and Input.is_action_just_pressed("clear_malfunction")
   sync_equip_flags()
 

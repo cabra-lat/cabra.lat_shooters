@@ -218,10 +218,15 @@ func update_rig(delta: float) -> void:
 	var cb: Basis = _cam.global_transform.basis
 	var cp: Vector3 = _cam.global_position
 	# Sway lags behind look velocity, decays to zero on its own.
+	# Scaled by weapon ergonomics and condition (Weapon.get_sway_multiplier()).
 	var look: Vector2 = _player.last_look_delta
+	var sway_mult: float = 1.0
+	var w0: Weapon = _gun.data as Weapon if _gun != null else null
+	if w0 != null:
+		sway_mult = clampf(w0.get_sway_multiplier(), 0.25, 4.0)
 	var sway_target := Vector2(
-		clampf(-look.x * 0.0016, -0.06, 0.06),
-		clampf(-look.y * 0.0016, -0.06, 0.06))
+		clampf(-look.x * 0.0016 * sway_mult, -0.06 * sway_mult, 0.06 * sway_mult),
+		clampf(-look.y * 0.0016 * sway_mult, -0.06 * sway_mult, 0.06 * sway_mult))
 	_sway = _damp2(_sway, sway_target, SWAY_K, delta)
 	# Head-bob only while grounded and moving; eases back to center when idle.
 	var planar := Vector3(_player.velocity.x, 0.0, _player.velocity.z).length()

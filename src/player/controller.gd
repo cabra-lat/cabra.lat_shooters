@@ -21,7 +21,6 @@ const RELOADING = "Reloading"
 const SPRINTING = "Sprinting"
 const WALKING = "Walking"
 const VIEW_MODEL_NAME = "WeaponModel"
-var debug_text: String = ""
 
 # ─── SIGNALS ───────────────────────────────────────────────────────────────────
 signal moved(player: PlayerController, delta: float)
@@ -51,7 +50,11 @@ signal weapon_modify_requested(weapon: Weapon)
 @export var config: PlayerConfig
 @export var health: Health
 @export var equipment: Equipment
-@export var inventory_ui: InventoryUI
+@export var inventory_ui: InventoryUI:
+  set(val):
+    inventory_ui = val
+    if input:
+      input.inventory_ui = val
 @export var survival: PlayerSurvival
 
 @onready var moving: StateMachine = %Moving
@@ -95,7 +98,6 @@ var current_speed: float = 0.0
 var current_camera_height: float = 0.0
 var current_camera_fov: float = 0.0
 var current_head_bobbing: float = 0.0
-var current_lean_angle: float = 0.0
 var current_damping: float = 0.0
 
 # Stance eye heights (applied to head + SpringArm) and capsule factors.
@@ -136,12 +138,6 @@ var debug_flying: bool = false
 var debug_fly_speed: float = 10000.0
 var debug_fly_acceleration: float = debug_fly_speed
 var debug_fly_fast_multiplier: float = 3.0
-var debug_fly_slow_multiplier: float = 0.3
-
-# Debug and performance
-var _last_debug_time: float = 0.0
-var _debug_interval: float = 0.1  # Update debug only 10 times per second
-var _condition_cache: Dictionary = {}
 
 # ─── INITIALIZATION ────────────────────────────────────────────────────────────
 func _ready():
@@ -178,10 +174,11 @@ func _ready():
   equipment.equipped.connect(_on_equipment_equipped)
   equipment.unequiped.connect(_on_equipment_unequiped)
 
-  # Mirror equipment state into the input edge flags so the aiming SM
-  # tracks programmatic equips (arena/range never press weapon_slot1).
+  # Mirror equipment state and inventory UI into the input edge flags so the aiming SM
+  # tracks programmatic equips and UI suppression is active.
   if input:
     input.equipment_source = equipment
+    input.inventory_ui = inventory_ui
 
   # Stealth: the player's own actions feed the bots' hearing.
   if not reloaded.is_connected(_on_reloaded_noise):
@@ -775,11 +772,13 @@ func _physics_process(delta: float) -> void:
   if moving:
     moving.set_condition("on_ground", is_on_floor())
 
-  # Troubleshooting: X clears a jammed weapon (Weapon3D owns the timing; the
-  # weapon refuses to fire until Weapon.malfunction_cleared fires).
-  if input != null and input.clear_malfunction:
-    input.clear_malfunction = false # consume the edge
-    clear_weapon_malfunction()
+  if input != null:
+    input.combat_allowed = not (inventory_ui != null and inventory_ui.visible)
+    # Troubleshooting: X clears a jammed weapon (Weapon3D owns the timing; the
+    # weapon refuses to fire until Weapon.malfunction_cleared fires).
+    if input.clear_malfunction:
+      input.clear_malfunction = false # consume the edge
+      clear_weapon_malfunction()
 
   _update_survival(delta)
 
@@ -866,7 +865,6 @@ func _update_movement_parameters(delta: float = 0.0):
   # Reset to defaults
   current_speed = config.default_speed
   current_head_bobbing = config.default_bobing
-  current_lean_angle = config.lean_angle_idle
   current_camera_height = config.stand_height
   current_camera_fov = config.default_fov
   current_damping = config.default_damping
@@ -879,15 +877,12 @@ func _update_movement_parameters(delta: float = 0.0):
     STOPPED:
       current_speed = config.default_speed
       current_head_bobbing = config.default_bobing
-      current_lean_angle = config.lean_angle_idle
     WALKING:
       current_speed = config.walk_speed
       current_head_bobbing = config.walk_bobbing
-      current_lean_angle = config.lean_angle_walk
     SPRINTING:
       current_speed = config.sprint_speed
       current_head_bobbing = config.sprint_bobbing
-      current_lean_angle = 0
     FALLING:
       max_velocity = max(max_velocity, velocity.length())
 
@@ -1132,7 +1127,8 @@ func _on_state_entered(state: String, state_machine_name: String):
       match state:
         TRIGGER_PULLED:
           if current_hands is Weapon3D:
-            current_hands.pull_trigger()
+            if inventory_ui == null or not inventory_ui.visible:
+              current_hands.pull_trigger()
         TRIGGER_RELEASED:
           if current_hands is Weapon3D:
             current_hands.release_trigger()
