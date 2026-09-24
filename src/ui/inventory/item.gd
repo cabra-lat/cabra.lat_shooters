@@ -5,7 +5,6 @@ extends Control
 @export var slot_size: int = 50
 var inventory_item: InventoryItem
 var container_ui: BaseInventoryUI
-var debug_label: Label
 
 func _ready():
     # CRITICAL: Let ALL mouse events pass through

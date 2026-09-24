@@ -103,8 +103,8 @@ func _on_slot_dropped(data: Dictionary, target_slot: InventorySlotUI):
 func _create_context_menu():
     if not context_menu:
         context_menu = PopupMenu.new()
-        context_menu.connect("id_pressed", _on_context_menu_selected)
-        context_menu.connect("popup_hide", _on_context_menu_closed)
+        context_menu.id_pressed.connect(_on_context_menu_selected)
+        context_menu.popup_hide.connect(_on_context_menu_closed)
         add_child(context_menu)
 
 func _gui_input(event):
