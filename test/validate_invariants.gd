@@ -74,6 +74,8 @@ func _run() -> void:
 
 	await _run_player_invariants()
 	await _inv33_inventory_escape_order()
+	await _inv37_npc_lod_survives_detached_bot()
+	await _inv37c_npc_acquire_target_survives_detached_bot()
 
 	print("")
 	print("=== validate_invariants summary ===")
@@ -86,7 +88,18 @@ func _run() -> void:
 		print("RESULT: FAIL")
 		quit(1)
 	else:
-		print("RESULT: PASS")
+		# The counters CANNOT see a nested runtime error: GDScript does not throw, so
+		# the call returns normally and _fail stays 0. Measured on the unfixed arm:
+		# rc=0, RESULT: PASS, and 3 runtime errors in this same log. The gate
+		# (verify-all.mjs) is what discriminates, because it greps the log.
+		#
+		# So this line is deliberately not the word "PASS" on its own. Direct runs
+		# are how people debug harnesses, and QA measured that every such run on
+		# this file would report a clean pass while dereferencing null. The gate
+		# greps /RESULT: PASS/, which still matches, and a human reading the log
+		# now sees the caveat. If you are reading this outside the gate, the
+		# counters are all that was checked.
+		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check)")
 		quit(0)
 
 func _check(id: String, name: String, ok: bool, detail: String, origin: String) -> void:
@@ -1787,6 +1800,140 @@ func _inv15_listing_fee_floor() -> void:
 		"fee(1000)=%d fee(0)=%d fee(100000)=%d" % [f.listing_fee(1000), f.listing_fee(0), f.listing_fee(100000)],
 		"listing fee formula is the flea sink's floor (5%, min 100)")
 
+# ─── INV-37: the bot LOD tick must survive a bot that left the tree ──
+# ORIGIN: NpcBot._tick_lod() did `var cam := get_viewport().get_camera_3d()`.
+# `get_viewport()` is null once the bot is out of the tree (raid settlement and
+# teardown do exactly that), so the existing `if cam == null` guard tested the
+# WRONG null and the chain still dereferenced it: "Cannot call method
+# 'get_camera_3d' on a null value" at bot.gd:1185, seen by spotter twice per
+# settlement. Fixed by game-repo commit 12b8b99, which splits the chain and
+# guards the viewport first. Promoted from npc-body's probe
+# (npc_lod_viewport_tmp.gd.keep).
+#
+# WHY THE COUNTER CANNOT SEE THE FAULT, stated here because it is the whole
+# difficulty of this class: a GDScript runtime error does NOT throw. The call
+# returns normally, this harness's `_fail` stays 0, and a summary of
+# "passed N failed 0" prints anyway. The null-deref half is therefore caught
+# one layer up, by verify-all.mjs, which refuses a harness whose log contains a
+# script-error line even when the script exits 0. Verified end to end: a probe
+# printing `RESULT: PASS` with rc=0 and one runtime error in its log still fails
+# the gate ("1 script error(s)").
+#
+# WORDING RULE, learned the hard way in the A/B that produced this entry: never
+# print the literal token the gate greps for. verify-all.mjs counts
+# /SCRIPT ERROR/g in the log, so a detail string containing that exact phrase
+# makes a CORRECT tree fail the gate. Say "script error" or "runtime error" in
+# lowercase, as below.
+#
+# The rule is WIDER than "detail string", and npc-body is right that the current
+# wording understates it: the real rule is ANYTHING THAT CAN REACH STDOUT. A
+# comment is safe today only because GDScript never echoes source to stdout; that
+# stops being true the moment a failure path prints source — a code excerpt, the
+# offending line, a get_stack() dump, or a harness that echoes the script under
+# test. If `_check` ever grows a "here is the code" detail, the wording rule
+# applies to it too. Measured 2026-09-25 against 6d7fe55: a harness whose PROSE
+# printed the token was counted as a real error, and a hanging harness that
+# printed it once in a sentence was reported as "raised" with the cause named
+# confidently and wrongly. Line-start anchoring is what separates the two classes
+# in the log (11/11 genuine errors sit at the start of a line; prose does not),
+# but the discipline below is what keeps that from mattering.
+#
+# So the halves are split deliberately: the counters below assert what IS
+# observable in-process (the valve still drives the rig, and the detached call
+# really is reached), and the log is what catches the dereference. Run without
+# verify-all.mjs, the detached half degrades to a smoke test — which is why the
+# precondition is asserted rather than assumed.
+func _inv37_npc_lod_survives_detached_bot() -> void:
+	var bot_scene: PackedScene = load("res://src/npcs/bot/bot.tscn")
+	if bot_scene == null:
+		_check("INV-37", "npc_lod_valve_still_drives_the_rig", false,
+			"bot.tscn missing", "F-LOD: cannot reach NpcBot._tick_lod() to check the guard")
+		_check("INV-37b", "npc_lod_tick_survives_detached_bot", false,
+			"bot.tscn missing", "F-LOD: detached path unexercised")
+		return
+
+	var bot: Node = bot_scene.instantiate()
+	root.add_child(bot)
+	await process_frame
+	await process_frame
+	var rig: Node = bot.get("_rig")
+	if rig == null:
+		# Do NOT report a pass: an unresolved _rig would make the valve case
+		# vacuous, which is how a "green" LOD assertion proves nothing.
+		_check("INV-37", "npc_lod_valve_still_drives_the_rig", false,
+			"_rig unresolved after 2 frames", "F-LOD: the valve case needs a rig to drive")
+		_check("INV-37b", "npc_lod_tick_survives_detached_bot", false,
+			"_rig unresolved after 2 frames", "F-LOD: detached path unexercised")
+		bot.queue_free()
+		return
+
+	# Valve case: at 200 m the rig must go to LOD 2, at 1 m back to 0. This is
+	# what stops a future over-guard from "fixing" the crash by disabling LOD.
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.make_current()
+	cam.global_position = Vector3.ZERO
+	bot.global_position = Vector3(200.0, 0.0, 0.0)
+	bot.call("_tick_lod")
+	var far_lod := int(rig.get("_lod"))
+	bot.global_position = Vector3(1.0, 0.0, 0.0)
+	bot.call("_tick_lod")
+	var near_lod := int(rig.get("_lod"))
+	_check("INV-37", "npc_lod_valve_still_drives_the_rig", far_lod == 2 and near_lod == 0,
+		"far=%d near=%d (expect 2 then 0)" % [far_lod, near_lod],
+		"F-LOD: a null guard that also disables the LOD valve is not a fix (12b8b99)")
+
+	# Detached case: assert the risky precondition is REACHED before calling, so
+	# this cannot pass by never getting near the guarded line.
+	cam.clear_current()
+	root.remove_child(bot)
+	var viewport_null: bool = bot.get_viewport() == null
+	bot.call("_tick_lod")  # unfixed: runtime error at bot.gd:1185 -> gate fails
+	var still_null: bool = bot.get_viewport() == null
+	_check("INV-37b", "npc_lod_tick_survives_detached_bot", viewport_null and still_null,
+		"viewport_null_before=%s after=%s (a runtime error here fails the gate)" % [str(viewport_null), str(still_null)],
+		"F-LOD: get_viewport() is null out of tree; the receiver needs the guard (12b8b99)")
+	bot.free()
+	cam.free()
+
+## INV-37c — ORIGIN: npc-body's CASE_D, on the OTHER site 712e22d guards.
+# INV-37b covers _tick_lod; this covers _acquire_target (bot.gd:651), which the
+# same fix guards. Measured in both directions by npc-body: 1 script error on
+# 12b8b99 ("Invalid access to property or key 'current_scene' on a base object of
+# type 'null instance'") and 0 on 712e22d. The guard IS on main (e28b475, by
+# ancestry), so this is a permanent guard for a fix that has already shipped.
+#
+# Same shape as INV-37b on purpose: assert the precondition BEFORE the risky call,
+# so the case cannot pass by never reaching the guarded line, and re-assert it
+# after, so a harness that tore the bot down some other way cannot satisfy it.
+#
+# The counters cannot see the dereference -- a GDScript runtime error leaves no
+# in-process trace -- so the gate's log check is the half that discriminates. Run
+
+func _inv37c_npc_acquire_target_survives_detached_bot() -> void:
+	var bot_scene: PackedScene = load("res://src/npcs/bot/bot.tscn")
+	if bot_scene == null:
+		_check("INV-37c", "npc_acquire_target_survives_detached_bot", false,
+			"bot.tscn missing", "F-TARGET: cannot reach NpcBot._acquire_target() to check the guard")
+		return
+
+	var bot: Node = bot_scene.instantiate()
+	root.add_child(bot)
+	await process_frame
+	await process_frame
+
+	# Detach it, so get_tree() has no receiver. Assert the precondition BEFORE the
+	# call, or this can pass by never getting near the guarded line.
+	root.remove_child(bot)
+	var detached_before: bool = not bot.is_inside_tree()
+	bot.call("_acquire_target")
+	var detached_after: bool = not bot.is_inside_tree()
+	_check("INV-37c", "npc_acquire_target_survives_detached_bot",
+		detached_before and detached_after,
+		"detached_before=%s after=%s (a runtime error here fails the gate)" % [
+			str(detached_before), str(detached_after)],
+		"F-TARGET: is_inside_tree() must be checked before get_tree() (712e22d)")
+	bot.free()
 func _has_corrupt_backup() -> bool:
 	var d := DirAccess.open(META_TEST_DIR)
 	if d == null:
