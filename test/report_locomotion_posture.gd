@@ -133,6 +133,7 @@ const CLASSIFIED := {
 }
 
 var _sk: Skeleton3D
+var _root: Node3D
 var _ap: AnimationPlayer
 
 
@@ -160,17 +161,66 @@ func _run() -> void:
 	for i in 8:
 		await process_frame
 	_sk = bot.get_node("Skeleton3D")
+	_root = bot as Node3D
 	_ap = _anim(_sk)
 	if _ap == null:
 		print("P|FAIL no AnimationPlayer on the rig")
 		quit(1)
 		return
+
+	# PIN THE SCALE. The NpcBot root carries an authored per-bot uniform scale,
+	# bot.gd _apply_visual_variation: scale = Vector3.ONE * randf_range(0.94,
+	# 1.06), under a comment reading "Per-bot identity: body scale". It is not a
+	# defect and there is no writer to find, but it IS a per-run redraw, and a
+	# world-space posture reading composes with it, so a MIN or a SPAN taken
+	# across clips is a reading of differently-sized bodies. The remedy is not to
+	# tolerate that noise but to remove its source: a randomised input can be
+	# PINNED. Forcing the scale to 1.0 makes that whole class of contamination
+	# disappear rather than setting a tolerance wide enough to survive it.
+	#
+	# Pinning is a CLAIM about the measurement, so it gets the same treatment as
+	# every other intervention on this board: prove it applied, and prove the
+	# quantity is sensitive to it. The scale is pinned, READ BACK, and the run is
+	# VOID if the readback is not exactly 1.0 -- a pin that silently fails would
+	# leave a contaminated table wearing a clean label.
+	var authored_scale: float = _root.global_transform.basis.get_scale().x
+	_root.scale = Vector3.ONE
+	for i in 4:
+		await process_frame
+	var pinned_scale: float = _sk.global_transform.basis.get_scale().x
+	print("P|SCALE authored=%.6f  pinned=%.6f  %s" % [
+		authored_scale, pinned_scale,
+		"PIN APPLIED" if is_equal_approx(pinned_scale, 1.0) else "PIN FAILED -- RUN VOID"])
+	if not is_equal_approx(pinned_scale, 1.0):
+		quit(1)
+		return
+
 	var hi := _sk.find_bone(HEAD_BONE)
 	var fi := _sk.find_bone(FOOT_BONE)
 	if hi < 0 or fi < 0:
 		print("P|FAIL bones missing: %s=%d %s=%d" % [HEAD_BONE, hi, FOOT_BONE, fi])
 		quit(1)
 		return
+
+	# CONTROLS, in that order, because a control has to be shown able to fail
+	# before its result means anything. RED: restore the authored scale, so the
+	# quantity under test is shown SENSITIVE to the pin rather than immune to it.
+	# If the two rows agreed, the pin would be moving nothing and the pinned table
+	# below would not be the clean measurement it claims to be.
+	# A hardcoded control clip is a control that can be silently VOID, and this
+	# one already was: it was pinned to "walk", which this harness does not
+	# drive, so both control rows came back UNDRIVEN and the sensitivity check
+	# produced no data at all while still looking like it had run. The clip is
+	# therefore DISCOVERED at runtime -- the first one that actually drives in
+	# THIS process -- and if none does, the controls are reported VOID loudly
+	# instead of passing quietly.
+	var ctl_clip: String = await _pick_drivable(hi, fi)
+	if ctl_clip == "":
+		print("C|ALL VOID -- no clip drives in this process, so the scale pin has no control and the table below is NOT the clean measurement it claims to be")
+	else:
+		print("C|control clip (discovered, not assumed): %s" % ctl_clip)
+		_ctl(ctl_clip, hi, fi, authored_scale)
+		_ctl(ctl_clip, hi, fi, 1.0)
 
 	print("P|clip              MIN     MAX    SPAN  | rig node path                 SCALE  MOUNT_DEG | verdict  | classified")
 	var undriven: Array = []
@@ -239,6 +289,46 @@ func _clips() -> Array:
 
 ## Returns null when the clip did not drive. Never returns a rest pose as data.
 ## Samples by CLIP TIME, not by frame count, so phase is controlled.
+# The first clip that actually animates in this process, found by asking rather
+# than assumed. The drivable set is NOT stable across runs -- eight clips were
+# undriven in one run and a different eight in the next -- so any control naming
+# a clip by hand is a control that will be void on some run without saying so.
+func _pick_drivable(hi: int, fi: int) -> String:
+	for clip in _clips():
+		if await _sample(clip, hi, fi) != null:
+			return clip
+	return ""
+
+
+# One clip, one explicit scale, printed as MIN/MAX/SPAN so each row compares
+# against the table below on the same quantity and the same clip. The scale is set
+# at the call site so this is a pure reader, and the READBACK is printed next to
+# the value that was asked for, because a scale that did not take is a silently
+# contaminated row rather than a loud failure.
+func _ctl(clip: String, hi: int, fi: int, want: float) -> void:
+	_root.scale = Vector3.ONE * want
+	var g0: float = _sk.global_transform.basis.get_scale().x
+	for i in 4:
+		await process_frame
+	var g1: float = _sk.global_transform.basis.get_scale().x
+	var r := await _sample(clip, hi, fi)
+	if not is_equal_approx(g0, want):
+		print("C|%s want=%.6f did NOT take on write (read %.6f) -- VOID" % [clip, want, g0])
+		return
+	var held: bool = is_equal_approx(g1, want)
+	# THREE outcomes, all of them informative, and none of them a pass by
+	# construction: HELD means the pin is a usable measurement; LOST means the
+	# root's own scale was rewritten from a stored basis within four frames, which
+	# is a finding about the rig rather than about the clip; NO_RESULT means the
+	# clip did not drive, so the control produced no data and says so.
+	var verdict: String = "HELD" if held else ("LOST -- root scale rewritten from a stored basis" if not is_equal_approx(_root.scale.x, want) else "LOST -- node rewritten")
+	if r == null:
+		print("C|%s want=%.6f read=%.6f pin=%s  UNDRIVEN (excluded, not a result)" % [clip, want, g1, verdict])
+		return
+	print("C|%s want=%.6f read=%.6f pin=%s  min=%+.4f max=%+.4f span=%.4f" % [
+		clip, want, g1, verdict, r["min"], r["max"], r["span"]])
+
+
 func _sample(clip: String, hi: int, fi: int) -> Variant:
 	if not _sk.play(clip):
 		return null
