@@ -245,10 +245,11 @@ func _run() -> void:
 		var gb: Basis = _sk.global_transform.basis
 		var up: Vector3 = (gb * Vector3.UP).normalized()
 		var mount_deg: float = rad_to_deg(acos(clampf(up.dot(Vector3.UP), -1.0, 1.0)))
-		print("P|%-16s %+.3f  %+.3f  %.3f  | %-32s %.4f  %7.2f | %-8s | %s" % [
+		print("P|%-16s %+.3f  %+.3f  %.3f  | %-32s %.4f  %7.2f | %-8s | drove %d/%d %s | %s" % [
 			clip, r["min"], r["max"], r["span"],
 			str(_sk.get_path()), gb.get_scale().x, mount_deg,
-			_band(r["min"]), CLASSIFIED.get(clip, "-")])
+			_band(r["min"]), int(r["driven"]), int(r["of"]), r["as"],
+			CLASSIFIED.get(clip, "-")])
 	if undriven.size() > 0:
 		print("P|")
 		print("P|UNDRIVEN, EXCLUDED, NOT REPORTED AS NUMBERS (%d): %s" % [
@@ -349,16 +350,39 @@ func _sample(clip: String, hi: int, fi: int) -> Variant:
 	var step: float = (length if length > 0.0 else 1.0) / float(SAMPLES)
 	var lo := INF
 	var his := -INF
+	# PER-SAMPLE CLIP EVIDENCE. This is the repair. The old sampler called play(),
+	# advanced, read get_bone_global_pose(), and reported the result as a pose
+	# without ever checking that the clip was the thing driving it. A bone read and
+	# a driven-pose read are indistinguishable in the output, which is how a rest
+	# pose gets reported as an animated one -- the same unlabelled quantity that
+	# produced tonight's central disagreement, in the other direction. Every
+	# sample now records what is actually playing and where, and a clip whose
+	# samples were not driven by that clip is REFUSED rather than reported. A row
+	# that cannot say what drove it does not get to be a number.
+	var driven: int = 0
+	var pos_lo := INF
+	var pos_hi := -INF
+	var drove_as := ""
 	for s in SAMPLES:
+		_ap.advance(step)
+		await process_frame
+		if _ap.current_animation == StringName(clip):
+			driven += 1
+			drove_as = String(_ap.current_animation)
+			pos_lo = minf(_ap.current_animation_position, pos_lo)
+			pos_hi = maxf(_ap.current_animation_position, pos_hi)
 		_ap.advance(step)
 		await process_frame
 		# WORLD space. The multiply is required; see the header.
 		var hp: Vector3 = (_sk.global_transform * _sk.get_bone_global_pose(hi)).origin
 		var fp: Vector3 = (_sk.global_transform * _sk.get_bone_global_pose(fi)).origin
 		var v: float = hp.y - fp.y
-		lo = minf(lo, v)
-		his = maxf(his, v)
-	return {"min": lo, "max": his, "span": his - lo}
+		lo = minf(v, lo)
+		his = maxf(v, his)
+	if driven == 0:
+		return null
+	return {"min": lo, "max": his, "span": his - lo, "driven": driven,
+		"of": SAMPLES, "as": drove_as, "pos": [pos_lo, pos_hi]}
 
 
 func _travel(hi: int, frames: int) -> float:
