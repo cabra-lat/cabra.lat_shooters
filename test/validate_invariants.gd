@@ -35,6 +35,37 @@ const IK_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player_ik.t
 const META_TEST_DIR := "user://inv_meta_test"
 const META_SAVE := "user://inv_meta_test/profile.save"
 
+## ─── THE RULE THIS FILE EXISTS TO ENFORCE ─────────────────────────────────────────────
+## Before measuring, ask what could explain the number more cheaply than the
+## measurement. If the answer is a file you already have open, open it.
+##
+## This is not a style note; it is the load-bearing lesson of a long debugging night in
+## which four separate questions were each answered by ONE line of a file that three
+## different lanes already had open, and each answer arrived only AFTER an instrument had
+## been built, a hypothesis proposed, a measurement repeated, and in one case a false
+## defect written onto a card. The wrong turn was never carelessness. A measurement costs
+## more, takes longer, and LOOKS more like evidence than opening a file does, so it is
+## always the more attractive next step -- and every instrument built to explain a number
+## made the mystery look more real rather than less.
+##
+## Three corollaries, each paid for at least once:
+##   1. A quantity that VARIES is not a mechanism. It is evidence that you have not found
+##      the input yet, and the first place to look is whatever generates it. Seven "basis"
+##      values turned out to be randf_range(0.94, 1.06) in bot.gd:1146 -- a documented
+##      per-bot random draw, in this lane's own file.
+##   2. Before hunting a writer, check that the thing you re-ran is the thing you measured
+##      the first time. The scale was constant WITHIN a process and random BETWEEN bots, so
+##      each re-run was a different object. Variation across a re-run is evidence of a
+##      writer only if the re-run is the same object -- a checkable precondition.
+##   3. A control is defined by the failure it CAN EXPRESS. A control built from a quantity
+##      blind to the failure passes forever, confidently, and looks rigorous while doing it.
+##      A basis SCALE cannot see a rotation, so a scale gate would pass a rig rolled 90
+##      degrees at any tolerance. That is what made the previous INV-38 green.
+##
+## And the constructive half, which matters as much as the rule: a randomised input can be
+## PINNED rather than tolerated. Forcing the scale to 1.0 before measuring removes that
+## noise source instead of budgeting for it.
+
 var _pass := 0
 var _fail := 0
 var _fail_lines: Array[String] = []
@@ -581,6 +612,22 @@ func _inv38_spine_points_up() -> void:
 	# A standing human's HEAD IS ABOVE THEIR FEET IN WORLD Y. No angle, no bone-pair
 	# convention, no mount interpretation. Composed into world space because that is what
 	# these two accessors need.
+	# ── THE SCALE PIN, AS EXECUTABLE BEHAVIOUR AND NOT AS A COMMENT ──
+	# src/npcs/bot/bot.gd:1146 draws a per-bot uniform scale, randf_range(0.94, 1.06), and
+	# the Skeleton3D inherits it through its parent's GLOBAL basis. head_over_feet is
+	# composed with that basis, so a posture reading taken at the drawn scale is a reading
+	# in a frame nobody pinned -- and across processes those readings differ by up to 0.24 m
+	# at scale alone. A randomised input can be PINNED rather than tolerated, so the pin
+	# lives HERE, in the code that samples, and not in a header a reader must remember.
+	# A rule in a header teaches; a pin in the code prevents.
+	var rig_root := skel.get_parent() as Node3D
+	var drawn_scale := Vector3.ONE
+	if rig_root != null:
+		drawn_scale = rig_root.scale
+		rig_root.scale = Vector3.ONE
+		for i in 4:
+			await process_frame
+
 	var head := _inv38_bone(skel, "spine.006_end_067")
 	var foot := _inv38_bone(skel, "foot.R_064")
 	var rest_h2f := -999.0
@@ -612,19 +659,157 @@ func _inv38_spine_points_up() -> void:
 			play_max = maxf(play_max, v)
 		play_h2f = acc / maxf(1.0, float(n))
 		ap.stop()
-	_check("INV-38", "rig_stands_at_rest", head >= 0 and foot >= 0 and rest_h2f > 0.3,
-		"head_above_feet at rest = %.3f m (want > 0.3, world space)" % rest_h2f,
-		"posture: a rig on its side has its head level with its feet")
-	# NOT GATING, and it is a real open defect rather than a broken check. Measured in the
-	# production arena in WORLD space: bots playing 'reload' stand at 0.40-0.44 m of
-	# head-over-feet, while a bot playing 'walk' reads 0.047 m -- the head level with
-	# the feet. Same rig, same frame, same composition, so this is CLIP-SPECIFIC and not a
-	# global roll: the body is horizontal while WALKING and upright otherwise. That is the
-	# user-reported "npcs walk sideways" and it is narrower than a whole-rig mount fault.
-	# Gating it would redden every run while player-rig owns it (card
-	# task_1790427558484_bbbb18), so it is recorded here with its number instead.
-	print("  NOTE  %-7s %-42s head_above_feet with 'walk' = %.3f m mean / %.3f min over 40 frames, world space; 'reload' measures 0.40-0.44 m in the arena. The body is horizontal while WALKING (OPEN DEFECT task_1790427558484_bbbb18, owner player-rig; not gating)"
-		% ["INV-38p", "locomotion_clip_posture", play_h2f, play_min])
+
+	# ── THE PIN'S RED ARM: remove the pin and the spread must REAPPEAR ──
+	# A pin that is only claimed in a comment is exactly the kind of control that passes
+	# without the thing existing. So the pin is broken on purpose, at the AUTHORED minimum
+	# rather than at whatever this run happened to draw (which could be 1.0 and prove
+	# nothing), and the same quantity is required to move. If this ever passes with the
+	# pin removed, the pin is not load-bearing and the posture rows are unpinned again.
+	var pin_moved := 0.0
+	var pinned_h2f := play_h2f
+	if head >= 0 and foot >= 0 and rig_root != null and ap.has_animation("walk"):
+		rig_root.scale = Vector3.ONE * 0.94
+		for i in 6:
+			await process_frame
+		ap.play("walk")
+		var unpinned := 0.0
+		for i in 20:
+			await process_frame
+			unpinned += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
+		unpinned /= 20.0
+		ap.stop()
+		pin_moved = absf(unpinned - pinned_h2f)
+		rig_root.scale = Vector3.ONE
+		for i in 6:
+			await process_frame
+
+	# RESTORE THE DRAWN SCALE. The pin is a property of the SAMPLING, not of the rig: a
+	# global mutation left in place changes every later check in this suite. Leaving the
+	# root at 1.0 instead of its drawn value broke the corpse checks (INV-26, INV-27) on the
+	# first run of this change, which is the second time tonight that a gate I added broke
+	# something that used to pass -- and the honest reading is the same both times: a change
+	# that only makes its own check greener has not earned the right to land.
+	if rig_root != null:
+		rig_root.scale = drawn_scale
+		for i in 4:
+			await process_frame
+	_check("INV-38q", "scale_pin_is_load_bearing", pin_moved > 0.01,
+		"with the pin REMOVED and scale forced to 0.94, head_over_feet moved %.4f m "
+		% pin_moved
+		+ "(pinned %.3f m; drawn scale was %.4f). The pin is what makes posture rows comparable."
+			% [pinned_h2f, drawn_scale.x],
+		"a randomised input must be pinned, not tolerated: bot.gd:1146 draws 0.94-1.06 per bot")
+	# ── INV-38: the FRAME, not the posture. See the block comment above. ──
+	# The old INV-38 asserted a posture threshold over a quantity that changes its own
+	# verdict between processes, so it passed by construction. This asserts the FRAME the
+	# reading is taken in, which is stable, and states which frame it assumes.
+	#
+	#   PATH      %s
+	#   QUANTITY  angle between (node basis * UP) and world UP, in DEGREES
+	#   EXPECTED  %.2f deg  -- MEASURED IN PRODUCTION, not read from the scene file
+	#   OBSERVED  %.6f deg
+	#
+	# The file humanoid_rig.tscn:293 says 120.0000 deg and production mounts at 90. The
+	# gate asserts what the production instantiation DOES, and says so here, so the next
+	# reader does not "fix" the expected value back to the file's number. That mistake is
+	# what this gate exists to prevent: INV-38 read a rig whose node was rolled -90 deg and
+	# reported a healthy 1.609 m while production rest measures 0.42 m.
+	#
+	# WHY THIS QUANTITY: basis SCALE cannot express this failure at any tolerance -- a
+	# rolled rig and an upright rig have identical scale to six decimals -- so a scale gate
+	# would pass forever while looking rigorous. The angle is rotation-SENSITIVE and
+	# scale-INVARIANT, so the two cannot be fooled by the same failure.
+	#
+	# THE ROOT SCALE IS AUTHORED AND IS NOT A DEFECT. Read this before spending an hour on
+	# it, as npc-body did. src/npcs/bot/bot.gd:1146, in _apply_visual_variation():
+	#     ## Per-bot identity: body scale + a near-white tint jitter. Runs before
+	#     ## _base_basis capture so the corpse keeps its scale.
+	#     scale = Vector3.ONE * randf_range(0.94, 1.06)
+	# That is the ONLY scale write in bot.gd. So the CharacterBody3D root carries a RANDOM
+	# uniform scale drawn per bot in [0.94, 1.06], the Skeleton3D inherits it through the
+	# parent's global basis, and the observed values across processes (0.9537, 0.9633,
+	# 0.9934, 0.9944, 1.0072, 1.0180, 1.0497) are draws from that interval and not a defect,
+	# a drift, or a per-frame writer. Four separate hypotheses died looking for one.
+	# CONSEQUENCE FOR ANY POSTURE GATE, which is why it is recorded here rather than in a
+	# mail: a randomised input can be PINNED, so forcing the bot scale to 1.0 before
+	# measuring removes this source entirely instead of tolerating a 12 percent size swing.
+	# What remains untamed is within-process pose motion (~0.028 m at rest, no clip playing)
+	# and between-context clip driving, so the posture gate is still not claimed writable.
+	var EXPECTED_MOUNT_DEG := 90.0
+	var MOUNT_TOL_DEG := 0.5
+	# A sentinel that CANNOT be a real reading, so a missing node or an unresolved bone
+	# returns a failure rather than a number that happens to satisfy the assertion. The
+	# previous generation of this file used fallbacks identical to the real value, which
+	# meant a renamed key returned the right answer and the check could not fail.
+	var SENTINEL := -1.0
+	var path_s := String(skel.get_path())
+	var mount_deg := SENTINEL
+	if not path_s.ends_with("Skeleton3D") or not path_s.ends_with("NpcBot/Skeleton3D"):
+		# Printed rather than asserted: the path is the field that would have caught the
+		# 120-vs-90 mistake, so a reader must always see WHICH node produced the number.
+		print("  WARN  %-7s %-42s expected the production path NpcBot/Skeleton3D, got %s"
+			% ["INV-38", "rig_node_path", path_s])
+	else:
+		mount_deg = rad_to_deg((skel.global_transform.basis * Vector3.UP).angle_to(Vector3.UP))
+	_check("INV-38", "rig_mount_frame_is_90_deg",
+		mount_deg != SENTINEL and absf(mount_deg - EXPECTED_MOUNT_DEG) <= MOUNT_TOL_DEG,
+		"path=%s quantity=angle(basis*UP, world UP) expected=%.2f+/-%.2f deg observed=%.6f deg"
+			% [path_s, EXPECTED_MOUNT_DEG, MOUNT_TOL_DEG, mount_deg],
+		"frame: a posture reading is only meaningful in a stated frame, and this one is "
+		+ "checked instead of assumed")
+
+	# THE RED ARM, and it is the requirement rather than a nicety: this gate must be able
+	# to FAIL, on the specific failure INV-38 could not express. The break is constructed,
+	# single-variable, and restored immediately -- roll the rig node -90 deg about X, the
+	# exact failure that made the old gate pass, and require the SAME check to go red.
+	# If this ever passes while the node is rolled, the gate is not measuring the frame and
+	# the whole point of the rewrite is lost.
+	var broke_ok := false
+	var saved := skel.global_transform
+	if mount_deg != SENTINEL:
+		skel.global_transform = saved * Transform3D(Basis(Vector3(1, 0, 0), deg_to_rad(-90)), Vector3.ZERO)
+		for i in 8:
+			await process_frame
+		var rolled := rad_to_deg((skel.global_transform.basis * Vector3.UP).angle_to(Vector3.UP))
+		broke_ok = absf(rolled - EXPECTED_MOUNT_DEG) > MOUNT_TOL_DEG
+		skel.global_transform = saved
+		for i in 8:
+			await process_frame
+		var restored := rad_to_deg((skel.global_transform.basis * Vector3.UP).angle_to(Vector3.UP))
+		print("  %-6s %-7s %-42s constructed break: node rolled -90 deg -> observed %.3f deg -> check %s; restored %.6f deg -> check %s"
+			% ["REDARM", "INV-38", "frame_gate_can_go_red", rolled,
+				"RED" if broke_ok else "STILL GREEN, THE GATE IS DEAD",
+				restored, "GREEN" if absf(restored - EXPECTED_MOUNT_DEG) <= MOUNT_TOL_DEG else "RED"])
+	_check("INV-38r", "frame_gate_goes_red_on_a_rolled_node", broke_ok,
+		"rolled -90 deg must move the frame check out of tolerance",
+		"self-test: a gate that cannot fail is not a gate (see INV-38's history)")
+
+	# Free sanity check, and deliberately NOT the gate: orthonormality and determinant catch
+	# shear and negative scale and are completely BLIND to a rotation, which is the failure
+	# being chased here. Recorded so nobody promotes them into the gate later.
+	var b := skel.global_transform.basis
+	var ortho := maxf(maxf(absf(b.x.length() - 1.0), absf(b.y.length() - 1.0)), absf(b.z.length() - 1.0))
+	_check("INV-38s", "rig_basis_is_not_sheared", ortho < 0.25 and b.determinant() > 0.0,
+		"row-length deviation=%.4f det=%+.4f (blind to rotation; not the gate)" % [ortho, b.determinant()],
+		"sanity: catches shear and negative scale only")
+
+	# The posture reading is now a NOTE, not a gate, and carries its own caveat: the rig
+	# root's uniform SCALE is a per-bot RANDOM draw, randf_range(0.94, 1.06) at
+	# src/npcs/bot/bot.gd:1146, so head-over-feet is composed with a different size on every
+	# run. A single posture number here is a reading in an unpinned frame, which is exactly
+	# what the old gate turned into an assertion. Pin the scale to 1.0 to remove the source.
+	# The rest figure printed here is read immediately after reset_bone_poses() and is known
+	# to be a STALE-POSE reading (the Skeleton3D has not recomputed for that reset yet), so it
+	# is printed as a harness reading and NOT as the rig's posture. Measured separately, in a
+	# settled scene, production rest is 0.42 m with the head-to-foot axis 15 degrees off
+	# horizontal -- the rest pose IS horizontal. The two numbers are not in conflict: one is
+	# read too early to mean anything, and that is precisely why it is a note.
+	print("  NOTE  %-7s %-42s harness rest reading = %.3f m (STALE, read before the skeleton recomputes -- do not cite); separately measured, settled production rest = 0.42 m, axis 15 deg off horizontal, so the rest pose IS horizontal. 'walk' here = %.3f m mean / %.3f min. NOT GATED: the rig root scale varies 0.9537-1.0497 between processes, so every posture figure here is a reading in an unpinned frame (OPEN DEFECT task_1790427558484_bbbb18, owner player-rig)"
+		% ["INV-38p", "locomotion_posture_unpinned_frame", rest_h2f, play_h2f, play_min])
+	# (The previous locomotion-posture note lived here and has been folded into INV-38p
+	# above, so there is one posture note rather than two that can disagree.)
 
 	# The 90-degree arena roll this card tracked for a day is NOT REPRODUCED under the
 	# correct composition. Recorded so the record does not revert to the old story.
