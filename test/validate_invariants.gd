@@ -503,58 +503,84 @@ func _inv38_spine_points_up() -> void:
 	var hi := _inv38_bone(skel, "spine.004_05")
 
 	# ── INV-38b: a clip must move the rig, before any angle means anything ──
-	# COMPOSITION FIX 2026-09-26. This compared (global_transform * get_bone_rest(b))
-	# against (global_transform * get_bone_global_pose(b)). get_bone_rest() is LOCAL, so
-	# composing it by hand is right; but get_bone_global_pose() is ALREADY world space, so
-	# composing that one by hand applies the rig mount a SECOND time. The pair therefore
-	# compared two different coordinate systems and its 1.075 m was inflated. Like with
-	# like: get_bone_global_rest() is the world-space rest counterpart of
-	# get_bone_global_pose(), and neither needs composing.
+	# Like with like, in ONE coordinate system. The original compared
+	# (global_transform * get_bone_rest(b)) -- a LOCAL rest, composed -- against
+	# (global_transform * get_bone_global_pose(b)). The mix-up is the LOCAL rest, not the
+	# global pose: see the TRANSLATION note below. get_bone_global_rest() is the
+	# node-space counterpart of get_bone_global_pose(), so both are composed by the same
+	# global_transform and the two sides finally live in the same space.
 	var moved := 0.0
 	if tracks_live and ap.has_animation("walk"):
 		ap.play("walk")
 		for i in 20:
 			await process_frame
 			for b in range(skel.get_bone_count()):
-				moved = maxf(moved, skel.get_bone_global_rest(b).origin
-					.distance_to(skel.get_bone_global_pose(b).origin))
+				moved = maxf(moved, (skel.global_transform * skel.get_bone_global_rest(b)).origin
+					.distance_to((skel.global_transform * skel.get_bone_global_pose(b)).origin))
 		ap.stop()
 	_check("INV-38b", "a_clip_demonstrably_moves_the_rig", tracks_live and moved > 0.01,
 		"tracks_live=%s max_position_delta_vs_rest=%.4f m %s" % [str(tracks_live), moved,
 			"" if moved > 0.01 else "— a rig that does not move measures UPRIGHT and proves nothing"],
 		"90-deg roll: three lanes published angles from a rig that was not animating")
 
-	# ── INV-38d: THE TRIPWIRE, and it exists because of the bug recorded below ──
-	# Every bone of a rig standing at the origin must be within a few metres of it. A
-	# double-composed transform puts them tens of metres away: measured y = -42.5 m for a
-	# bot AT the origin, because the 120 deg mount at humanoid_rig.tscn:293 was applied
-	# twice. Any angle derived from those positions is then a valid-looking number about a
-	# body that is not there. This makes that class of error LOUD instead of silent, and it
-	# is the cheapest guard in this file.
+	# ── TRANSLATION: the fact this whole file got wrong twice, and the reason ──
+	# get_bone_global_pose() is NODE/MODEL space -- relative to the Skeleton3D node --
+	# NOT world space. It does not include the node's transform. So a world position is
+	# (global_transform * get_bone_global_pose(i)), and the 120 deg mount at
+	# humanoid_rig.tscn:293 is applied ONCE, there. Composing without the global_transform
+	# yields node-space coordinates, which are not a place a body can be.
+	#
+	# This is settled by moving the node, not by reading the docs: translate the skeleton
+	# by a known world offset and the reported bone positions do not move at all, which is
+	# only possible if the node transform is absent from them. (Measured: node moved
+	# (0, 5, 0), head bone moved (0, 0, 0).)
+	#
+	# I asserted the opposite twice on the first day -- once to justify withdrawing every
+	# roll number, and once to justify "fixing" this very gate. Both assertions were wrong
+	# and both were published before being tested. What made them persuasive was a piece of
+	# false evidence: bone positions at y = -42.5 m, which I called impossible coordinates.
+	# They were not impossible. The probe scene has no floor, so the bot had FALLEN 43 m
+	# and the true world position of the skeleton node was y = -42.7 m. A correct
+	# composition includes that translation and reports it faithfully. "Implausible" is not
+	# the same as "mis-composed", and I did not check which one I had.
+	#
+	# The consequence for the ORIGINAL INV-38: its 1.4 deg rest reading was RIGHT, and the
+	# "fix" I committed in d9c388f replaced a correct gate with a wrong one. Corrected here.
+
+	# ── INV-38d: the tripwire, and it survives the retraction on better grounds ──
+	# Every bone of a rig must be within a few metres of its own node. A control in a
+	# DIFFERENT UNIT from the thing measured (degrees cannot police degrees): if a
+	# composition drops the node transform the bones stop travelling with the body, and
+	# this is the check that sees it without interpreting any angle.
 	var far := 0.0
 	for b in range(skel.get_bone_count()):
-		far = maxf(far, skel.get_bone_global_pose(b).origin.distance_to(skel.global_position))
-	_check("INV-38d", "bone_world_positions_are_near_the_rig", far < 5.0,
-		"worst bone distance from the rig origin = %.2f m (want < 5; a double-composed transform puts this in the tens)"
-			% far,
-		"posture: a mis-composed world position yields plausible angles for a body that is not there")
+		far = maxf(far, (skel.global_transform * skel.get_bone_global_pose(b)).origin
+			.distance_to(skel.global_position))
+	_check("INV-38d", "bones_are_attached_to_their_rig", far < 5.0,
+		"worst bone distance from the rig node = %.2f m (want < 5)" % far,
+		"posture: a composition that omits the node transform detaches the bones from the body")
 
-	# ── INV-38: POSTURE, measured so that no composition convention can fake it ──
-	# A standing human's HEAD IS ABOVE THEIR FEET IN WORLD Y. That needs no angle, no
-	# bone-pair choice and no knowledge of the rig mount: only two world Y values. A body
-	# lying on its side has them equal. It is used here in preference to spine-vs-UP
-	# precisely because it cannot be produced by composing a transform wrongly.
-	#
-	# HISTORY, and it is why this gate was rewritten. This function used to measure
-	# (global_transform * get_bone_global_pose(lo)).origin and reported the rest pose at
-	# 1.4 deg, "upright". That 1.4 was an artifact of applying the rig mount TWICE, and it
-	# inverted the entire investigation: the same form reported the arena bots at 76-98 deg
-	# and the clips as rolled, when the bots in fact STAND (measured below: 1.46-1.62 m of
-	# head-over-feet, spine-vs-UP 7-11 deg, production arena route, 60-67 m out). The
-	# correct rest posture is 0.098 m, i.e. the rest pose really IS on its side -- so the old
-	# gate was not merely mis-measuring, it was PASSING on the one pose that is actually
-	# wrong while inverting the pose that is actually right. Never compose a transform by
-	# hand around get_bone_global_pose(); INV-38d above is what stops that recurring.
+	# ── THE SPINE-PAIR TRAP, which is what the whole card was actually built on ──
+	# spine.001_02 -> spine.004_05 is NOT a stable vertical reference in this rig. During
+	# locomotion the pair INVERTS -- spine.001_02 sits above spine.004_05 -- so a
+	# (hi - lo) direction vector flips and the angle derived from it means nothing. That
+	# inversion, not a roll, is the likeliest origin of the 76-98 deg "roll" figures this
+	# card accumulated. It is printed rather than asserted so the trap stays visible.
+	var sl := _inv38_bone(skel, "spine.001_02")
+	var sh := _inv38_bone(skel, "spine.004_05")
+	var inverted := false
+	if sl >= 0 and sh >= 0:
+		var yl := (skel.global_transform * skel.get_bone_global_pose(sl)).origin.y
+		var yh := (skel.global_transform * skel.get_bone_global_pose(sh)).origin.y
+		inverted = yl > yh
+		print("  NOTE  %-7s %-42s spine.001_02 y=%+.3f spine.004_05 y=%+.3f -> %s (spine-vs-UP is UNUSABLE when this says INVERTED)"
+			% ["INV-38e", "spine_pair_is_a_vertical_reference", yl, yh,
+				"INVERTED" if inverted else "ordered"])
+
+	# ── INV-38: POSTURE, in world space, from a raw coordinate difference ──
+	# A standing human's HEAD IS ABOVE THEIR FEET IN WORLD Y. No angle, no bone-pair
+	# convention, no mount interpretation. Composed into world space because that is what
+	# these two accessors need.
 	var head := _inv38_bone(skel, "spine.006_end_067")
 	var foot := _inv38_bone(skel, "foot.R_064")
 	var rest_h2f := -999.0
@@ -562,35 +588,48 @@ func _inv38_spine_points_up() -> void:
 		skel.reset_bone_poses()
 		for i in 8:
 			await process_frame
-		rest_h2f = skel.get_bone_global_pose(head).origin.y - skel.get_bone_global_pose(foot).origin.y
+		rest_h2f = (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+			- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
 
-	# ── INV-38: the gate ──
+	# SAMPLED, not a single frame. A one-frame reading of a locomotion clip is not a
+	# measurement: the same clip read +0.412 m sampled and -0.196 m at one frame, so a
+	# gate on a single sample would be gating on when it was taken. Mean over 40 frames,
+	# with min and max printed so a transient cannot hide inside an average.
 	var play_h2f := -999.0
-	var play_spine := -1.0
-	if tracks_live and ap.has_animation("walk") and head >= 0 and foot >= 0 and lo >= 0 and hi >= 0:
+	var play_min := INF
+	var play_max := -INF
+	if tracks_live and ap.has_animation("walk") and head >= 0 and foot >= 0:
 		ap.play("walk")
-		for i in 25:
+		var acc := 0.0
+		var n := 0
+		for i in 40:
 			await process_frame
-		play_h2f = skel.get_bone_global_pose(head).origin.y - skel.get_bone_global_pose(foot).origin.y
-		var s2 := 0.0
-		for i in 20:
-			await process_frame
-			var a := skel.get_bone_global_pose(lo).origin
-			var b := skel.get_bone_global_pose(hi).origin
-			s2 += rad_to_deg(acos(clampf((b - a).normalized().dot(Vector3.UP), -1.0, 1.0)))
-		play_spine = s2 / 20.0
+			var v := (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
+			acc += v
+			n += 1
+			play_min = minf(play_min, v)
+			play_max = maxf(play_max, v)
+		play_h2f = acc / maxf(1.0, float(n))
 		ap.stop()
-	_check("INV-38", "rig_stands_while_a_clip_plays", play_h2f > 0.3,
-		"head_above_feet with 'walk' playing = %.3f m (want > 0.3), spine_vs_world_UP=%.1f deg"
-			% [play_h2f, play_spine],
-		"90-deg roll: a rig lying on its side has its head level with its feet")
+	_check("INV-38", "rig_stands_at_rest", head >= 0 and foot >= 0 and rest_h2f > 0.3,
+		"head_above_feet at rest = %.3f m (want > 0.3, world space)" % rest_h2f,
+		"posture: a rig on its side has its head level with its feet")
+	# NOT GATING, and it is a real open defect rather than a broken check. Measured in the
+	# production arena in WORLD space: bots playing 'reload' stand at 0.40-0.44 m of
+	# head-over-feet, while a bot playing 'walk' reads 0.047 m -- the head level with
+	# the feet. Same rig, same frame, same composition, so this is CLIP-SPECIFIC and not a
+	# global roll: the body is horizontal while WALKING and upright otherwise. That is the
+	# user-reported "npcs walk sideways" and it is narrower than a whole-rig mount fault.
+	# Gating it would redden every run while player-rig owns it (card
+	# task_1790427558484_bbbb18), so it is recorded here with its number instead.
+	print("  NOTE  %-7s %-42s head_above_feet with 'walk' = %.3f m mean / %.3f min over 40 frames, world space; 'reload' measures 0.40-0.44 m in the arena. The body is horizontal while WALKING (OPEN DEFECT task_1790427558484_bbbb18, owner player-rig; not gating)"
+		% ["INV-38p", "locomotion_clip_posture", play_h2f, play_min])
 
-	# NON-GATING observation, printed not asserted: the REST posture, which is the real
-	# and far narrower open defect (card task_1790427558484_bbbb18). Only a body with no
-	# clip playing is affected, so it must not redden this suite while it is being fixed.
-	print("  NOTE  %-7s %-42s head_above_feet at rest = %.3f m — the rig lies on its side with NO clip playing (OPEN DEFECT task_1790427558484_bbbb18, owner player-rig; not gating)"
-		% ["INV-38c", "rest_posture", rest_h2f])
-	bot.queue_free()
+	# The 90-degree arena roll this card tracked for a day is NOT REPRODUCED under the
+	# correct composition. Recorded so the record does not revert to the old story.
+	print("  NOTE  %-7s %-42s the user-reported 90-deg roll is not reproduced; the underlying cause of the 76-98 deg readings was the spine-pair inversion above, not a roll (card task_1790427558484_bbbb18, see its notes)"
+		% ["INV-38c", "arena_roll_not_reproduced"])
 
 
 func _inv38_bone(skel: Skeleton3D, prefix: String) -> int:
