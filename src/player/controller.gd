@@ -116,11 +116,13 @@ const STANCE_SMOOTH_RATE: float = 6.0
 # never moved the view). Roll and body tilt are secondary feedback, scaled by
 # the offset that actually got applied.
 const LEAN_PEEK_OFFSET: float = 0.45 # m of lateral eye travel at full lean
-const LEAN_PEEK_MARGIN: float = 0.25 # body radius: stay this far off walls
+## TUNED, and NOT a body radius. The collider is a BoxShape3D
+## (0.330 x 0.181 x 1.716 m in player.tscn), so its half-width is 0.165 m; this
+## 0.25 is a wall standoff chosen by hand. The old comment here claimed it was
+## the body radius, which is how a number nobody had measured survived this long.
+const LEAN_PEEK_MARGIN: float = 0.25 # wall standoff, hand-set, not geometry
 const LEAN_ROLL_MAX: float = deg_to_rad(8.0) # secondary camera roll
 const LEAN_BODY_MAX: float = deg_to_rad(10.0) # visual body tilt about the feet
-const LEAN_STANCE_SCALE_CROUCH: float = 0.6
-const LEAN_STANCE_SCALE_PRONE: float = 0.25
 const LEAN_VISUAL_RATE: float = 10.0
 var _lean_dir: float = 0.0 # -1 right, +1 left, 0 none (matches leaned signal)
 var _lean_peek: float = 0.0 # lateral offset currently applied to the eye
@@ -967,15 +969,23 @@ func _tremor_offset(delta: float) -> Vector2:
     sin(_tremor_phase) * amp,
     sin(_tremor_phase * 1.7 + 1.3) * amp * 0.7)
 
+## Stance scale for the lean, taken from the ONE stance table.
+##
+## These used to be a second, independent encoding of "how much smaller is the
+## body when crouched/prone" (0.6 / 0.25 here against 0.55 / 0.35 in
+## PlayerMovementParameters.CAPSULE_*), and they disagreed by 29% in prone. The
+## lean peek is clamped against walls using LEAN_PEEK_MARGIN, so a lean that
+## believes the body is a different size from the collider that actually stops
+## it produces a corner peek that clips. One table, one number, both readers.
 func _lean_stance_scale() -> float:
   if not crouching:
-    return 1.0
+    return PlayerMovementParameters.CAPSULE_STAND
   match crouching.state:
     CROUCHING:
-      return LEAN_STANCE_SCALE_CROUCH
+      return PlayerMovementParameters.CAPSULE_CROUCH
     PRONING:
-      return LEAN_STANCE_SCALE_PRONE
-  return 1.0
+      return PlayerMovementParameters.CAPSULE_PRONE
+  return PlayerMovementParameters.CAPSULE_STAND
 
 ## Leaning for real: translate the eye sideways (in body space, so the view
 ## axis is unchanged) and clamp it against walls so a corner peek cannot see
