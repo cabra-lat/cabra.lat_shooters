@@ -1023,37 +1023,13 @@ func _clamp_lean_peek(desired: float) -> float:
   var sgn := signf(desired)
   # Neutral eye: the body origin lifted to the current eye height.
   var neutral: Vector3 = global_transform * Vector3(0.0, spring_arm.position.y, 0.0)
+  # The arithmetic lives in LeanPeekClamp so the invariant test can exercise the
+  # SAME code without booting a player: welding it to this node is what forced
+  # the test to carry a copy, and a copy printed the pre-fix numbers and passed.
+  # See src/player/lean_peek_clamp.gd for the geometry and the measured limits.
   var lateral: Vector3 = global_transform.basis.x * sgn
-  var travel := absf(desired)
-  # SHAPE CAST, not a ray. A single ray along the lateral axis is CORNER-BLIND:
-  # against an inside corner it passes the wall's near edge and hits nothing, the
-  # query misses, and the clamp returns the full desired value with the margin
-  # never applied to that geometry. Measured: the eye ends up 0.2125 m from the
-  # corner edge at prone scale 0.25 and 0.1741 m at 0.35, both violating the
-  # 0.25 m margin, so the gap is value-independent and predates the stance
-  # deduplication. Pinned by test/validate_lean_corner.gd.
-  #
-  # A SPHERE of LEAN_PEEK_MARGIN radius keeps the eye that far from ANY surface
-  # it can see, at any angle. Against a flat wall perpendicular to the ray this
-  # is IDENTICAL to the old arithmetic -- the sphere touches when the eye is
-  # `margin` short, i.e. travel = d - margin, exactly what the ray produced --
-  # so this tightens corners without changing flat-wall behaviour and without
-  # introducing a new tuned number. It enforces the margin the constant already
-  # declares; whether a corner should owe MORE than a flat wall is a separate
-  # product question and is deliberately not answered here.
-  var shape := SphereShape3D.new()
-  shape.radius = LEAN_PEEK_MARGIN
-  var query := PhysicsShapeQueryParameters3D.new()
-  query.shape = shape
-  query.transform = Transform3D(Basis.IDENTITY, neutral)
-  query.motion = lateral * travel
-  query.exclude = [get_rid()]
-  query.collide_with_areas = false
-  var motion := get_world_3d().direct_space_state.cast_motion(query)
-  # cast_motion returns [safe_fraction, unsafe_fraction]. A safe fraction of 1.0
-  # means nothing was hit within the requested travel.
-  var allowed: float = motion[0] * travel
-  return sgn * clampf(allowed, 0.0, travel)
+  return LeanPeekClamp.clamp_peek(get_world_3d().direct_space_state, neutral,
+    lateral, desired, LEAN_PEEK_MARGIN, [get_rid()])
 
 func _handle_state_logic():
   # Handle sprint blocking when firing
