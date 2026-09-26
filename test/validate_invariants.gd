@@ -49,7 +49,29 @@ var _notes := 0
 #     to a hard gate without anyone deciding to. Silently growing debt is the
 #     thing demotion is supposed to prevent, and it can only be prevented by
 #     something that fails.
-const INV38A_SITE_BASELINE := 16
+const INV38A_BASELINE_FILE := "res://addons/cabra.lat_shooters/test/baselines/INV-38a.txt"
+
+# The baseline is DATA, not a source constant, and that is a reviewability choice
+# rather than a safety one -- QA, 2026-09-26, on f5ff4d7. As a named constant it
+# was defeated by changing one digit: bump 16 to 17 and the gate goes green
+# reading "17 site(s) vs baseline 17", with nothing recording that the debt
+# moved, and a number in a harness is the change least likely to be looked for.
+# In a data file the same edit shows up as content in the diff and the harness
+# says where the number came from. CHANGING test/baselines/INV-38a.txt REQUIRES
+# A SECOND READER, exactly as tools/qa/ignore.json already does for suppressions.
+# This is ADVISORY, not a governor: anyone can edit a data file too, and the
+# second-reader rule is the actual control. Calling it a governor overstates it.
+func _inv38a_baseline() -> int:
+	if not FileAccess.file_exists(INV38A_BASELINE_FILE):
+		_check("INV-38a", "baseline file is missing", false,
+			INV38A_BASELINE_FILE, "the ratchet has no number to compare against")
+		return 0
+	var raw := FileAccess.get_file_as_string(INV38A_BASELINE_FILE).strip_edges()
+	if not raw.is_valid_int():
+		_check("INV-38a", "baseline file is not an integer", false,
+			"%s = %s" % [INV38A_BASELINE_FILE, raw], "an unreadable baseline is not a permissive one")
+		return 0
+	return raw.to_int()
 var _inv38a_sites := 0
 var _fail_lines: Array[String] = []
 var _sabotage := false
@@ -104,7 +126,7 @@ func _run() -> void:
 		print("  --- failures (with origin) ---")
 		for line in _fail_lines:
 			print("  " + line)
-		print("RESULT: FAIL  (INV-38a report-only: %d site(s) vs baseline %d — see NOTE rows)" % [_inv38a_sites, INV38A_SITE_BASELINE])
+		print("RESULT: FAIL  (INV-38a report-only: %d site(s) vs baseline %d from %s — see NOTE rows)" % [_inv38a_sites, _inv38a_baseline(), INV38A_BASELINE_FILE])
 		quit(1)
 	else:
 		# The counters CANNOT see a nested runtime error: GDScript does not throw, so
@@ -123,7 +145,7 @@ func _run() -> void:
 	# NOTE body, so a reader scanning RESULT saw the smaller of the two
 	# numbers. This is the number whose presence proves demotion is not
 	# deletion, so it is the one that belongs on the line.
-		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check); INV-38a report-only: %d site(s) vs baseline %d — see NOTE rows" % [_inv38a_sites, INV38A_SITE_BASELINE])
+		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check); INV-38a report-only: %d site(s) vs baseline %d from %s — see NOTE rows" % [_inv38a_sites, _inv38a_baseline(), INV38A_BASELINE_FILE])
 		quit(0)
 
 ## Report-only tier. Counts and prints, but never fails the gate.
@@ -1979,7 +2001,7 @@ func _inv38_no_unguarded_get_tree_deref() -> void:
 	# decides whether the follow-up is a 22-site refactor or three sites.
 	# Promote back to _check once triaged and measured.
 	_inv38a_sites = chained.size()
-	if _inv38a_sites > INV38A_SITE_BASELINE:
+	if _inv38a_sites > _inv38a_baseline():
 		# Ratchet tripped: the debt grew. A report-only tier that can only fall
 		# silent is deletion with a receipt, so growth has to be a failure.
 		# _check(id, name, ok, detail, origin) -- ok is the VERDICT, and a
@@ -1987,7 +2009,7 @@ func _inv38_no_unguarded_get_tree_deref() -> void:
 		# ratchet, so RESULT never has to claim it on unrelated failures.
 		_check("INV-38a", "chained get_tree() deref (RATCHET TRIPPED — was report-only)",
 			false,
-			"%d site(s), above the %d baseline: %s" % [chained.size(), INV38A_SITE_BASELINE, ", ".join(chained)],
+			"%d site(s), above the %d baseline: %s" % [chained.size(), _inv38a_baseline(), ", ".join(chained)],
 			"debt grew since the demotion; report-only may shrink, never grow")
 	else:
 		_note("INV-38a", "chained get_tree() deref (REPORT-ONLY)",
