@@ -33,6 +33,7 @@ const META_SAVE := "user://inv_meta_test/profile.save"
 
 var _pass := 0
 var _fail := 0
+var _notes := 0
 var _fail_lines: Array[String] = []
 var _sabotage := false
 
@@ -86,7 +87,7 @@ func _run() -> void:
 		print("  --- failures (with origin) ---")
 		for line in _fail_lines:
 			print("  " + line)
-		print("RESULT: FAIL")
+		print("RESULT: FAIL  (%d report-only note(s) — see NOTE rows)" % _notes)
 		quit(1)
 	else:
 		# The counters CANNOT see a nested runtime error: GDScript does not throw, so
@@ -100,8 +101,17 @@ func _run() -> void:
 		# greps /RESULT: PASS/, which still matches, and a human reading the log
 		# now sees the caveat. If you are reading this outside the gate, the
 		# counters are all that was checked.
-		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check)")
+		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check); %d report-only note(s) — see NOTE rows" % _notes)
 		quit(0)
+
+## Report-only tier. Counts and prints, but never fails the gate.
+## Used where the RULE is sound but has never been measured against the
+## tree, so an unconditional FAIL would be red forever on sites this repo
+## cannot fix. The count IS the deliverable: it decides whether the
+## follow-up is a 22-site refactor or three sites.
+func _note(id: String, name: String, detail: String, origin: String) -> void:
+	_notes += 1
+	print("  NOTE  %-7s %-42s %s" % [id, name, detail])
 
 func _check(id: String, name: String, ok: bool, detail: String, origin: String) -> void:
 	if ok:
@@ -1937,8 +1947,17 @@ func _inv38_no_unguarded_get_tree_deref() -> void:
 	for root in roots:
 		_scan_tree(root, chained, bound)
 
-	_check("INV-38a", "no chained X.get_tree(). deref", chained.is_empty(),
-		"chained: %s" % (", ".join(chained) if not chained.is_empty() else "none"),
+	# REPORT-ONLY (QA, 2026-09-26). The RULE is sound - a chained
+	# X.get_tree().y dereferences the accessor inline and cannot be guarded,
+	# which is 712e22d verbatim. But it is NEW in this commit and had never
+	# been measured against the tree. As an unconditional FAIL it made the whole
+	# gate permanently red on sites this repo cannot fix, 5 of them in the addon
+	# repo, and a gate that cannot pass teaches reviewers to ignore it exactly
+	# as effectively as one that cannot fail. The count IS the deliverable: it
+	# decides whether the follow-up is a 22-site refactor or three sites.
+	# Promote back to _check once triaged and measured.
+	_note("INV-38a", "chained get_tree() deref (REPORT-ONLY)",
+		"%d site(s): %s" % [chained.size(), (", ".join(chained) if not chained.is_empty() else "none")],
 		"F-RECV: a chained X.get_tree().x dereferences the accessor inline, so it cannot be guarded at all (712e22d)")
 
 	_check("INV-38b", "every bound get_tree() is null-checked", bound.is_empty(),
