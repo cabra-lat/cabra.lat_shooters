@@ -76,6 +76,7 @@ func _run() -> void:
 	await _inv33_inventory_escape_order()
 	await _inv37_npc_lod_survives_detached_bot()
 	await _inv37c_npc_acquire_target_survives_detached_bot()
+	await _inv38_no_unguarded_get_tree_deref()
 
 	print("")
 	print("=== validate_invariants summary ===")
@@ -1909,6 +1910,96 @@ func _inv37_npc_lod_survives_detached_bot() -> void:
 #
 # The counters cannot see the dereference -- a GDScript runtime error leaves no
 # in-process trace -- so the gate's log check is the half that discriminates. Run
+
+func _inv38_no_unguarded_get_tree_deref() -> void:
+	# ORIGIN: the null-accessor family. `get_tree()` is null once a node has left
+	# the tree, which is the settlement/teardown window. Four sites have already
+	# been hit and fixed individually — bot.gd:1185 (12b8b99), _show_result and
+	# _show_damage_direction (3ef1291), and _acquire_target().get_tree (712e22d).
+	# All four are the SAME defect, and four patches is four chances to forget the
+	# fifth. This asserts the class instead of the instances, so the next site
+	# fails a gate rather than a playtest.
+	#
+	# It is a SOURCE scan, not a runtime one, on purpose: a runtime check can only
+	# reach a site it knows how to construct the teardown window for, and it is
+	# per-repo. The scan is cross-repo and covers the shape rather than the list.
+	#
+	# Two shapes are checked, because the fixes used two shapes:
+	#   1. CHAINED — `something.get_tree().x` dereferences the accessor inline with
+	#      no opportunity to guard it. This is 712e22d's bug verbatim.
+	#   2. BOUND — `var t := get_tree()` then `t.x`, with no `t == null` in the
+	#      enclosing function. Guarding the VALUES about to be dereferenced is not
+	#      guarding the RECEIVER, which is what 3ef1291's comment says and what
+	#      the original sites got wrong.
+	var roots := ["res://src", "res://scenes", "res://addons/cabra.lat_shooters/src"]
+	var chained: Array[String] = []
+	var bound: Array[String] = []
+	for root in roots:
+		_scan_tree(root, chained, bound)
+
+	_check("INV-38a", "no chained X.get_tree(). deref", chained.is_empty(),
+		"chained: %s" % (", ".join(chained) if not chained.is_empty() else "none"),
+		"F-RECV: a chained X.get_tree().x dereferences the accessor inline, so it cannot be guarded at all (712e22d)")
+
+	_check("INV-38b", "every bound get_tree() is null-checked", bound.is_empty(),
+		"unguarded: %s" % (", ".join(bound) if not bound.is_empty() else "none"),
+		"F-RECV: get_tree() is null after the node leaves the tree; a bound local that is dereferenced without a null check is the settlement-window crash (bot.gd:1185, 3ef1291)")
+
+func _scan_tree(dir_path: String, chained: Array[String], bound: Array[String]) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while name != "":
+		var full := dir_path.path_join(name)
+		if dir.current_is_dir():
+			if not name.begins_with("."):
+				_scan_tree(full, chained, bound)
+		elif name.ends_with(".gd"):
+			_scan_file(full, chained, bound)
+		name = dir.get_next()
+	dir.list_dir_end()
+
+func _scan_file(path: String, chained: Array[String], bound: Array[String]) -> void:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var text := f.get_as_text()
+	f.close()
+	var lines := text.split("\n")
+	var i := 0
+	while i < lines.size():
+		var raw: String = lines[i]
+		var code := raw.strip_edges()
+		# Shape 1: chained accessor deref. Skip comments so a prose mention in a
+		# comment cannot fail a gate — comments are not code, and an invariant that
+		# reads them manufactures findings with false confidence.
+		if not code.begins_with("#"):
+			var chain := RegEx.new()
+			chain.compile("[A-Za-z_][A-Za-z0-9_]*\\s*\\.\\s*get_tree\\s*\\(\\s*\\)\\s*\\.")
+			if chain.search(code) != null:
+				chained.append("%s:%d" % [path, i + 1])
+		i += 1
+	# Shape 2: a bound local that is dereferenced in a function with no null check.
+	# Scanned per function so the null check has to be in the same scope.
+	var funcs := RegEx.new()
+	funcs.compile("(?s)func\\s+[A-Za-z_][A-Za-z0-9_]*\\s*\\([^)]*\\)[^\\n]*\\n(.*?)(?=\\nfunc\\s|\\Z)")
+	var m := funcs.search(text)
+	while m != null:
+		var body: String = m.get_string(1)
+		var bind := RegEx.new()
+		bind.compile("var\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?::[^=]+)?=\\s*get_tree\\s*\\(\\s*\\)")
+		var bm := bind.search(body)
+		if bm != null:
+			var v: String = bm.get_string(1)
+			var deref := RegEx.new()
+			deref.compile("\\b" + v + "\\s*\\.")
+			var guard := RegEx.new()
+			guard.compile("\\b" + v + "\\s*==\\s*null|\\bif\\s+not\\s+" + v + "\\b|null\\s*==\\s*" + v + "\\b")
+			if deref.search(body) != null and guard.search(body) == null:
+				bound.append("%s (%s)" % [path, v])
+		m = funcs.search(text, m.get_end())
 
 func _inv37c_npc_acquire_target_survives_detached_bot() -> void:
 	var bot_scene: PackedScene = load("res://src/npcs/bot/bot.tscn")
