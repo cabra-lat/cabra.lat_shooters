@@ -106,8 +106,6 @@
 extends SceneTree
 
 const BOT_SCENE := "res://src/npcs/bot/bot.tscn"
-const HEAD_BONE := "spine.006_end_067"
-const FOOT_BONE := "foot.R_064"
 
 ## The bones a clip DRIVES, from its own rotation track paths.
 func _driven_bones(clip: String) -> Dictionary:
@@ -146,8 +144,35 @@ func _is_axis_bone(n: String) -> bool:
 ## 88.24 that reached the user, was chain-damped and biased low by construction.
 ## spine.006_07 and foot.R_064 are both rotation-driven, so the vector joins two
 ## bones that the clip actually moves.
+## TOMBSTONE. spine.006_end_067 is the head tip and is keyed by NO clip in
+## humanoid_body_anims.res; it inherits its parent chain instead. Any head-anchored
+## quantity therefore pairs a moving foot with a bone that never participates, which
+## is how the 88.24 degree reading was manufactured. Kept as a named dead constant
+## so that reintroducing it is a visible, greppable act rather than a quiet default.
+const HEAD_BONE := "spine.006_end_067"  ## DO NOT ANCHOR A MEASUREMENT HERE
+const FOOT_BONE := "foot.R_064"
 const HI_BONE := "spine.006_07"
 const LO_BONE := "foot.R_064"
+
+## THE QUANTITY IS A LEG-CHAIN ANGLE, NOT A BODY AXIS, AND IT IS NOT RENAMABLE INTO ONE.
+##
+## OBTAINABILITY, RECORDED SO NOBODY RE-ATTEMPTS IT. A body-axis measurement needs a
+## bone at the top of the body that the clip actually keys. The head tip,
+## spine.006_end_067, is driven by NO clip in humanoid_body_anims.res -- it is a
+## Blender tip joint that inherits its parent chain instead of being keyed. So any
+## head-anchored quantity necessarily pairs a MOVING foot against a bone that NEVER
+## PARTICIPATES, and that is not a slightly wrong number, it is a number about
+## something else. It is what produced the 88.24 degree reading that reached the
+## user, what produced this file's own original head-over-foot column, and what
+## would produce a fresh wrong number under any new name. THE BODY AXIS IS
+## UNOBTAINABLE FROM THIS ASSET. It is a property of the clip set, not a defect in
+## the sampler, and the correct response is to record that rather than to go hunting
+## for a substitute head bone and publish whatever it finds under the old header.
+##
+## The anchors below are both rotation-driven, which is the requirement that
+## matters: the vector joins two bones the clip moves. The pair is printed on every
+## row, and a row whose anchors cannot be checked is a row whose anchors cannot be
+## trusted.
 
 ## The pair for this clip, or [] if the clip does not drive both ends. A refusal
 ## is the correct outcome for a clip that does not: better no number than a number
@@ -287,7 +312,7 @@ func _run() -> void:
 		_ctl(ctl_clip, hi, fi, authored_scale)
 		_ctl(ctl_clip, hi, fi, 1.0)
 
-	print("P|clip              MIN     MAX    SPAN  | rig node path                 SCALE  MOUNT_DEG | verdict  | classified")
+	print("P|LEG_CHAIN_ANGLE -- NOT a body axis. The head tip spine.006_end_067 is keyed by\nP|NO clip, so a head-anchored quantity would pair a moving foot with a bone that\nP|never participates. The body axis is UNOBTAINABLE from this clip set.\nP|\nP|clip  KIND  MIN     MAX    SPAN  | rig node path                 SCALE  MOUNT_DEG | verdict  | classified")
 	var undriven: Array = []
 	for clip in _clips():
 		var r := await _sample(clip, hi, fi)
@@ -310,12 +335,21 @@ func _run() -> void:
 		var gb: Basis = _sk.global_transform.basis
 		var up: Vector3 = (gb * Vector3.UP).normalized()
 		var mount_deg: float = rad_to_deg(acos(clampf(up.dot(Vector3.UP), -1.0, 1.0)))
-		print("P|%-16s %+.3f  %+.3f  %.3f  | %-32s %.4f  %7.2f | %-8s | drove %d/%d %-14s | %s..%s | %s" % [
-			clip, r["min"], r["max"], r["span"],
+		print("P|%-16s %-5s %+.3f  %+.3f  %.3f  | %-32s %.4f  %7.2f | %-8s | drove %d/%d %-14s | %s..%s | %s" % [
+			clip, "POSE", r["min"], r["max"], r["span"],
 			str(_sk.get_path()), gb.get_scale().x, mount_deg,
 			_band(r["min"]), int(r["driven"]), int(r["of"]), r["as"],
 			str(r["hi"]).substr(0, 14), str(r["fi"]).substr(0, 10),
 			CLASSIFIED.get(clip, "-")])
+		# REST on the same pair, same node, same frame, so the row above has a
+		# baseline it can be read against. REST and POSE are never mixed and never
+		# compared without both being named; that confusion is what put a 0.422 m
+		# POSE reading and a 1.660 m REST reading on this board as if they were
+		# rival measurements of one quantity.
+		print("P|%-16s %-5s %+.3f  %+.3f  %.3f  | %s" % [
+			clip, "REST", r["rest"], r["rest"], 0.0,
+			"anchors %s..%s from the SKELETON REST, not the clip" % [
+				str(r["hi"]).substr(0, 14), str(r["fi"]).substr(0, 10)]])
 	if undriven.size() > 0:
 		print("P|")
 		print("P|UNDRIVEN, EXCLUDED, NOT REPORTED AS NUMBERS (%d): %s" % [
@@ -471,8 +505,25 @@ func _sample(clip: String, hi: int, fi: int) -> Variant:
 		his = maxf(v, his)
 	if driven == 0:
 		return null
+	# REST angle on the same bone pair, from the skeleton rest rather than the
+	# clip, so every POSE row ships with the baseline it has to be judged against.
+	#
+	# get_bone_global_rest is Skeleton3D SPACE, not world. The skeleton node in this
+	# fixture carries a 90 degree mount -- MOUNT_DEG reads 90.00 on every row -- so
+	# comparing the raw rest vector against Vector3.UP compares a SKELETON-SPACE
+	# vector to a WORLD vector and produced REST +86.164 against POSE +0.318. That
+	# gap is not a posture finding, it is a space mismatch, and it is the same
+	# mistake as the 1.000-versus-1.0197 disagreement earlier tonight wearing the
+	# opposite sign. Compose the skeleton basis onto the rest vector first, exactly
+	# as the POSE path composes global_transform * get_bone_global_pose.
+	var rest_hi: Transform3D = _sk.get_bone_global_rest(hi)
+	var rest_lo: Transform3D = _sk.get_bone_global_rest(fi)
+	var rest_v: Vector3 = (_sk.global_transform.basis * (rest_hi.origin - rest_lo.origin))
+	var rest: float = 0.0
+	if rest_v.length() > 0.0001:
+		rest = rad_to_deg(acos(clampf(rest_v.normalized().dot(Vector3.UP), -1.0, 1.0)))
 	return {"min": lo, "max": his, "span": his - lo, "driven": driven,
-		"of": SAMPLES, "as": drove_as, "pos": [pos_lo, pos_hi],
+		"of": SAMPLES, "as": drove_as, "pos": [pos_lo, pos_hi], "rest": rest,
 		"hi": anchors[2], "fi": anchors[3]}
 
 
