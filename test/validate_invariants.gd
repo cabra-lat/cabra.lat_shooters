@@ -27,6 +27,10 @@ const WEAPON_PATH := "res://resources/weapons/M4_Carbine.tres"
 const ARMOR_PATH := "res://resources/armor/GOST_BR4.tres"
 const BANDAGE_PATH := "res://resources/medical/army_bandage.tres"
 const RIG_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn"
+## INV-38 needs the PRODUCTION animation wiring, which lives in the bot scene: the
+## AnimationPlayer, its library and root_node are all in bot.tscn, and
+## humanoid_rig.tscn carries no AnimationPlayer at all.
+const BOT_SCENE := "res://src/npcs/bot/bot.tscn"
 const IK_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player_ik.tscn"
 const META_TEST_DIR := "user://inv_meta_test"
 const META_SAVE := "user://inv_meta_test/profile.save"
@@ -54,6 +58,7 @@ func _run() -> void:
 	await _inv18_rig_sole_on_ground()
 	await _inv19_rig_body_material_supports_flash()
 	await _inv20_every_clip_drives_the_rig()
+	await _inv38_spine_points_up()
 	_inv21_roles_swap_conserves_mass()
 	_inv22_roles_kia_forfeits_only_active_kit()
 	_inv23_skeletons_in_sync()
@@ -430,6 +435,132 @@ func _inv20_every_clip_drives_the_rig() -> void:
 		"clips=%d without_a_match=%d %s" % [clips.size(), dead.size(), str(dead)],
 		"F9: clips used Mixamo bone names absent from the rig, so bodies were a T-pose")
 	rig.queue_free()
+
+# ─── INV-38: a standing human's spine points UP, and a clip must PROVE it moved ──
+# ORIGIN (npc-body, 2026-09-25, the 90-degree bot roll, card task_1790427558484_bbbb18):
+# Three lanes in one night each published a plausible angle from a rig that was not
+# moving — a rig whose AnimationPlayer library was empty, a probe that compared a
+# bone's live origin with ITSELF (returning 0.0000 while is_playing() was true), and
+# a hand-assembled rig carrying a second AnimationPlayer so no track ever resolved.
+# A rig sitting at its rest pose measures UPRIGHT, so every one of those read as
+# "no defect" or "clips are innocent". Two permanent gates fall out of that:
+#
+#   INV-38  the rest pose is the POSTURE REFERENCE. A standing human's spine points
+#           up, so with no clip playing the spine must be within a few degrees of
+#           world UP (measured 1.4 deg). This is the one pose that currently looks
+#           RIGHT, and it is what a fix for the roll could silently break: the rig
+#           root is mounted at 120 deg (humanoid_rig.tscn:293) and the BONE REST
+#           CHAIN is what compensates for it (measured, driver frozen: _rootJoint
+#           90.0, spine_01 140.2, spine.001_02 39.4, spine.004_05 7.4 -> 1.4), so
+#           zeroing that node transform would break this check. Gate it.
+#   INV-38b a clip must DEMONSTRABLY move the rig before any angle is read. INV-20
+#           above is a STATIC check — it verifies track paths name real bones, and it
+#           passed happily throughout while nothing could show a pose changing. This
+#           is the runtime version, and it is the assertion whose absence let three
+#           false passes through. Note the hazard already documented in this file's
+#           header: measure POSITION, never get_bone_pose_rotation().length(), which
+#           is 1 for any normalized quaternion and always reports "no change".
+#
+# WIRING TRAP, and it is the mechanism of all three false passes: the AnimationPlayer
+# and its library live in the BOT scene, not in humanoid_rig.tscn, and the clips address
+# bones as "Skeleton3D:<bone>" with AnimationPlayer.root_node as the base of those paths.
+# humanoid_rig.gd's _ensure_anim() only FINDS an existing player, it never creates one, so
+# instantiating the rig scene alone yields a rig that CANNOT animate -- which measures
+# upright forever. That is precisely why INV-20 above is static-only. So this check
+# instantiates bot.tscn, the production wiring, and asserts the track paths resolve
+# BEFORE measuring anything; a failure is reported as a failure, never printed as an angle.
+func _inv38_spine_points_up() -> void:
+	var ps := load(BOT_SCENE) as PackedScene
+	if ps == null:
+		_check("INV-38", "rig_spine_points_up_at_rest", false, "bot scene missing",
+			"90-deg roll: no posture reference to measure the fix against")
+		return
+	var bot = ps.instantiate()
+	root.add_child(bot)
+	await process_frame
+	# Freeze the driver BEFORE touching the animation: bot.gd re-asserts its own clip
+	# every tick, so an un-frozen "stopped" reading is a playing clip labelled rest.
+	# (v12 of the probe made exactly that mistake and nearly reported a false zero.)
+	if bot.has_method("set_physics_process"):
+		bot.set_physics_process(false)
+		bot.set_process(false)
+	for i in 8:
+		await process_frame
+	var skel := bot.find_child("Skeleton3D", true, false) as Skeleton3D
+	var ap := bot.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if skel == null or ap == null:
+		_check("INV-38", "rig_spine_points_up_at_rest", false,
+			"skeleton=%s animation_player=%s" % [str(skel != null), str(ap != null)],
+			"90-deg roll: posture cannot be referenced")
+		bot.queue_free()
+		return
+
+	# The gate on the gate: does "Skeleton3D:<bone>" actually resolve from root_node?
+	var resolved := ap.get_node_or_null(NodePath("%s/Skeleton3D" % str(ap.root_node)))
+	var tracks_live := resolved == skel
+
+	var lo := _inv38_bone(skel, "spine.001_02")
+	var hi := _inv38_bone(skel, "spine.004_05")
+
+	# ── INV-38b: a clip must move the rig, before any angle means anything ──
+	var moved := 0.0
+	if tracks_live and ap.has_animation("walk"):
+		ap.play("walk")
+		for i in 20:
+			await process_frame
+			for b in range(skel.get_bone_count()):
+				moved = maxf(moved, (skel.global_transform * skel.get_bone_rest(b)).origin
+					.distance_to((skel.global_transform * skel.get_bone_global_pose(b)).origin))
+		ap.stop()
+	_check("INV-38b", "a_clip_demonstrably_moves_the_rig", tracks_live and moved > 0.01,
+		"tracks_live=%s max_position_delta_vs_rest=%.4f m %s" % [str(tracks_live), moved,
+			"" if moved > 0.01 else "— a rig that does not move measures UPRIGHT and proves nothing"],
+		"90-deg roll: three lanes published angles from a rig that was not animating")
+
+	# ── INV-38: and the rest pose is the posture reference ──
+	skel.reset_bone_poses()
+	for i in 8:
+		await process_frame
+	var rest_deg := -1.0
+	if lo >= 0 and hi >= 0:
+		var s := 0.0
+		for i in 20:
+			await process_frame
+			var a := (skel.global_transform * skel.get_bone_global_pose(lo)).origin
+			var b := (skel.global_transform * skel.get_bone_global_pose(hi)).origin
+			s += rad_to_deg(acos(clampf((b - a).normalized().dot(Vector3.UP), -1.0, 1.0)))
+		rest_deg = s / 20.0
+	_check("INV-38", "rig_spine_points_up_at_rest", lo >= 0 and hi >= 0 and rest_deg < 5.0,
+		"spine_vs_world_UP=%.1f deg at rest (want < 5)" % rest_deg,
+		"90-deg roll: the rest chain compensating a 120 deg root mount is the reference the fix must preserve")
+
+	# NON-GATING observation, printed not asserted: the live roll while a locomotion
+	# clip plays. This is the OPEN DEFECT (card task_1790427558484_bbbb18, owner
+	# player-rig), not an invariant, so it must not redden this suite while it is
+	# being fixed. It is recorded here so whoever lands the fix can read the before
+	# number in the same file as the after assertion. Expect ~76-96 deg today.
+	var live := -1.0
+	if tracks_live and ap.has_animation("walk") and lo >= 0 and hi >= 0:
+		ap.play("walk")
+		for i in 20:
+			await physics_frame
+		var s2 := 0.0
+		for i in 20:
+			await process_frame
+			var a := (skel.global_transform * skel.get_bone_global_pose(lo)).origin
+			var b := (skel.global_transform * skel.get_bone_global_pose(hi)).origin
+			s2 += rad_to_deg(acos(clampf((b - a).normalized().dot(Vector3.UP), -1.0, 1.0)))
+		live = s2 / 20.0
+		ap.stop()
+	print("  NOTE  %-7s %-42s spine_vs_world_UP=%.1f deg with 'walk' playing (OPEN DEFECT task_1790427558484_bbbb18, owner player-rig; not gating)" % ["INV-38c", "locomotion_clip_posture", live])
+	bot.queue_free()
+
+
+func _inv38_bone(skel: Skeleton3D, prefix: String) -> int:
+	for i in skel.get_bone_count():
+		if skel.get_bone_name(i).begins_with(prefix):
+			return i
+	return -1
 
 # ─── INV-21: switching faction conserves mass + item multiset (roles) ─
 # ORIGIN (verifier roles slices, 2026-09-21; coordinator asked for independent
