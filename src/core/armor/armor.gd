@@ -28,7 +28,6 @@ enum Face {
 }
 
 @export var type: ArmorType = ArmorType.GENERIC
-@export_multiline var description: String = "Default armor."
 ## Pending consumer: armour impact audio — wired by the audio lane.
 @export var hit_sound: AudioStream
 

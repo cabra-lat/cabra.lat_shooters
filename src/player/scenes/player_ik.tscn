@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dv1ghtrg8ero0" path="res://addons/cabra.lat_shooters/src/player/ik.gd" id="1_aq4gr"]
 [ext_resource type="Shader" uid="uid://caen77yke1bv" path="res://shaders/psx/psx_lit_alpha-scissor.gdshader" id="2_uvku0"]
-[ext_resource type="Script" uid="uid://df7j0ab7lmhoy" path="res://addons/libik/script/pole_bone_constraint.gd" id="3_kif0f"]
+[ext_resource type="Script" uid="uid://df7j0ab7lmhoy" path="res://third_party/godotik/godot_project/addons/libik/script/pole_bone_constraint.gd" id="3_kif0f"]
 [ext_resource type="Texture2D" uid="uid://yv0lgb5wkbdh" path="res://assets/models/container_backpack/decal.png" id="3_uvku0"]
 [ext_resource type="ArrayMesh" uid="uid://c58vxdyo33v2g" path="res://addons/cabra.lat_shooters/src/player/scenes/player_mesh.tres" id="4_uvku0"]
 [ext_resource type="PackedScene" uid="uid://cp8wg4h537gp8" path="res://addons/cabra.lat_shooters/src/player/scenes/backpack.tscn" id="6_ocffs"]
