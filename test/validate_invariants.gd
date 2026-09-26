@@ -1978,7 +1978,7 @@ func _scan_file(path: String, chained: Array[String], bound: Array[String]) -> v
 		if not code.begins_with("#"):
 			var chain := RegEx.new()
 			chain.compile("[A-Za-z_][A-Za-z0-9_]*\\s*\\.\\s*get_tree\\s*\\(\\s*\\)\\s*\\.")
-			if chain.search(code) != null:
+			if chain.search(code) != null and not _function_guards_receiver(text, i, raw):
 				chained.append("%s:%d" % [path, i + 1])
 		i += 1
 	# Shape 2: a bound local that is dereferenced in a function with no null check.
@@ -1989,7 +1989,12 @@ func _scan_file(path: String, chained: Array[String], bound: Array[String]) -> v
 	while m != null:
 		var body: String = m.get_string(1)
 		var bind := RegEx.new()
-		bind.compile("var\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?::[^=]+)?=\\s*get_tree\\s*\\(\\s*\\)")
+		# The negative lookahead matters and was a measured false positive:
+		# `var t = get_tree().create_timer(0.01)` is a CHAINED call, but this
+		# pattern matched the `var t = get_tree()` prefix of it and then reported
+		# it a second time as a bound local. Without the lookahead the same line
+		# fails two different checks for one defect.
+		bind.compile("var\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?::[^=]+)?=\\s*get_tree\\s*\\(\\s*\\)(?![.\\w])")
 		var bm := bind.search(body)
 		if bm != null:
 			var v: String = bm.get_string(1)
@@ -2000,6 +2005,28 @@ func _scan_file(path: String, chained: Array[String], bound: Array[String]) -> v
 			if deref.search(body) != null and guard.search(body) == null:
 				bound.append("%s (%s)" % [path, v])
 		m = funcs.search(text, m.get_end())
+
+## True when the enclosing function already established that the node is in the
+## tree. `is_inside_tree()` returning true implies `get_tree()` is non-null, so
+## an `is_inside_tree()` guard IS a receiver guard and flagging past it is a
+## false positive. Measured: src/npcs/bot_loot.gd:9 returns early on
+## `not body.is_inside_tree()` and lines 14 and 21 dereference
+## `body.get_tree()`. The guard is on the receiver's tree membership rather than
+## spelled `get_tree() == null`, and a check that only accepts one spelling of a
+## real guard is a check that invents findings with the confidence of a true one.
+func _function_guards_receiver(text: String, line_index: int, raw_line: String) -> bool:
+	# Find the start of the enclosing function, then look at its body only.
+	var before := text.split("\n", true, line_index)
+	var start := -1
+	for i in range(before.size() - 1, -1, -1):
+		if before[i].begins_with("func "):
+			start = i
+			break
+	if start < 0:
+		return false
+	var body := "\n".join(PackedStringArray(before.slice(start)))
+	body += "\n" + raw_line
+	return body.find("is_inside_tree()") != -1
 
 func _inv37c_npc_acquire_target_survives_detached_bot() -> void:
 	var bot_scene: PackedScene = load("res://src/npcs/bot/bot.tscn")
