@@ -1,5 +1,6 @@
 [gd_scene format=3 uid="uid://ly33hk8t667t"]
 
+[ext_resource type="Script" path="res://addons/cabra.lat_shooters/src/player/debug/movement_state_overlay.gd" id="20_overlay"]
 [ext_resource type="Script" uid="uid://mrk0a01q6wco" path="res://addons/cabra.lat_shooters/src/player/controller.gd" id="1_thwj1"]
 [ext_resource type="Script" uid="uid://c13t0msw8wld6" path="res://addons/cabra.lat_shooters/src/player/animations.gd" id="3_gsogp"]
 [ext_resource type="Script" uid="uid://x8rsaq0qwxag" path="res://addons/cabra.lat_state_machines/state_machine.gd" id="4_a20rg"]
@@ -209,3 +210,6 @@ remote_path = NodePath("../../Skeleton3D/GodotIK/IK_rightarm")
 [connection signal="timeout" from="FocusTimer" to="." method="_on_focus_timeout"]
 [connection signal="timeout" from="ReloadTimer" to="." method="_on_reload_timeout"]
 [connection signal="timeout" from="FiremodeTimer" to="." method="_on_firemode_timeout"]
+
+[node name="MovementStateOverlay" type="CanvasLayer" parent="."]
+script = ExtResource("20_overlay")
