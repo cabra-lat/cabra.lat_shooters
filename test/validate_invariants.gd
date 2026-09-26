@@ -2001,7 +2001,19 @@ func _scan_file(path: String, chained: Array[String], bound: Array[String]) -> v
 			var deref := RegEx.new()
 			deref.compile("\\b" + v + "\\s*\\.")
 			var guard := RegEx.new()
-			guard.compile("\\b" + v + "\\s*==\\s*null|\\bif\\s+not\\s+" + v + "\\b|null\\s*==\\s*" + v + "\\b")
+			# Four accepted spellings, each added because a run measured the
+			# previous set producing a false positive on guarded code:
+			#   t == null / null == t   explicit
+			#   if not t                 negated truthiness
+			#   if t:                    plain truthiness  <- the GDScript idiom, and
+			#                                   the one that was missing, so
+			#                                   weapon_3d.gd's `if t: await
+			#                                   t.physics_frame` was reported
+			#                                   unguarded while being guarded
+			#   t != null                explicit positive
+			# A guard check that only accepts one spelling of a real guard
+			# invents findings with the confidence of a true one.
+			guard.compile("\\b" + v + "\\s*==\\s*null|null\\s*==\\s*" + v + "\\b|\\bif\\s+not\\s+" + v + "\\b|\\bif\\s+" + v + "\\s*:|" + v + "\\s*!=\\s*null")
 			if deref.search(body) != null and guard.search(body) == null:
 				bound.append("%s (%s)" % [path, v])
 		m = funcs.search(text, m.get_end())
