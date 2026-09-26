@@ -814,6 +814,27 @@ func _inv38_spine_points_up() -> void:
 	# and between-context clip driving, so the posture gate is still not claimed writable.
 	var EXPECTED_MOUNT_DEG := 90.0
 	var MOUNT_TOL_DEG := 0.5
+	# CORROBORATED INDEPENDENTLY, AND AT A SCALE THAT MATTERS. spotter sampled the same
+	# quantity live in the PRODUCTION ARENA -- every fifth physics frame, 1,122 samples
+	# across three runs -- and read min 90.00 / max 90.00, not one sample off. So the
+	# expected value below is not one probe in one bare scene: it holds in the shipping
+	# route, and the gate's frame is a fact about runs, not only about the authored file.
+	#
+	# SCOPE NOTE, because two lanes now hold apparently conflicting claims and they are
+	# both true of their own context. In a BARE bot.tscn scene the node basis scale is
+	# CONSTANT within a process (drift 0.000000 over 300 frames, two arms). In the
+	# PRODUCTION ARENA it is modulated within a single run: spotter measured row magnitude
+	# spreading 0.0594-0.0951 with det leaving 1.0 by up to 17 percent. The bare-scene
+	# reading was never wrong; it was scoped to a context with nothing live in it, and it
+	# should not be quoted as a statement about the arena. The ROTATION is invariant in
+	# both contexts, which is why this gate reads the angle and not the scale.
+	#
+	# And the practical consequence spotter drew from it, recorded because it changes where
+	# a fix belongs: anything written to the node transform at runtime is re-derived
+	# immediately by whatever modulates the scale, and will lose that argument the way the
+	# PoseBasisFix3D write lost it -- not because the write is refused, but because the
+	# value is recomputed straight afterwards. A fix belongs on the AUTHORED basis in the
+	# file, which is the part of this transform that is stable.
 	# A sentinel that CANNOT be a real reading, so a missing node or an unresolved bone
 	# returns a failure rather than a number that happens to satisfy the assertion. The
 	# previous generation of this file used fallbacks identical to the real value, which
