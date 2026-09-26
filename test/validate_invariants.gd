@@ -51,7 +51,7 @@ const META_SAVE := "user://inv_meta_test/profile.save"
 ## Three corollaries, each paid for at least once:
 ##   1. A quantity that VARIES is not a mechanism. It is evidence that you have not found
 ##      the input yet, and the first place to look is whatever generates it. Seven "basis"
-##      values turned out to be randf_range(0.94, 1.06) in bot.gd:1146 -- a documented
+##      values turned out to be randf_range(0.94, 1.06) in bot.gd:1125 -- a documented
 ##      per-bot random draw, in this lane's own file.
 ##   2. Before hunting a writer, check that the thing you re-ran is the thing you measured
 ##      the first time. The scale was constant WITHIN a process and random BETWEEN bots, so
@@ -613,7 +613,7 @@ func _inv38_spine_points_up() -> void:
 	# convention, no mount interpretation. Composed into world space because that is what
 	# these two accessors need.
 	# ── THE SCALE PIN, AS EXECUTABLE BEHAVIOUR AND NOT AS A COMMENT ──
-	# src/npcs/bot/bot.gd:1146 draws a per-bot uniform scale, randf_range(0.94, 1.06), and
+	# src/npcs/bot/bot.gd:1125 draws a per-bot uniform scale, randf_range(0.94, 1.06), and
 	# the Skeleton3D inherits it through its parent's GLOBAL basis. head_over_feet is
 	# composed with that basis, so a posture reading taken at the drawn scale is a reading
 	# in a frame nobody pinned -- and across processes those readings differ by up to 0.24 m
@@ -725,7 +725,7 @@ func _inv38_spine_points_up() -> void:
 		for i in 6:
 			await process_frame
 	# NOT AN ASSERTION, and the reason is the whole point of this entry. The pin is correct
-	# as BEHAVIOUR -- bot.gd:1146 draws a per-bot uniform scale, randf_range(0.94, 1.06), the
+	# as BEHAVIOUR -- bot.gd:1125 draws a per-bot uniform scale, randf_range(0.94, 1.06), the
 	# rig inherits it through the parent's GLOBAL basis, and a posture reading taken at an
 	# unpinned scale is a reading in a frame nobody fixed. So the sampling pins it at 1.0.
 	# But I could NOT demonstrate that the pin changes the reading reliably: forcing scale to
@@ -777,11 +777,32 @@ func _inv38_spine_points_up() -> void:
 	# scale-INVARIANT, so the two cannot be fooled by the same failure.
 	#
 	# THE ROOT SCALE IS AUTHORED AND IS NOT A DEFECT. Read this before spending an hour on
-	# it, as npc-body did. src/npcs/bot/bot.gd:1146, in _apply_visual_variation():
+	# it, as npc-body did. ON ORIGIN/MAIN -- the tree that ships -- src/npcs/bot/bot.gd:1122
+	# is the comment and 1125 is the call, in _apply_visual_variation():
 	#     ## Per-bot identity: body scale + a near-white tint jitter. Runs before
 	#     ## _base_basis capture so the corpse keeps its scale.
 	#     scale = Vector3.ONE * randf_range(0.94, 1.06)
-	# That is the ONLY scale write in bot.gd. So the CharacterBody3D root carries a RANDOM
+	#
+	# CITED FROM origin/main, AND THE PROVENANCE IS THE POINT. Three lanes produced three
+	# line numbers for this one call -- 1146, 1134 and 1125 -- because two read it in
+	# worktrees behind origin/main (the coordinator worktree is 158 commits behind). The
+	# conclusions all survived; only the citations differed, and a citation is the part
+	# people copy. So the missing half of "go and open the file": BEFORE QUOTING A LINE,
+	# CONFIRM THE TREE IS THE TREE YOU THINK IT IS. git rev-parse HEAD, compare against
+	# the fetched remote, quote from the remote. A correct reading of a stale tree is still
+	# a wrong answer, and it is worse than no answer because it arrives with a file and a
+	# line number and therefore looks verified.
+	# grep for scale writes in bot.gd on origin/main returns exactly ONE hit: line 1125,
+	# so the per-bot scale is applied there and nowhere else in the file.
+	#
+	# ORDERING IS DELIBERATE AND CORRECT, verified on origin/main: _apply_visual_variation()
+	# is called at 229 and _base_basis = global_transform.basis is captured at 232, AFTER
+	# the scale is applied -- which is exactly what the comment claims. The only other
+	# _base_basis use is line 1043, inside _tick_death(), so it runs on the death path
+	# only, and it re-applies the captured basis, which therefore carries the scale. So
+	# "per-bot identity: body scale" is applied once, captured with the basis, and
+	# preserved through death. If a run shows every bot at exactly 1.0, the thing that
+	# strips it is NOT in this file -- there is no second scale write to find here. So the CharacterBody3D root carries a RANDOM
 	# uniform scale drawn per bot in [0.94, 1.06], the Skeleton3D inherits it through the
 	# parent's global basis, and the observed values across processes (0.9537, 0.9633,
 	# 0.9934, 0.9944, 1.0072, 1.0180, 1.0497) are draws from that interval and not a defect,
@@ -851,7 +872,7 @@ func _inv38_spine_points_up() -> void:
 
 	# The posture reading is now a NOTE, not a gate, and carries its own caveat: the rig
 	# root's uniform SCALE is a per-bot RANDOM draw, randf_range(0.94, 1.06) at
-	# src/npcs/bot/bot.gd:1146, so head-over-feet is composed with a different size on every
+	# src/npcs/bot/bot.gd:1125, so head-over-feet is composed with a different size on every
 	# run. A single posture number here is a reading in an unpinned frame, which is exactly
 	# what the old gate turned into an assertion. Pin the scale to 1.0 to remove the source.
 	# The rest figure printed here is read immediately after reset_bone_poses() and is known
