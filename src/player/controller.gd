@@ -123,8 +123,6 @@ const LEAN_PEEK_OFFSET: float = 0.45 # m of lateral eye travel at full lean
 const LEAN_PEEK_MARGIN: float = 0.25 # wall standoff, hand-set, not geometry
 const LEAN_ROLL_MAX: float = deg_to_rad(8.0) # secondary camera roll
 const LEAN_BODY_MAX: float = deg_to_rad(10.0) # visual body tilt about the feet
-const LEAN_STANCE_SCALE_CROUCH: float = 0.6
-const LEAN_STANCE_SCALE_PRONE: float = 0.25
 const LEAN_VISUAL_RATE: float = 10.0
 var _lean_dir: float = 0.0 # -1 right, +1 left, 0 none (matches leaned signal)
 var _lean_peek: float = 0.0 # lateral offset currently applied to the eye
@@ -971,27 +969,30 @@ func _tremor_offset(delta: float) -> Vector2:
     sin(_tremor_phase) * amp,
     sin(_tremor_phase * 1.7 + 1.3) * amp * 0.7)
 
-## Stance scale for the lean.
+## Stance scale for the lean, taken from the ONE stance table.
 ##
-## These were briefly collapsed onto PlayerMovementParameters.CAPSULE_*, on the
-## grounds that two encodings of one fact is itself the defect. That is the
-## right end state and it is still the intention, but it is HELD, not because it
-## is wrong -- because collapsing it moves prone lean travel by +40% (0.25 ->
-## 0.35) and LEAN_PEEK_MARGIN bounds wall STANDOFF, not corner REACH. Those are
-## different quantities and reach is the untested one: with a collider
-## half-width of 0.165 m the corner clearance is 0.25 - 0.165 = 0.085 m, and a
-## longer reach spends exactly the margin the standoff exists to protect.
+## These were a second, independent encoding of "how much smaller is the body
+## when crouched/prone" (0.6 / 0.25 here against 0.55 / 0.35 in
+## PlayerMovementParameters.CAPSULE_*, which drives the collider), and they
+## disagreed by 29% in prone. One table, one number, both readers.
 ##
-## Unify once the corner case is asserted. See docs/player_rig_ownership.md.
+## Held back in 0c59289 pending a corner assertion, then landed on the evidence:
+## validate_lean_corner.gd shows the clamp is CORNER-BLIND at BOTH values -- it
+## casts a single lateral ray, so against an inside corner it hits nothing and
+## returns the full desired value, putting the eye 0.2125 m from the corner edge
+## at 0.25 and 0.1741 m at 0.35, both violating LEAN_PEEK_MARGIN. So the +40%
+## was not a corner regression, and holding it for that reason was holding it
+## for the wrong one. The pre-existing corner-blindness is a separate defect and
+## is deliberately NOT fixed here; validate_lean_corner.gd pins it.
 func _lean_stance_scale() -> float:
   if not crouching:
-    return 1.0
+    return PlayerMovementParameters.CAPSULE_STAND
   match crouching.state:
     CROUCHING:
-      return LEAN_STANCE_SCALE_CROUCH
+      return PlayerMovementParameters.CAPSULE_CROUCH
     PRONING:
-      return LEAN_STANCE_SCALE_PRONE
-  return 1.0
+      return PlayerMovementParameters.CAPSULE_PRONE
+  return PlayerMovementParameters.CAPSULE_STAND
 
 ## Leaning for real: translate the eye sideways (in body space, so the view
 ## axis is unchanged) and clamp it against walls so a corner peek cannot see
