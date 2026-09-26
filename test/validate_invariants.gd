@@ -1984,7 +1984,7 @@ func _scan_file(path: String, chained: Array[String], bound: Array[String]) -> v
 	# Shape 2: a bound local that is dereferenced in a function with no null check.
 	# Scanned per function so the null check has to be in the same scope.
 	var funcs := RegEx.new()
-	funcs.compile("(?s)func\\s+[A-Za-z_][A-Za-z0-9_]*\\s*\\([^)]*\\)[^\\n]*\\n(.*?)(?=\\nfunc\\s|\\Z)")
+	funcs.compile("(?s)(?:^|\\n)(?:static\\s+)?func\\s+[A-Za-z_][A-Za-z0-9_]*\\s*\\([^)]*\\)[^\\n]*\\n(.*?)(?=\\n(?:static\\s+)?func\\s|\\Z)")
 	var m := funcs.search(text)
 	while m != null:
 		var body: String = m.get_string(1)
@@ -2019,7 +2019,10 @@ func _function_guards_receiver(text: String, line_index: int, raw_line: String) 
 	var before := text.split("\n", true, line_index)
 	var start := -1
 	for i in range(before.size() - 1, -1, -1):
-		if before[i].begins_with("func "):
+		# Matches `func ` and `static func ` — the latter was a measured miss, so
+		# every static helper in the tree was scanned as if it had no enclosing
+		# function and therefore as if it had no guard either.
+		if before[i].begins_with("func ") or before[i].begins_with("static func "):
 			start = i
 			break
 	if start < 0:
