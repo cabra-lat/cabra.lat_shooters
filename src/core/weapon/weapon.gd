@@ -43,7 +43,6 @@ enum Malfunction {
 }
 
 # ─── METADATA ──────────────────────────────────────
-@export_multiline var description: String = "This Weapon is the default one."
 ## Pending consumer: weapon audio (fire/feed/empty/extra) — wired by the audio lane.
 @export var fire_sound: AudioStream
 @export var feed_sound: AudioStream
