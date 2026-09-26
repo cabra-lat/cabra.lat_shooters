@@ -109,14 +109,7 @@ const BOT_SCENE := "res://src/npcs/bot/bot.tscn"
 const HEAD_BONE := "spine.006_end_067"
 const FOOT_BONE := "foot.R_064"
 
-## The bones a clip DRIVES, from its own track paths. This exists because a fixed
-## HEAD_BONE/FOOT_BONE pair is a trap of exactly the kind this board keeps
-## meeting: walk does not drive spine.006_end_067 at all, so measuring head-minus-
-## foot during walk compares a MOVING foot against a STILL head and manufactures a
-## large angle out of a stationary bone. That artefact reached a mail as 88.24
-## degrees before it was caught. A measurement must be anchored to bones the thing
-## being measured actually moves; otherwise the number describes the anchor, not
-## the subject.
+## The bones a clip DRIVES, from its own rotation track paths.
 func _driven_bones(clip: String) -> Dictionary:
 	var out := {}
 	for lib in _ap.get_animation_library_list():
@@ -131,21 +124,43 @@ func _driven_bones(clip: String) -> Dictionary:
 				out[p.substr("Skeleton3D:".length())] = true
 	return out
 
-## Whether this clip drives BOTH of the fixed measurement bones. A measurement must
-## be anchored to bones the thing being measured actually moves. walk does not drive
-## spine.006_end_067, so head-minus-foot during walk compares a MOVING foot against
-## a STILL head and manufactures a large angle out of a stationary bone -- that
-## artefact reached a mail as 88.24 degrees before it was caught.
-##
-## I first tried to fix this by CHOOSING the anchors per clip from the driven set,
-## picking the highest and lowest driven bone in the rest pose. That is wrong and the
-## run said so: the extremes are FINGER bones, so the quantity became a
-## finger-to-finger distance, which is not posture and is not what the column
-## claims. The anchor has to keep a fixed meaning, so the fix is a REFUSAL, not a
-## re-selection. A clip that does not drive the measurement bones gets no number.
-func _drives_anchors(clip: String) -> bool:
+## Is this a bone the quantity is allowed to be anchored to? The axis of interest
+## is the body axis, so the candidate set is the spine chain and the legs and feet.
+## Fingers and thumb bones are excluded on purpose: the previous attempt picked
+## anchors by highest and lowest driven bone in the rest pose and got FINGERS,
+## which turned the quantity into a finger-to-finger distance while the column
+## still claimed posture. A candidate set has to be chosen by MEANING, not by
+## whichever extreme happens to be available.
+func _is_axis_bone(n: String) -> bool:
+	return n.begins_with("spine") or n.begins_with("thigh") or n.begins_with("shin") \
+		or n.begins_with("foot") or n.begins_with("toe")
+
+## Upper and lower anchor for THIS clip, from the axis bones it drives: the driven
+## axis bone highest in the rest pose, and the lowest. Returns [] if the clip
+## drives no usable axis pair, in which case the clip gets NO number rather than a
+## number anchored somewhere that does not mean what the column says.
+func _anchors(clip: String) -> Array:
 	var driven := _driven_bones(clip)
-	return driven.has(HEAD_BONE) and driven.has(FOOT_BONE)
+	var hi_i := -1
+	var lo_i := -1
+	var hi_y := -INF
+	var lo_y := INF
+	for n in driven:
+		if not _is_axis_bone(n):
+			continue
+		var idx: int = _sk.find_bone(n)
+		if idx < 0:
+			continue
+		var y: float = _sk.get_bone_global_rest(idx).origin.y
+		if y > hi_y:
+			hi_y = y
+			hi_i = idx
+		if y < lo_y:
+			lo_y = y
+			lo_i = idx
+	if hi_i < 0 or lo_i < 0 or hi_i == lo_i:
+		return []
+	return [hi_i, lo_i, _sk.get_bone_name(hi_i), _sk.get_bone_name(lo_i)]
 const SAMPLES := 40
 const STEP := 0.1
 const STANDING_MIN := 0.30
@@ -370,9 +385,14 @@ func _ctl(clip: String, hi: int, fi: int, want: float) -> void:
 
 
 func _sample(clip: String, hi: int, fi: int) -> Variant:
-	# REFUSE rather than measure from bones this clip does not move.
-	if not _drives_anchors(clip):
+	# Anchor to axis bones THIS clip actually drives. A fixed pair is not safe:
+	# spine.006_end_067 is driven by NO clip in the library, so every row that used
+	# it was comparing a moving foot against a stationary head.
+	var anchors: Array = _anchors(clip)
+	if anchors.is_empty():
 		return null
+	hi = anchors[0]
+	fi = anchors[1]
 	if not _sk.play(clip):
 		return null
 	_ap.speed_scale = 1.0
@@ -425,7 +445,7 @@ func _sample(clip: String, hi: int, fi: int) -> Variant:
 		return null
 	return {"min": lo, "max": his, "span": his - lo, "driven": driven,
 		"of": SAMPLES, "as": drove_as, "pos": [pos_lo, pos_hi],
-		"hi": HEAD_BONE, "fi": FOOT_BONE}
+		"hi": anchors[2], "fi": anchors[3]}
 
 
 func _travel(hi: int, frames: int) -> float:
