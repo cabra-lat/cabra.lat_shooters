@@ -34,6 +34,23 @@ const META_SAVE := "user://inv_meta_test/profile.save"
 var _pass := 0
 var _fail := 0
 var _notes := 0
+# Ratchet (QA, 2026-09-26). QA's verdict on 01f8786: printing the count is
+# NECESSARY BUT NOT SUFFICIENT. "A note is quieter than a fail, not louder" --
+# a permanently-green NOTE printing the same number forever is the quietest
+# signal the harness can produce, so it is strictly easier to ignore than the
+# FAIL it replaced. QA's own "a gate that cannot pass teaches reviewers to
+# ignore it" argument therefore applies MORE strongly to report-only than to
+# hard-fail, and I had reused it as though it supported the demotion.
+# What separates a demotion from a deletion is a GOVERNOR, not a print. So:
+#   - the SITE count is what appears on RESULT, not the note count. "1 note"
+#     reads like a non-event; "16 sites" is the number that proves the rule is
+#     still running.
+#   - if the count ever RISES above this baseline, the rule re-promotes itself
+#     to a hard gate without anyone deciding to. Silently growing debt is the
+#     thing demotion is supposed to prevent, and it can only be prevented by
+#     something that fails.
+const INV38A_SITE_BASELINE := 16
+var _inv38a_sites := 0
 var _fail_lines: Array[String] = []
 var _sabotage := false
 
@@ -87,7 +104,7 @@ func _run() -> void:
 		print("  --- failures (with origin) ---")
 		for line in _fail_lines:
 			print("  " + line)
-		print("RESULT: FAIL  (%d report-only note(s) — see NOTE rows)" % _notes)
+		print("RESULT: FAIL  (INV-38a report-only: %d site(s) vs baseline %d — see NOTE rows)" % [_inv38a_sites, INV38A_SITE_BASELINE])
 		quit(1)
 	else:
 		# The counters CANNOT see a nested runtime error: GDScript does not throw, so
@@ -101,7 +118,12 @@ func _run() -> void:
 		# greps /RESULT: PASS/, which still matches, and a human reading the log
 		# now sees the caveat. If you are reading this outside the gate, the
 		# counters are all that was checked.
-		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check); %d report-only note(s) — see NOTE rows" % _notes)
+		# The SITE count, not the note count. QA's finding: RESULT carried "1
+	# report-only note(s)" and the meaningful number sat one level down in the
+	# NOTE body, so a reader scanning RESULT saw the smaller of the two
+	# numbers. This is the number whose presence proves demotion is not
+	# deletion, so it is the one that belongs on the line.
+		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check); INV-38a report-only: %d site(s) vs baseline %d — see NOTE rows" % [_inv38a_sites, INV38A_SITE_BASELINE])
 		quit(0)
 
 ## Report-only tier. Counts and prints, but never fails the gate.
@@ -1956,9 +1978,21 @@ func _inv38_no_unguarded_get_tree_deref() -> void:
 	# as effectively as one that cannot fail. The count IS the deliverable: it
 	# decides whether the follow-up is a 22-site refactor or three sites.
 	# Promote back to _check once triaged and measured.
-	_note("INV-38a", "chained get_tree() deref (REPORT-ONLY)",
-		"%d site(s): %s" % [chained.size(), (", ".join(chained) if not chained.is_empty() else "none")],
-		"F-RECV: a chained X.get_tree().x dereferences the accessor inline, so it cannot be guarded at all (712e22d)")
+	_inv38a_sites = chained.size()
+	if _inv38a_sites > INV38A_SITE_BASELINE:
+		# Ratchet tripped: the debt grew. A report-only tier that can only fall
+		# silent is deletion with a receipt, so growth has to be a failure.
+		# _check(id, name, ok, detail, origin) -- ok is the VERDICT, and a
+		# tripped ratchet is always false. The failure line is what names the
+		# ratchet, so RESULT never has to claim it on unrelated failures.
+		_check("INV-38a", "chained get_tree() deref (RATCHET TRIPPED — was report-only)",
+			false,
+			"%d site(s), above the %d baseline: %s" % [chained.size(), INV38A_SITE_BASELINE, ", ".join(chained)],
+			"debt grew since the demotion; report-only may shrink, never grow")
+	else:
+		_note("INV-38a", "chained get_tree() deref (REPORT-ONLY)",
+			"%d site(s): %s" % [chained.size(), (", ".join(chained) if not chained.is_empty() else "none")],
+			"F-RECV: a chained X.get_tree().x dereferences the accessor inline, so it cannot be guarded at all (712e22d)")
 
 	_check("INV-38b", "every bound get_tree() is null-checked", bound.is_empty(),
 		"unguarded: %s" % (", ".join(bound) if not bound.is_empty() else "none"),
