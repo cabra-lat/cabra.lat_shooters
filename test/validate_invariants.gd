@@ -2086,8 +2086,14 @@ func _in_lifecycle_callback(text: String, idx: int) -> bool:
 	return found in [
 		"_ready", "_enter_tree", "_exit_tree", "_process", "_physics_process",
 		"_input", "_unhandled_input", "_shortcut_input", "_gui_input",
-		"_notification", "_init",
+		"_notification",
 	]
+	# "_init" is deliberately ABSENT. It is the one entry where get_tree() is
+	# INVALID in Godot 4: _init() runs at construction, before the node is in
+	# the tree. Exempting it would suppress findings in exactly the function
+	# where the null-deref hazard is real. Every name above is a callback that
+	# Godot only invokes with the node already inside the tree (_exit_tree
+	# included: the node has not left yet when that runs).
 
 func _has_null_test(body: String) -> bool:
 	var r := RegEx.new()
