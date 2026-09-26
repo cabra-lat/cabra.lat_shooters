@@ -108,6 +108,44 @@ extends SceneTree
 const BOT_SCENE := "res://src/npcs/bot/bot.tscn"
 const HEAD_BONE := "spine.006_end_067"
 const FOOT_BONE := "foot.R_064"
+
+## The bones a clip DRIVES, from its own track paths. This exists because a fixed
+## HEAD_BONE/FOOT_BONE pair is a trap of exactly the kind this board keeps
+## meeting: walk does not drive spine.006_end_067 at all, so measuring head-minus-
+## foot during walk compares a MOVING foot against a STILL head and manufactures a
+## large angle out of a stationary bone. That artefact reached a mail as 88.24
+## degrees before it was caught. A measurement must be anchored to bones the thing
+## being measured actually moves; otherwise the number describes the anchor, not
+## the subject.
+func _driven_bones(clip: String) -> Dictionary:
+	var out := {}
+	for lib in _ap.get_animation_library_list():
+		var a := _ap.get_animation_library(lib).get_animation(clip)
+		if a == null:
+			continue
+		for t in a.get_track_count():
+			if a.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+				continue
+			var p := String(a.track_get_path(t))
+			if p.begins_with("Skeleton3D:"):
+				out[p.substr("Skeleton3D:".length())] = true
+	return out
+
+## Whether this clip drives BOTH of the fixed measurement bones. A measurement must
+## be anchored to bones the thing being measured actually moves. walk does not drive
+## spine.006_end_067, so head-minus-foot during walk compares a MOVING foot against
+## a STILL head and manufactures a large angle out of a stationary bone -- that
+## artefact reached a mail as 88.24 degrees before it was caught.
+##
+## I first tried to fix this by CHOOSING the anchors per clip from the driven set,
+## picking the highest and lowest driven bone in the rest pose. That is wrong and the
+## run said so: the extremes are FINGER bones, so the quantity became a
+## finger-to-finger distance, which is not posture and is not what the column
+## claims. The anchor has to keep a fixed meaning, so the fix is a REFUSAL, not a
+## re-selection. A clip that does not drive the measurement bones gets no number.
+func _drives_anchors(clip: String) -> bool:
+	var driven := _driven_bones(clip)
+	return driven.has(HEAD_BONE) and driven.has(FOOT_BONE)
 const SAMPLES := 40
 const STEP := 0.1
 const STANDING_MIN := 0.30
@@ -245,10 +283,11 @@ func _run() -> void:
 		var gb: Basis = _sk.global_transform.basis
 		var up: Vector3 = (gb * Vector3.UP).normalized()
 		var mount_deg: float = rad_to_deg(acos(clampf(up.dot(Vector3.UP), -1.0, 1.0)))
-		print("P|%-16s %+.3f  %+.3f  %.3f  | %-32s %.4f  %7.2f | %-8s | drove %d/%d %s | %s" % [
+		print("P|%-16s %+.3f  %+.3f  %.3f  | %-32s %.4f  %7.2f | %-8s | drove %d/%d %-14s | %s..%s | %s" % [
 			clip, r["min"], r["max"], r["span"],
 			str(_sk.get_path()), gb.get_scale().x, mount_deg,
 			_band(r["min"]), int(r["driven"]), int(r["of"]), r["as"],
+			str(r["hi"]).substr(0, 14), str(r["fi"]).substr(0, 10),
 			CLASSIFIED.get(clip, "-")])
 	if undriven.size() > 0:
 		print("P|")
@@ -331,6 +370,9 @@ func _ctl(clip: String, hi: int, fi: int, want: float) -> void:
 
 
 func _sample(clip: String, hi: int, fi: int) -> Variant:
+	# REFUSE rather than measure from bones this clip does not move.
+	if not _drives_anchors(clip):
+		return null
 	if not _sk.play(clip):
 		return null
 	_ap.speed_scale = 1.0
@@ -382,7 +424,8 @@ func _sample(clip: String, hi: int, fi: int) -> Variant:
 	if driven == 0:
 		return null
 	return {"min": lo, "max": his, "span": his - lo, "driven": driven,
-		"of": SAMPLES, "as": drove_as, "pos": [pos_lo, pos_hi]}
+		"of": SAMPLES, "as": drove_as, "pos": [pos_lo, pos_hi],
+		"hi": HEAD_BONE, "fi": FOOT_BONE}
 
 
 func _travel(hi: int, frames: int) -> float:
