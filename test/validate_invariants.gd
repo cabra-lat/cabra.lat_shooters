@@ -737,8 +737,8 @@ func _inv38_spine_points_up() -> void:
 	# posture rows stay ungated for the reason they were never gated: within-process pose
 	# motion and between-context clip driving are still untamed, and now the pin's own effect
 	# is demonstrably below the harness noise floor.
-	print("  NOTE  %-7s %-42s scale pin APPLIED to sampling (drawn %.4f -> 1.0). With the pin "
-		% ["INV-38q", "scale_pin_applied_effect_unproven"]
+	print("  XNOTE %-7s %-42s *** PRINT-ONLY, NOT A GATE, NOT A PASS *** scale pin APPLIED to sampling (drawn %.4f -> 1.0). With the pin "
+		% ["INV-38q", "NOT_A_GATE__print_only__effect_below_noise"]
 		+ "removed at the authored minimum 0.94, head_over_feet moved %.4f m against a same-run "
 		% pin_moved
 		+ "null of %.4f m (pinned %.3f m). NOT ASSERTED: the spread across runs is ~34x and the "
@@ -812,7 +812,33 @@ func _inv38_spine_points_up() -> void:
 	# measuring removes this source entirely instead of tolerating a 12 percent size swing.
 	# What remains untamed is within-process pose motion (~0.028 m at rest, no clip playing)
 	# and between-context clip driving, so the posture gate is still not claimed writable.
-	var EXPECTED_MOUNT_DEG := 90.0
+	var RIG_UP := Vector3(0, 0, 1)
+	# The rig is AUTHORED Z-UP. Every spine rest bone sits at local y EXACTLY 0.0000 and
+	# climbs along local Z (spine_01 -0.0756 -> spine.006_end_067 +0.8528), and the mount at
+	# humanoid_rig.tscn:293 sends local +Z onto world +Y with no scale and no shear
+	# authored. So the rig's own up is +Z, NOT +Y.
+	#
+	# I HAD THIS WRONG FOR FOUR COMMITS AND IT WAS A TAUTOLOGY, not a gate. The previous
+	# version of this check read angle(basis*Vector3.UP, world UP) and asserted 90.00. But
+	# the mount maps the rig's local Y -- a HORIZONTAL axis of a Z-up figure -- onto world
+	# -X, so that angle is 90 by construction, for any correctly mounted Z-up rig, always.
+	# It was stable, replicated at 1122/1122 arena samples, had a working red arm, and was
+	# still measuring nothing: "a horizontal axis is perpendicular to world up". It was
+	# immune to the bug and blind to the axis, which is the control-that-passes-by-
+	# construction shape one level up. A red arm does not make a wrong quantity right; it
+	# only proves the wrong quantity can move.
+	#
+	# THE RIGHT AXIS reads 0.00, and that is the real invariant: the rig's own up, carried
+	# through the mount, points at world UP. That is the claim that would fail on a tipped
+	# rig, and measuring it is what found the error.
+	#
+	# AND THE CORROBORATION CONFIRMED THE ERROR RATHER THAN THE CLAIM. spotter sampled
+	# the same WRONG quantity live in the production arena -- every fifth physics frame,
+	# 1122 samples across three runs -- and read min 90.00 / max 90.00, not one off. The
+	# stability was real, and it is exactly why the bug survived: an invariant that cannot
+	# vary is not a measurement of a thing that can go wrong. Replication at scale
+	# confirmed the arithmetic, not the axis.
+	var EXPECTED_MOUNT_DEG := 0.0
 	var MOUNT_TOL_DEG := 0.5
 	# CORROBORATED INDEPENDENTLY, AND AT A SCALE THAT MATTERS. spotter sampled the same
 	# quantity live in the PRODUCTION ARENA -- every fifth physics frame, 1,122 samples
@@ -848,10 +874,10 @@ func _inv38_spine_points_up() -> void:
 		print("  WARN  %-7s %-42s expected the production path NpcBot/Skeleton3D, got %s"
 			% ["INV-38", "rig_node_path", path_s])
 	else:
-		mount_deg = rad_to_deg((skel.global_transform.basis * Vector3.UP).angle_to(Vector3.UP))
-	_check("INV-38", "rig_mount_frame_is_90_deg",
+		mount_deg = rad_to_deg((skel.global_transform.basis * RIG_UP).angle_to(Vector3.UP))
+	_check("INV-38", "rig_up_axis_points_at_world_up",
 		mount_deg != SENTINEL and absf(mount_deg - EXPECTED_MOUNT_DEG) <= MOUNT_TOL_DEG,
-		"path=%s quantity=angle(basis*UP, world UP) expected=%.2f+/-%.2f deg observed=%.6f deg"
+		"path=%s rig_up=LOCAL+Z (rig is authored Z-up) quantity=angle(basis*LOCAL_Z, world UP) expected=%.2f+/-%.2f deg observed=%.6f deg"
 			% [path_s, EXPECTED_MOUNT_DEG, MOUNT_TOL_DEG, mount_deg],
 		"frame: a posture reading is only meaningful in a stated frame, and this one is "
 		+ "checked instead of assumed")
@@ -868,17 +894,17 @@ func _inv38_spine_points_up() -> void:
 		skel.global_transform = saved * Transform3D(Basis(Vector3(1, 0, 0), deg_to_rad(-90)), Vector3.ZERO)
 		for i in 8:
 			await process_frame
-		var rolled := rad_to_deg((skel.global_transform.basis * Vector3.UP).angle_to(Vector3.UP))
+		var rolled := rad_to_deg((skel.global_transform.basis * RIG_UP).angle_to(Vector3.UP))
 		broke_ok = absf(rolled - EXPECTED_MOUNT_DEG) > MOUNT_TOL_DEG
 		skel.global_transform = saved
 		for i in 8:
 			await process_frame
-		var restored := rad_to_deg((skel.global_transform.basis * Vector3.UP).angle_to(Vector3.UP))
+		var restored := rad_to_deg((skel.global_transform.basis * RIG_UP).angle_to(Vector3.UP))
 		print("  %-6s %-7s %-42s constructed break: node rolled -90 deg -> observed %.3f deg -> check %s; restored %.6f deg -> check %s"
-			% ["REDARM", "INV-38", "frame_gate_can_go_red", rolled,
+			% ["REDARM", "INV-38", "rig_up_gate_can_go_red", rolled,
 				"RED" if broke_ok else "STILL GREEN, THE GATE IS DEAD",
 				restored, "GREEN" if absf(restored - EXPECTED_MOUNT_DEG) <= MOUNT_TOL_DEG else "RED"])
-	_check("INV-38r", "frame_gate_goes_red_on_a_rolled_node", broke_ok,
+	_check("INV-38r", "rig_up_gate_goes_red_on_a_rolled_node", broke_ok,
 		"rolled -90 deg must move the frame check out of tolerance",
 		"self-test: a gate that cannot fail is not a gate (see INV-38's history)")
 
