@@ -60,25 +60,66 @@ const CORRECTION_DEG := -120.0
 @export var enabled: bool = true
 
 var _dirty := true
+var _released := true
 var _last_correction := Quaternion.IDENTITY
 
 
 func _process_modification() -> void:
-	if not enabled:
-		return
 	var skel := get_skeleton()
 	if skel == null:
+		return
+	if not enabled:
+		_release(skel)
 		return
 	# The rig's own AnimationPlayer, resolved the same way HumanoidRig does it.
 	var ap := _find_anim(skel)
 	if ap == null or not ap.is_playing():
+		# At rest the bones come from the compensated bind data, so applying this
+		# with no clip running would roll the rest pose by 120 deg.
+		_release(skel)
 		return
 	if _dirty or _last_correction != Quaternion(MOUNT_AXIS, deg_to_rad(correction_deg)):
 		_last_correction = Quaternion(MOUNT_AXIS, deg_to_rad(correction_deg))
 		_dirty = false
-	# Absolute, every frame: pre-rotating relative to the current pose would
-	# accumulate across frames and walk the rig away.
-	skel.set_bone_pose_rotation(root_bone, _last_correction)
+	# GLOBAL POSE OVERRIDE, NOT set_bone_pose_rotation().
+	#
+	# Measured twice, independently, on a real GPU frame in production wiring:
+	# writing the bone's POSE is clobbered by the AnimationPlayer's own write for
+	# that bone in the same frame, so the correction never survives to the world
+	# pose. range: ON 100.89 vs OFF 100.84 on idle, modifier tally calls=146
+	# applied=71 -- the hook fires and the result does not change. npc-body, with
+	# a sensitivity control: ARM_A enabled 86.5, ARM_B disabled 84.7, delta -1.8,
+	# while a known +90 applied to the same root moved the spine 88.6, so the
+	# readout is sensitive and the delivery is inert. A headless harness that
+	# reads the bone immediately after invoking the modifier sees the correction,
+	# which is why the angle derivation was right and the production result was
+	# not: the number described a state that does not survive the rest of the
+	# frame.
+	#
+	# The override composes ON TOP of whatever the animation wrote and is not
+	# clobbered, which is its entire purpose. humanoid_rig.gd already uses this
+	# path for its three IK arm bones for the same reason.
+	#
+	# A root pre-rotation is the correct SHAPE: npc-body's control moved the
+	# spine 88.6 deg for a 90 deg root input, 98 percent efficient, so it
+	# propagates undiluted. A single-bone override elsewhere in the chain cannot
+	# express a distributed basis error.
+	var gp: Transform3D = skel.get_bone_global_pose(root_bone)
+	var q: Quaternion = gp.basis.get_rotation_quaternion()
+	skel.set_bone_global_pose_override(root_bone,
+		Transform3D(Basis(_last_correction * q), gp.origin), 1.0, true)
+
+
+## Disable OUR override only, by writing amount 0.0 on our own bone.
+##
+## Deliberately NOT clear_bones_global_pose_override(): that clears EVERY bone,
+## including the three IK arm overrides humanoid_rig.gd writes, so calling it
+## here would trade an inert modifier for broken arms.
+func _release(skel: Skeleton3D) -> void:
+	if _released:
+		return
+	_released = true
+	skel.set_bone_global_pose_override(root_bone, Transform3D(), 0.0, true)
 
 
 func _find_anim(n: Node) -> AnimationPlayer:
