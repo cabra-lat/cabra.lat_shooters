@@ -1977,7 +1977,13 @@ func _scan_file(path: String, chained: Array[String], bound: Array[String]) -> v
 		# reads them manufactures findings with false confidence.
 		if not code.begins_with("#"):
 			var chain := RegEx.new()
-			chain.compile("[A-Za-z_][A-Za-z0-9_]*\\s*\\.\\s*get_tree\\s*\\(\\s*\\)\\s*\\.")
+			# Matches BOTH shapes: a bare `get_tree().x` and a chained
+			# `X.get_tree().x`. The receiver form alone was a measured GAP, not a
+			# false positive: bot.gd:444 is a bare get_tree().x and the pattern
+			# required an identifier before the dot, so the most common form of
+			# this defect was invisible to the check. A guard that cannot see the
+			# shape it exists to catch is not a partial guard, it is decoration.
+			chain.compile("get_tree\\s*\\(\\s*\\)\\s*\\.")
 			if chain.search(code) != null and not _function_guards_receiver(text, i, raw):
 				chained.append("%s:%d" % [path, i + 1])
 		i += 1
@@ -2041,7 +2047,19 @@ func _function_guards_receiver(text: String, line_index: int, raw_line: String) 
 		return false
 	var body := "\n".join(PackedStringArray(before.slice(start)))
 	body += "\n" + raw_line
-	return body.find("is_inside_tree()") != -1
+	# `is_inside_tree()` returning true implies get_tree() is non-null, so it IS a
+	# receiver guard. So is an explicit `get_tree() == null` test in the same
+	# function, which is how controller.gd:626 guards its own deref.
+	return body.find("is_inside_tree()") != -1 or _has_null_test(body)
+
+## True when the function body contains an explicit get_tree() null test, in
+## either polarity. Added because widening INV-38a to the bare form made
+## controller.gd:626 — `if get_tree() == null or get_tree().current_scene == null`
+## — visible, and it is guarded by the second clause of its own condition.
+func _has_null_test(body: String) -> bool:
+	var r := RegEx.new()
+	r.compile("get_tree\\s*\\(\\s*\\)\\s*(==|!=)\\s*null|null\\s*(==|!=)\\s*get_tree\\s*\\(\\s*\\)")
+	return r.search(body) != null
 
 func _inv37c_npc_acquire_target_survives_detached_bot() -> void:
 	var bot_scene: PackedScene = load("res://src/npcs/bot/bot.tscn")
