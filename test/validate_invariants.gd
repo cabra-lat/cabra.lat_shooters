@@ -503,56 +503,93 @@ func _inv38_spine_points_up() -> void:
 	var hi := _inv38_bone(skel, "spine.004_05")
 
 	# ── INV-38b: a clip must move the rig, before any angle means anything ──
+	# COMPOSITION FIX 2026-09-26. This compared (global_transform * get_bone_rest(b))
+	# against (global_transform * get_bone_global_pose(b)). get_bone_rest() is LOCAL, so
+	# composing it by hand is right; but get_bone_global_pose() is ALREADY world space, so
+	# composing that one by hand applies the rig mount a SECOND time. The pair therefore
+	# compared two different coordinate systems and its 1.075 m was inflated. Like with
+	# like: get_bone_global_rest() is the world-space rest counterpart of
+	# get_bone_global_pose(), and neither needs composing.
 	var moved := 0.0
 	if tracks_live and ap.has_animation("walk"):
 		ap.play("walk")
 		for i in 20:
 			await process_frame
 			for b in range(skel.get_bone_count()):
-				moved = maxf(moved, (skel.global_transform * skel.get_bone_rest(b)).origin
-					.distance_to((skel.global_transform * skel.get_bone_global_pose(b)).origin))
+				moved = maxf(moved, skel.get_bone_global_rest(b).origin
+					.distance_to(skel.get_bone_global_pose(b).origin))
 		ap.stop()
 	_check("INV-38b", "a_clip_demonstrably_moves_the_rig", tracks_live and moved > 0.01,
 		"tracks_live=%s max_position_delta_vs_rest=%.4f m %s" % [str(tracks_live), moved,
 			"" if moved > 0.01 else "— a rig that does not move measures UPRIGHT and proves nothing"],
 		"90-deg roll: three lanes published angles from a rig that was not animating")
 
-	# ── INV-38: and the rest pose is the posture reference ──
-	skel.reset_bone_poses()
-	for i in 8:
-		await process_frame
-	var rest_deg := -1.0
-	if lo >= 0 and hi >= 0:
-		var s := 0.0
-		for i in 20:
-			await process_frame
-			var a := (skel.global_transform * skel.get_bone_global_pose(lo)).origin
-			var b := (skel.global_transform * skel.get_bone_global_pose(hi)).origin
-			s += rad_to_deg(acos(clampf((b - a).normalized().dot(Vector3.UP), -1.0, 1.0)))
-		rest_deg = s / 20.0
-	_check("INV-38", "rig_spine_points_up_at_rest", lo >= 0 and hi >= 0 and rest_deg < 5.0,
-		"spine_vs_world_UP=%.1f deg at rest (want < 5)" % rest_deg,
-		"90-deg roll: the rest chain compensating a 120 deg root mount is the reference the fix must preserve")
+	# ── INV-38d: THE TRIPWIRE, and it exists because of the bug recorded below ──
+	# Every bone of a rig standing at the origin must be within a few metres of it. A
+	# double-composed transform puts them tens of metres away: measured y = -42.5 m for a
+	# bot AT the origin, because the 120 deg mount at humanoid_rig.tscn:293 was applied
+	# twice. Any angle derived from those positions is then a valid-looking number about a
+	# body that is not there. This makes that class of error LOUD instead of silent, and it
+	# is the cheapest guard in this file.
+	var far := 0.0
+	for b in range(skel.get_bone_count()):
+		far = maxf(far, skel.get_bone_global_pose(b).origin.distance_to(skel.global_position))
+	_check("INV-38d", "bone_world_positions_are_near_the_rig", far < 5.0,
+		"worst bone distance from the rig origin = %.2f m (want < 5; a double-composed transform puts this in the tens)"
+			% far,
+		"posture: a mis-composed world position yields plausible angles for a body that is not there")
 
-	# NON-GATING observation, printed not asserted: the live roll while a locomotion
-	# clip plays. This is the OPEN DEFECT (card task_1790427558484_bbbb18, owner
-	# player-rig), not an invariant, so it must not redden this suite while it is
-	# being fixed. It is recorded here so whoever lands the fix can read the before
-	# number in the same file as the after assertion. Expect ~76-96 deg today.
-	var live := -1.0
-	if tracks_live and ap.has_animation("walk") and lo >= 0 and hi >= 0:
+	# ── INV-38: POSTURE, measured so that no composition convention can fake it ──
+	# A standing human's HEAD IS ABOVE THEIR FEET IN WORLD Y. That needs no angle, no
+	# bone-pair choice and no knowledge of the rig mount: only two world Y values. A body
+	# lying on its side has them equal. It is used here in preference to spine-vs-UP
+	# precisely because it cannot be produced by composing a transform wrongly.
+	#
+	# HISTORY, and it is why this gate was rewritten. This function used to measure
+	# (global_transform * get_bone_global_pose(lo)).origin and reported the rest pose at
+	# 1.4 deg, "upright". That 1.4 was an artifact of applying the rig mount TWICE, and it
+	# inverted the entire investigation: the same form reported the arena bots at 76-98 deg
+	# and the clips as rolled, when the bots in fact STAND (measured below: 1.46-1.62 m of
+	# head-over-feet, spine-vs-UP 7-11 deg, production arena route, 60-67 m out). The
+	# correct rest posture is 0.098 m, i.e. the rest pose really IS on its side -- so the old
+	# gate was not merely mis-measuring, it was PASSING on the one pose that is actually
+	# wrong while inverting the pose that is actually right. Never compose a transform by
+	# hand around get_bone_global_pose(); INV-38d above is what stops that recurring.
+	var head := _inv38_bone(skel, "spine.006_end_067")
+	var foot := _inv38_bone(skel, "foot.R_064")
+	var rest_h2f := -999.0
+	if head >= 0 and foot >= 0:
+		skel.reset_bone_poses()
+		for i in 8:
+			await process_frame
+		rest_h2f = skel.get_bone_global_pose(head).origin.y - skel.get_bone_global_pose(foot).origin.y
+
+	# ── INV-38: the gate ──
+	var play_h2f := -999.0
+	var play_spine := -1.0
+	if tracks_live and ap.has_animation("walk") and head >= 0 and foot >= 0 and lo >= 0 and hi >= 0:
 		ap.play("walk")
-		for i in 20:
-			await physics_frame
+		for i in 25:
+			await process_frame
+		play_h2f = skel.get_bone_global_pose(head).origin.y - skel.get_bone_global_pose(foot).origin.y
 		var s2 := 0.0
 		for i in 20:
 			await process_frame
-			var a := (skel.global_transform * skel.get_bone_global_pose(lo)).origin
-			var b := (skel.global_transform * skel.get_bone_global_pose(hi)).origin
+			var a := skel.get_bone_global_pose(lo).origin
+			var b := skel.get_bone_global_pose(hi).origin
 			s2 += rad_to_deg(acos(clampf((b - a).normalized().dot(Vector3.UP), -1.0, 1.0)))
-		live = s2 / 20.0
+		play_spine = s2 / 20.0
 		ap.stop()
-	print("  NOTE  %-7s %-42s spine_vs_world_UP=%.1f deg with 'walk' playing (OPEN DEFECT task_1790427558484_bbbb18, owner player-rig; not gating)" % ["INV-38c", "locomotion_clip_posture", live])
+	_check("INV-38", "rig_stands_while_a_clip_plays", play_h2f > 0.3,
+		"head_above_feet with 'walk' playing = %.3f m (want > 0.3), spine_vs_world_UP=%.1f deg"
+			% [play_h2f, play_spine],
+		"90-deg roll: a rig lying on its side has its head level with its feet")
+
+	# NON-GATING observation, printed not asserted: the REST posture, which is the real
+	# and far narrower open defect (card task_1790427558484_bbbb18). Only a body with no
+	# clip playing is affected, so it must not redden this suite while it is being fixed.
+	print("  NOTE  %-7s %-42s head_above_feet at rest = %.3f m — the rig lies on its side with NO clip playing (OPEN DEFECT task_1790427558484_bbbb18, owner player-rig; not gating)"
+		% ["INV-38c", "rest_posture", rest_h2f])
 	bot.queue_free()
 
 
