@@ -667,23 +667,84 @@ func _inv38_spine_points_up() -> void:
 	# nothing), and the same quantity is required to move. If this ever passes with the
 	# pin removed, the pin is not load-bearing and the posture rows are unpinned again.
 	var pin_moved := 0.0
+	var null_noise := 0.0
 	var pinned_h2f := play_h2f
 	if head >= 0 and foot >= 0 and rig_root != null and ap.has_animation("walk"):
+		# EQUAL-LENGTH, PHASE-MATCHED samples on both sides. The first cut of this red arm
+		# differenced a 40-frame mean against a 20-frame mean and the margin swung from
+		# 0.0199 m to 0.0824 m between runs -- a 4x spread, because the two samples sat at
+		# different points in the clip and the difference being measured was part phase. A
+		# red arm with a 4x spread is not a red arm. So both sides now: replay the clip from
+		# its own start, advance a fixed step, and read the same number of frames.
+		const PIN_N := 40
+		rig_root.scale = Vector3.ONE
+		for i in 6:
+			await process_frame
+		ap.play("walk")
+		ap.advance(0.0)
+		var p_acc := 0.0
+		for i in PIN_N:
+			await process_frame
+			p_acc += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
+		ap.stop()
+
+		# THE NULL CONTROL, in the SAME run, and it is what makes this check trustworthy.
+		# The scale's effect on head_over_feet is genuinely modest and varies between runs
+		# (0.021-0.042 m observed), so a bare threshold has to be set near the observed
+		# minimum or it is luck, and set high or it is meaningless. So the same measurement
+		# is repeated with NO scale change on either side: that difference is pure sampling
+		# noise in this harness, and the treatment only counts if it beats it.
+		var n_acc := 0.0
+		for i in 6:
+			await process_frame
+		ap.play("walk")
+		ap.advance(0.0)
+		for i in PIN_N:
+			await process_frame
+			n_acc += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
+		ap.stop()
+		var null_acc_mean := absf(n_acc / float(PIN_N) - p_acc / float(PIN_N))
+
 		rig_root.scale = Vector3.ONE * 0.94
 		for i in 6:
 			await process_frame
 		ap.play("walk")
-		var unpinned := 0.0
-		for i in 20:
+		ap.advance(0.0)
+		var u_acc := 0.0
+		for i in PIN_N:
 			await process_frame
-			unpinned += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+			u_acc += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
 				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
-		unpinned /= 20.0
 		ap.stop()
-		pin_moved = absf(unpinned - pinned_h2f)
+		pinned_h2f = p_acc / float(PIN_N)
+		pin_moved = absf(u_acc / float(PIN_N) - pinned_h2f)
+		null_noise = null_acc_mean
 		rig_root.scale = Vector3.ONE
 		for i in 6:
 			await process_frame
+	# NOT AN ASSERTION, and the reason is the whole point of this entry. The pin is correct
+	# as BEHAVIOUR -- bot.gd:1146 draws a per-bot uniform scale, randf_range(0.94, 1.06), the
+	# rig inherits it through the parent's GLOBAL basis, and a posture reading taken at an
+	# unpinned scale is a reading in a frame nobody fixed. So the sampling pins it at 1.0.
+	# But I could NOT demonstrate that the pin changes the reading reliably: forcing scale to
+	# the authored minimum 0.94 and re-sampling moved head_over_feet by 0.0016 m, 0.0212 m,
+	# 0.0418 m, 0.0540 m and 0.0824 m across runs -- a 34x spread, with a same-run null
+	# control of the same order. A gate that cannot show its own effect should not assert
+	# that it has one, and tuning the threshold until it passed would be the exact error this
+	# file's header warns about. So the numbers are printed and nothing is asserted, and the
+	# posture rows stay ungated for the reason they were never gated: within-process pose
+	# motion and between-context clip driving are still untamed, and now the pin's own effect
+	# is demonstrably below the harness noise floor.
+	print("  NOTE  %-7s %-42s scale pin APPLIED to sampling (drawn %.4f -> 1.0). With the pin "
+		% ["INV-38q", "scale_pin_applied_effect_unproven"]
+		+ "removed at the authored minimum 0.94, head_over_feet moved %.4f m against a same-run "
+		% pin_moved
+		+ "null of %.4f m (pinned %.3f m). NOT ASSERTED: the spread across runs is ~34x and the "
+		% null_noise
+		+ "effect is below this harness's noise floor, so the pin is right as behaviour and "
+		+ "unproven as a measurable effect." % pinned_h2f)
 
 	# RESTORE THE DRAWN SCALE. The pin is a property of the SAMPLING, not of the rig: a
 	# global mutation left in place changes every later check in this suite. Leaving the
@@ -695,13 +756,6 @@ func _inv38_spine_points_up() -> void:
 		rig_root.scale = drawn_scale
 		for i in 4:
 			await process_frame
-	_check("INV-38q", "scale_pin_is_load_bearing", pin_moved > 0.01,
-		"with the pin REMOVED and scale forced to 0.94, head_over_feet moved %.4f m "
-		% pin_moved
-		+ "(pinned %.3f m; drawn scale was %.4f). The pin is what makes posture rows comparable."
-			% [pinned_h2f, drawn_scale.x],
-		"a randomised input must be pinned, not tolerated: bot.gd:1146 draws 0.94-1.06 per bot")
-	# ── INV-38: the FRAME, not the posture. See the block comment above. ──
 	# The old INV-38 asserted a posture threshold over a quantity that changes its own
 	# verdict between processes, so it passed by construction. This asserts the FRAME the
 	# reading is taken in, which is stable, and states which frame it assumes.
