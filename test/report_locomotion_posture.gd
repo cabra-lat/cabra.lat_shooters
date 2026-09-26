@@ -154,7 +154,7 @@ const FOOT_BONE := "foot.R_064"
 const HI_BONE := "spine.006_07"
 const LO_BONE := "foot.R_064"
 
-## THE QUANTITY IS A LEG-CHAIN ANGLE, NOT A BODY AXIS, AND IT IS NOT RENAMABLE INTO ONE.
+## THE QUANTITY IS THE SPINE-TO-FOOT ANGLE, NOT A BODY AXIS.
 ##
 ## OBTAINABILITY, RECORDED SO NOBODY RE-ATTEMPTS IT. A body-axis measurement needs a
 ## bone at the top of the body that the clip actually keys. The head tip,
@@ -312,7 +312,7 @@ func _run() -> void:
 		_ctl(ctl_clip, hi, fi, authored_scale)
 		_ctl(ctl_clip, hi, fi, 1.0)
 
-	print("P|LEG_CHAIN_ANGLE -- NOT a body axis. The head tip spine.006_end_067 is keyed by\nP|NO clip, so a head-anchored quantity would pair a moving foot with a bone that\nP|never participates. The body axis is UNOBTAINABLE from this clip set.\nP|\nP|clip  KIND  MIN     MAX    SPAN  | rig node path                 SCALE  MOUNT_DEG | verdict  | classified")
+	print("P|SPINE_TO_FOOT_ANGLE -- NOT a body axis. The head tip spine.006_end_067 is keyed by\nP|NO clip, so a head-anchored quantity would pair a moving foot with a bone that\nP|never participates. The body axis is UNOBTAINABLE from this clip set.\nP|\nP|clip  KIND  MIN     MAX    SPAN  | rig node path                 SCALE  MOUNT_DEG | verdict  | classified")
 	var undriven: Array = []
 	for clip in _clips():
 		var r := await _sample(clip, hi, fi)
