@@ -201,8 +201,8 @@ func _ready():
   # Duplicate the shared BoxShape3D before stance scaling (never edit the asset).
   if collision and collision.shape:
     collision.shape = collision.shape.duplicate()
-    set_meta("_capsule_base_size", (collision.shape as BoxShape3D).size)
-    set_meta("_capsule_base_y", collision.position.y)
+    set_meta("_collider_base_size", (collision.shape as BoxShape3D).size)
+    set_meta("_collider_base_y", collision.position.y)
   # Remember the mesh's authored basis so the lean tilt can be composed in
   # the body frame without fighting the baked 90 deg rotation.
   if skeleton:
@@ -903,20 +903,20 @@ func _update_movement_parameters(delta: float = 0.0) -> void:
     head.position.y = lerp(head.position.y, current_camera_height, stance_t)
   if spring_arm:
     spring_arm.position.y = lerp(spring_arm.position.y, current_camera_height, stance_t)
-  _apply_capsule_stance(parameters.capsule_factor)
+  _apply_collider_stance(parameters.collider_factor)
   _apply_camera_bob_and_lean(delta)
 
-func _apply_capsule_stance(factor: float) -> void:
+func _apply_collider_stance(factor: float) -> void:
   if not collision or not collision.shape:
     return
   var box := collision.shape as BoxShape3D
   if not box:
     return
   # Vertical extent lives on shape Z (node is rotated ~90 deg about X).
-  if not has_meta("_capsule_base_size"):
+  if not has_meta("_collider_base_size"):
     return
-  var base_size: Vector3 = get_meta("_capsule_base_size")
-  var base_y: float = float(get_meta("_capsule_base_y"))
+  var base_size: Vector3 = get_meta("_collider_base_size")
+  var base_y: float = float(get_meta("_collider_base_y"))
   var bottom_y: float = base_y - base_size.z * 0.5
   var new_size := base_size
   new_size.z = base_size.z * factor
@@ -973,7 +973,7 @@ func _tremor_offset(delta: float) -> Vector2:
 ##
 ## These were a second, independent encoding of "how much smaller is the body
 ## when crouched/prone" (0.6 / 0.25 here against 0.55 / 0.35 in
-## PlayerMovementParameters.CAPSULE_*, which drives the collider), and they
+## PlayerMovementParameters.COLLIDER_*, which scales the collider), and they
 ## disagreed by 29% in prone. One table, one number, both readers.
 ##
 ## Held back in 0c59289 pending a corner assertion, then landed on the evidence:
@@ -986,13 +986,13 @@ func _tremor_offset(delta: float) -> Vector2:
 ## is deliberately NOT fixed here; validate_lean_corner.gd pins it.
 func _lean_stance_scale() -> float:
   if not crouching:
-    return PlayerMovementParameters.CAPSULE_STAND
+    return PlayerMovementParameters.COLLIDER_STAND
   match crouching.state:
     CROUCHING:
-      return PlayerMovementParameters.CAPSULE_CROUCH
+      return PlayerMovementParameters.COLLIDER_CROUCH
     PRONING:
-      return PlayerMovementParameters.CAPSULE_PRONE
-  return PlayerMovementParameters.CAPSULE_STAND
+      return PlayerMovementParameters.COLLIDER_PRONE
+  return PlayerMovementParameters.COLLIDER_STAND
 
 ## Leaning for real: translate the eye sideways (in body space, so the view
 ## axis is unchanged) and clamp it against walls so a corner peek cannot see

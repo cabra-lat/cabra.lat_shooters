@@ -9,15 +9,15 @@ extends RefCounted
 const EYE_STAND: float = 1.62
 const EYE_CROUCH: float = 1.05
 const EYE_PRONE: float = 0.45
-const CAPSULE_STAND: float = 1.0
-const CAPSULE_CROUCH: float = 0.55
-const CAPSULE_PRONE: float = 0.35
+const COLLIDER_STAND: float = 1.0
+const COLLIDER_CROUCH: float = 0.55
+const COLLIDER_PRONE: float = 0.35
 
 var speed: float = 0.0
 var head_bobbing: float = 0.0
 var camera_height: float = 0.0
 var camera_fov: float = 0.0
-var capsule_factor: float = CAPSULE_STAND
+var collider_factor: float = COLLIDER_STAND
 var lean_direction: float = 0.0
 
 func resolve(
@@ -35,7 +35,7 @@ func resolve(
   result.head_bobbing = config.default_bobing
   result.camera_height = config.stand_height
   result.camera_fov = config.default_fov
-  result.capsule_factor = CAPSULE_STAND
+  result.collider_factor = COLLIDER_STAND
   result.lean_direction = 0.0
 
   match moving_state:
@@ -80,13 +80,13 @@ func resolve(
   match crouching_state:
     "Crouching":
       result.camera_height = EYE_CROUCH
-      result.capsule_factor = CAPSULE_CROUCH
+      result.collider_factor = COLLIDER_CROUCH
     "Proning":
       result.camera_height = EYE_PRONE
-      result.capsule_factor = CAPSULE_PRONE
+      result.collider_factor = COLLIDER_PRONE
     _:
       result.camera_height = EYE_STAND
-      result.capsule_factor = CAPSULE_STAND
+      result.collider_factor = COLLIDER_STAND
 
   result.speed *= condition_multiplier
   result.camera_fov *= stamina_fov_multiplier
