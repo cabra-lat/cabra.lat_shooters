@@ -139,28 +139,28 @@ func _is_axis_bone(n: String) -> bool:
 ## axis bone highest in the rest pose, and the lowest. Returns [] if the clip
 ## drives no usable axis pair, in which case the clip gets NO number rather than a
 ## number anchored somewhere that does not mean what the column says.
+## The measurement pair, fixed by the coordinator and NOT chosen by this harness.
+## spine.006_end_067 -- which this file used to anchor on -- is a Blender TIP joint
+## driven by NO clip in the library, so it inherits its parent chain instead of
+## being keyed. Every head-over-foot reading taken on that pair, including the
+## 88.24 that reached the user, was chain-damped and biased low by construction.
+## spine.006_07 and foot.R_064 are both rotation-driven, so the vector joins two
+## bones that the clip actually moves.
+const HI_BONE := "spine.006_07"
+const LO_BONE := "foot.R_064"
+
+## The pair for this clip, or [] if the clip does not drive both ends. A refusal
+## is the correct outcome for a clip that does not: better no number than a number
+## anchored to a bone that is not participating.
 func _anchors(clip: String) -> Array:
 	var driven := _driven_bones(clip)
-	var hi_i := -1
-	var lo_i := -1
-	var hi_y := -INF
-	var lo_y := INF
-	for n in driven:
-		if not _is_axis_bone(n):
-			continue
-		var idx: int = _sk.find_bone(n)
-		if idx < 0:
-			continue
-		var y: float = _sk.get_bone_global_rest(idx).origin.y
-		if y > hi_y:
-			hi_y = y
-			hi_i = idx
-		if y < lo_y:
-			lo_y = y
-			lo_i = idx
-	if hi_i < 0 or lo_i < 0 or hi_i == lo_i:
+	if not (driven.has(HI_BONE) and driven.has(LO_BONE)):
 		return []
-	return [hi_i, lo_i, _sk.get_bone_name(hi_i), _sk.get_bone_name(lo_i)]
+	var hi: int = _sk.find_bone(HI_BONE)
+	var lo: int = _sk.find_bone(LO_BONE)
+	if hi < 0 or lo < 0:
+		return []
+	return [hi, lo, HI_BONE, LO_BONE]
 const SAMPLES := 40
 const STEP := 0.1
 const STANDING_MIN := 0.30
@@ -211,6 +211,18 @@ func _run() -> void:
 	world.add_child(host)
 	var bot: Node = (load(BOT_SCENE) as PackedScene).instantiate()
 	host.add_child(bot)
+	# Keep the subject INSIDE anim_lod_distance (45 m) of an active camera so
+	# production humanoid_rig _apply_anim_speed sets speed_scale = 1.0 by itself.
+	# The previous fixture left the bot far away, production correctly froze it,
+	# and the harness was reading frame 0.0 -- and wrote speed_scale itself to try
+	# to fix it, into a value the single writer overwrites every frame.
+	if world.get_node_or_null("ProbeCam") == null:
+		var cam := Camera3D.new()
+		cam.name = "ProbeCam"
+		world.add_child(cam)
+		cam.current = true
+		cam.position = Vector3(0.0, 1.6, 0.0)
+	host.position = Vector3(0.0, 0.0, -20.0)
 	for i in 8:
 		await process_frame
 	_sk = bot.get_node("Skeleton3D")
@@ -395,10 +407,26 @@ func _sample(clip: String, hi: int, fi: int) -> Variant:
 	fi = anchors[1]
 	if not _sk.play(clip):
 		return null
-	_ap.speed_scale = 1.0
+	# DO NOT write speed_scale here. humanoid_rig.gd:164 is the single writer and
+	# it re-applies every frame, so setting it from a harness is writing into a
+	# value production immediately overwrites -- which is exactly how this file
+	# produced a confident table of UNDRIVEN rows: the clip sat at position 0.0
+	# and a paused clip and a clip that will not drive look identical.
+	# The correct intervention is spatial, not a written value: the subject is
+	# placed within anim_lod_distance of an active camera so PRODUCTION sets
+	# speed_scale = 1.0. Then we assert it rather than assume it.
 	_ap.advance(0.0)
 	for i in 3:
 		await process_frame
+	# Void check, loud, BEFORE any number is read. speed_scale 0.000 is a known
+	# and checkable disqualifier, and a pose reading taken on a frozen subject is
+	# not a small error -- it is a reading of frame zero presented as a cycle.
+	var ss: float = _ap.speed_scale
+	if ss <= 0.0:
+		print("P|VOID clip %s: speed_scale=0.000, subject is LOD-frozen. A pose" % clip)
+		print("P|VOID   reading here would be frame 0.0 presented as a cycle." % clip)
+		print("P|VOID   Keep the bot within anim_lod_distance of the camera.")
+		return null
 	var travel: float = await _travel(hi, 8)
 	if travel < MIN_TRAVEL:
 		return null
