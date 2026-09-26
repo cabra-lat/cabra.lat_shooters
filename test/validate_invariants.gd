@@ -2075,14 +2075,24 @@ func _function_guards_receiver(text: String, line_index: int, raw_line: String) 
 ## positive class, not an oversight. Distinguishing them needs a call graph
 ## rather than a scan, so the real choice is between a narrower assertion and
 ## a resolver. See task df6502.
-func _in_lifecycle_callback(text: String, idx: int) -> bool:
+func _in_lifecycle_callback(text: String, line_idx: int) -> bool:
+	# line_idx is a LINE index. It was previously compared against a character
+	# offset (RegExMatch.get_start), so the loop broke at whichever func happened
+	# to sit past that character position and the exemption returned the wrong
+	# function name. The result: the lifecycle exemption did not exempt anything,
+	# and _physics_process / _unhandled_input were reported as unguarded.
+	# Walk lines and track the last func declaration at or before line_idx.
 	var re := RegEx.new()
-	re.compile("(?m)^(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)")
+	re.compile("^(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)")
 	var found := ""
-	for m in re.search_all(text):
-		if m.get_start() > idx:
+	var ln := 0
+	for raw in text.split("\n"):
+		if ln > line_idx:
 			break
-		found = m.get_string(1)
+		var m := re.search(raw.strip_edges())
+		if m != null:
+			found = m.get_string(1)
+		ln += 1
 	return found in [
 		"_ready", "_enter_tree", "_exit_tree", "_process", "_physics_process",
 		"_input", "_unhandled_input", "_shortcut_input", "_gui_input",
