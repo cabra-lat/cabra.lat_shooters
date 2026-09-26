@@ -74,6 +74,9 @@ func _run() -> void:
 
 	await _run_player_invariants()
 	await _inv33_inventory_escape_order()
+	await _inv37_npc_lod_survives_detached_bot()
+	await _inv37c_npc_acquire_target_survives_detached_bot()
+	await _inv38_no_unguarded_get_tree_deref()
 
 	print("")
 	print("=== validate_invariants summary ===")
@@ -86,7 +89,18 @@ func _run() -> void:
 		print("RESULT: FAIL")
 		quit(1)
 	else:
-		print("RESULT: PASS")
+		# The counters CANNOT see a nested runtime error: GDScript does not throw, so
+		# the call returns normally and _fail stays 0. Measured on the unfixed arm:
+		# rc=0, RESULT: PASS, and 3 runtime errors in this same log. The gate
+		# (verify-all.mjs) is what discriminates, because it greps the log.
+		#
+		# So this line is deliberately not the word "PASS" on its own. Direct runs
+		# are how people debug harnesses, and QA measured that every such run on
+		# this file would report a clean pass while dereferencing null. The gate
+		# greps /RESULT: PASS/, which still matches, and a human reading the log
+		# now sees the caveat. If you are reading this outside the gate, the
+		# counters are all that was checked.
+		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check)")
 		quit(0)
 
 func _check(id: String, name: String, ok: bool, detail: String, origin: String) -> void:
@@ -1787,6 +1801,323 @@ func _inv15_listing_fee_floor() -> void:
 		"fee(1000)=%d fee(0)=%d fee(100000)=%d" % [f.listing_fee(1000), f.listing_fee(0), f.listing_fee(100000)],
 		"listing fee formula is the flea sink's floor (5%, min 100)")
 
+# ─── INV-37: the bot LOD tick must survive a bot that left the tree ──
+# ORIGIN: NpcBot._tick_lod() did `var cam := get_viewport().get_camera_3d()`.
+# `get_viewport()` is null once the bot is out of the tree (raid settlement and
+# teardown do exactly that), so the existing `if cam == null` guard tested the
+# WRONG null and the chain still dereferenced it: "Cannot call method
+# 'get_camera_3d' on a null value" at bot.gd:1185, seen by spotter twice per
+# settlement. Fixed by game-repo commit 12b8b99, which splits the chain and
+# guards the viewport first. Promoted from npc-body's probe
+# (npc_lod_viewport_tmp.gd.keep).
+#
+# WHY THE COUNTER CANNOT SEE THE FAULT, stated here because it is the whole
+# difficulty of this class: a GDScript runtime error does NOT throw. The call
+# returns normally, this harness's `_fail` stays 0, and a summary of
+# "passed N failed 0" prints anyway. The null-deref half is therefore caught
+# one layer up, by verify-all.mjs, which refuses a harness whose log contains a
+# script-error line even when the script exits 0. Verified end to end: a probe
+# printing `RESULT: PASS` with rc=0 and one runtime error in its log still fails
+# the gate ("1 script error(s)").
+#
+# WORDING RULE, learned the hard way in the A/B that produced this entry: never
+# print the literal token the gate greps for. verify-all.mjs counts
+# /SCRIPT ERROR/g in the log, so a detail string containing that exact phrase
+# makes a CORRECT tree fail the gate. Say "script error" or "runtime error" in
+# lowercase, as below.
+#
+# The rule is WIDER than "detail string", and npc-body is right that the current
+# wording understates it: the real rule is ANYTHING THAT CAN REACH STDOUT. A
+# comment is safe today only because GDScript never echoes source to stdout; that
+# stops being true the moment a failure path prints source — a code excerpt, the
+# offending line, a get_stack() dump, or a harness that echoes the script under
+# test. If `_check` ever grows a "here is the code" detail, the wording rule
+# applies to it too. Measured 2026-09-25 against 6d7fe55: a harness whose PROSE
+# printed the token was counted as a real error, and a hanging harness that
+# printed it once in a sentence was reported as "raised" with the cause named
+# confidently and wrongly. Line-start anchoring is what separates the two classes
+# in the log (11/11 genuine errors sit at the start of a line; prose does not),
+# but the discipline below is what keeps that from mattering.
+#
+# So the halves are split deliberately: the counters below assert what IS
+# observable in-process (the valve still drives the rig, and the detached call
+# really is reached), and the log is what catches the dereference. Run without
+# verify-all.mjs, the detached half degrades to a smoke test — which is why the
+# precondition is asserted rather than assumed.
+func _inv37_npc_lod_survives_detached_bot() -> void:
+	var bot_scene: PackedScene = load("res://src/npcs/bot/bot.tscn")
+	if bot_scene == null:
+		_check("INV-37", "npc_lod_valve_still_drives_the_rig", false,
+			"bot.tscn missing", "F-LOD: cannot reach NpcBot._tick_lod() to check the guard")
+		_check("INV-37b", "npc_lod_tick_survives_detached_bot", false,
+			"bot.tscn missing", "F-LOD: detached path unexercised")
+		return
+
+	var bot: Node = bot_scene.instantiate()
+	root.add_child(bot)
+	await process_frame
+	await process_frame
+	var rig: Node = bot.get("_rig")
+	if rig == null:
+		# Do NOT report a pass: an unresolved _rig would make the valve case
+		# vacuous, which is how a "green" LOD assertion proves nothing.
+		_check("INV-37", "npc_lod_valve_still_drives_the_rig", false,
+			"_rig unresolved after 2 frames", "F-LOD: the valve case needs a rig to drive")
+		_check("INV-37b", "npc_lod_tick_survives_detached_bot", false,
+			"_rig unresolved after 2 frames", "F-LOD: detached path unexercised")
+		bot.queue_free()
+		return
+
+	# Valve case: at 200 m the rig must go to LOD 2, at 1 m back to 0. This is
+	# what stops a future over-guard from "fixing" the crash by disabling LOD.
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.make_current()
+	cam.global_position = Vector3.ZERO
+	bot.global_position = Vector3(200.0, 0.0, 0.0)
+	bot.call("_tick_lod")
+	var far_lod := int(rig.get("_lod"))
+	bot.global_position = Vector3(1.0, 0.0, 0.0)
+	bot.call("_tick_lod")
+	var near_lod := int(rig.get("_lod"))
+	_check("INV-37", "npc_lod_valve_still_drives_the_rig", far_lod == 2 and near_lod == 0,
+		"far=%d near=%d (expect 2 then 0)" % [far_lod, near_lod],
+		"F-LOD: a null guard that also disables the LOD valve is not a fix (12b8b99)")
+
+	# Detached case: assert the risky precondition is REACHED before calling, so
+	# this cannot pass by never getting near the guarded line.
+	cam.clear_current()
+	root.remove_child(bot)
+	var viewport_null: bool = bot.get_viewport() == null
+	bot.call("_tick_lod")  # unfixed: runtime error at bot.gd:1185 -> gate fails
+	var still_null: bool = bot.get_viewport() == null
+	_check("INV-37b", "npc_lod_tick_survives_detached_bot", viewport_null and still_null,
+		"viewport_null_before=%s after=%s (a runtime error here fails the gate)" % [str(viewport_null), str(still_null)],
+		"F-LOD: get_viewport() is null out of tree; the receiver needs the guard (12b8b99)")
+	bot.free()
+	cam.free()
+
+## INV-37c — ORIGIN: npc-body's CASE_D, on the OTHER site 712e22d guards.
+# INV-37b covers _tick_lod; this covers _acquire_target (bot.gd:651), which the
+# same fix guards. Measured in both directions by npc-body: 1 script error on
+# 12b8b99 ("Invalid access to property or key 'current_scene' on a base object of
+# type 'null instance'") and 0 on 712e22d. The guard IS on main (e28b475, by
+# ancestry), so this is a permanent guard for a fix that has already shipped.
+#
+# Same shape as INV-37b on purpose: assert the precondition BEFORE the risky call,
+# so the case cannot pass by never reaching the guarded line, and re-assert it
+# after, so a harness that tore the bot down some other way cannot satisfy it.
+#
+# The counters cannot see the dereference -- a GDScript runtime error leaves no
+# in-process trace -- so the gate's log check is the half that discriminates. Run
+
+func _inv38_no_unguarded_get_tree_deref() -> void:
+	# ORIGIN: the null-accessor family. `get_tree()` is null once a node has left
+	# the tree, which is the settlement/teardown window. Four sites have already
+	# been hit and fixed individually — bot.gd:1185 (12b8b99), _show_result and
+	# _show_damage_direction (3ef1291), and _acquire_target().get_tree (712e22d).
+	# All four are the SAME defect, and four patches is four chances to forget the
+	# fifth. This asserts the class instead of the instances, so the next site
+	# fails a gate rather than a playtest.
+	#
+	# It is a SOURCE scan, not a runtime one, on purpose: a runtime check can only
+	# reach a site it knows how to construct the teardown window for, and it is
+	# per-repo. The scan is cross-repo and covers the shape rather than the list.
+	#
+	# Two shapes are checked, because the fixes used two shapes:
+	#   1. CHAINED — `something.get_tree().x` dereferences the accessor inline with
+	#      no opportunity to guard it. This is 712e22d's bug verbatim.
+	#   2. BOUND — `var t := get_tree()` then `t.x`, with no `t == null` in the
+	#      enclosing function. Guarding the VALUES about to be dereferenced is not
+	#      guarding the RECEIVER, which is what 3ef1291's comment says and what
+	#      the original sites got wrong.
+	var roots := ["res://src", "res://scenes", "res://addons/cabra.lat_shooters/src"]
+	var chained: Array[String] = []
+	var bound: Array[String] = []
+	for root in roots:
+		_scan_tree(root, chained, bound)
+
+	_check("INV-38a", "no chained X.get_tree(). deref", chained.is_empty(),
+		"chained: %s" % (", ".join(chained) if not chained.is_empty() else "none"),
+		"F-RECV: a chained X.get_tree().x dereferences the accessor inline, so it cannot be guarded at all (712e22d)")
+
+	_check("INV-38b", "every bound get_tree() is null-checked", bound.is_empty(),
+		"unguarded: %s" % (", ".join(bound) if not bound.is_empty() else "none"),
+		"F-RECV: get_tree() is null after the node leaves the tree; a bound local that is dereferenced without a null check is the settlement-window crash (bot.gd:1185, 3ef1291)")
+
+func _scan_tree(dir_path: String, chained: Array[String], bound: Array[String]) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while name != "":
+		var full := dir_path.path_join(name)
+		if dir.current_is_dir():
+			if not name.begins_with("."):
+				_scan_tree(full, chained, bound)
+		elif name.ends_with(".gd"):
+			_scan_file(full, chained, bound)
+		name = dir.get_next()
+	dir.list_dir_end()
+
+func _scan_file(path: String, chained: Array[String], bound: Array[String]) -> void:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return
+	var text := f.get_as_text()
+	f.close()
+	var lines := text.split("\n")
+	var i := 0
+	while i < lines.size():
+		var raw: String = lines[i]
+		var code := raw.strip_edges()
+		# Shape 1: chained accessor deref. Skip comments so a prose mention in a
+		# comment cannot fail a gate — comments are not code, and an invariant that
+		# reads them manufactures findings with false confidence.
+		if not code.begins_with("#") and not _in_lifecycle_callback(text, i):
+			var chain := RegEx.new()
+			# Matches BOTH shapes: a bare `get_tree().x` and a chained
+			# `X.get_tree().x`. The receiver form alone was a measured GAP, not a
+			# false positive: bot.gd:444 is a bare get_tree().x and the pattern
+			# required an identifier before the dot, so the most common form of
+			# this defect was invisible to the check. A guard that cannot see the
+			# shape it exists to catch is not a partial guard, it is decoration.
+			chain.compile("get_tree\\s*\\(\\s*\\)\\s*\\.")
+			if chain.search(code) != null and not _function_guards_receiver(text, i, raw):
+				chained.append("%s:%d" % [path, i + 1])
+		i += 1
+	# Shape 2: a bound local that is dereferenced in a function with no null check.
+	# Scanned per function so the null check has to be in the same scope.
+	var funcs := RegEx.new()
+	funcs.compile("(?s)(?:^|\\n)(?:static\\s+)?func\\s+[A-Za-z_][A-Za-z0-9_]*\\s*\\([^)]*\\)[^\\n]*\\n(.*?)(?=\\n(?:static\\s+)?func\\s|\\Z)")
+	var m := funcs.search(text)
+	while m != null:
+		var body: String = m.get_string(1)
+		var bind := RegEx.new()
+		# The negative lookahead matters and was a measured false positive:
+		# `var t = get_tree().create_timer(0.01)` is a CHAINED call, but this
+		# pattern matched the `var t = get_tree()` prefix of it and then reported
+		# it a second time as a bound local. Without the lookahead the same line
+		# fails two different checks for one defect.
+		bind.compile("var\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?::[^=]+)?=\\s*get_tree\\s*\\(\\s*\\)(?![.\\w])")
+		var bm := bind.search(body)
+		if bm != null:
+			var v: String = bm.get_string(1)
+			var deref := RegEx.new()
+			deref.compile("\\b" + v + "\\s*\\.")
+			var guard := RegEx.new()
+			# Four accepted spellings, each added because a run measured the
+			# previous set producing a false positive on guarded code:
+			#   t == null / null == t   explicit
+			#   if not t                 negated truthiness
+			#   if t:                    plain truthiness  <- the GDScript idiom, and
+			#                                   the one that was missing, so
+			#                                   weapon_3d.gd's `if t: await
+			#                                   t.physics_frame` was reported
+			#                                   unguarded while being guarded
+			#   t != null                explicit positive
+			# A guard check that only accepts one spelling of a real guard
+			# invents findings with the confidence of a true one.
+			guard.compile("\\b" + v + "\\s*==\\s*null|null\\s*==\\s*" + v + "\\b|\\bif\\s+not\\s+" + v + "\\b|\\bif\\s+" + v + "\\s*:|" + v + "\\s*!=\\s*null")
+			if deref.search(body) != null and guard.search(body) == null:
+				bound.append("%s (%s)" % [path, v])
+		m = funcs.search(text, m.get_end())
+
+## True when the enclosing function already established that the node is in the
+## tree. `is_inside_tree()` returning true implies `get_tree()` is non-null, so
+## an `is_inside_tree()` guard IS a receiver guard and flagging past it is a
+## false positive. Measured: src/npcs/bot_loot.gd:9 returns early on
+## `not body.is_inside_tree()` and lines 14 and 21 dereference
+## `body.get_tree()`. The guard is on the receiver's tree membership rather than
+## spelled `get_tree() == null`, and a check that only accepts one spelling of a
+## real guard is a check that invents findings with the confidence of a true one.
+func _function_guards_receiver(text: String, line_index: int, raw_line: String) -> bool:
+	# Find the start of the enclosing function, then look at its body only.
+	var before := text.split("\n", true, line_index)
+	var start := -1
+	for i in range(before.size() - 1, -1, -1):
+		# Matches `func ` and `static func ` — the latter was a measured miss, so
+		# every static helper in the tree was scanned as if it had no enclosing
+		# function and therefore as if it had no guard either.
+		if before[i].begins_with("func ") or before[i].begins_with("static func "):
+			start = i
+			break
+	if start < 0:
+		return false
+	var body := "\n".join(PackedStringArray(before.slice(start)))
+	body += "\n" + raw_line
+	# `is_inside_tree()` returning true implies get_tree() is non-null, so it IS a
+	# receiver guard. So is an explicit `get_tree() == null` test in the same
+	# function, which is how controller.gd:626 guards its own deref.
+	return body.find("is_inside_tree()") != -1 or _has_null_test(body)
+
+## True when the function body contains an explicit get_tree() null test, in
+## either polarity. Added because widening INV-38a to the bare form made
+## controller.gd:626 — `if get_tree() == null or get_tree().current_scene == null`
+## — visible, and it is guarded by the second clause of its own condition.
+## True when line index `idx` sits inside a Godot lifecycle callback.
+##
+## Exempting these is a MEASURED narrowing, not a stylistic preference. In
+## Godot 4 `get_tree()` is VALID during `_exit_tree` - the node has not yet
+## left the tree - so the null-dereference hazard INV-38a looks for is not
+## present at all there. Requiring a guard in `_exit_tree` is asking for a
+## check that cannot fail, which is how a gate teaches reviewers to ignore
+## it. Measured on origin/main b93618e: scenes/arena_manager_core.gd lines
+## 156 and 164 are bare `get_tree().get_nodes_in_group(...)` inside
+## `_exit_tree`; guarding them would be noise, not defence.
+##
+## LIMITATION, STATED RATHER THAN PAPERED OVER: this exemption is lexical and
+## the call graph is not. The same file's `_setup_raid` (317, 332) and
+## `_configure_raid1_extractions` (187) are ALSO safe - reachable only from
+## `_ready` with the node in the tree - but they are not lifecycle
+## callbacks, so this rule still reports them. That residual is a known false
+## positive class, not an oversight. Distinguishing them needs a call graph
+## rather than a scan, so the real choice is between a narrower assertion and
+## a resolver. See task df6502.
+func _in_lifecycle_callback(text: String, idx: int) -> bool:
+	var re := RegEx.new()
+	re.compile("(?m)^(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)")
+	var found := ""
+	for m in re.search_all(text):
+		if m.get_start() > idx:
+			break
+		found = m.get_string(1)
+	return found in [
+		"_ready", "_enter_tree", "_exit_tree", "_process", "_physics_process",
+		"_input", "_unhandled_input", "_shortcut_input", "_gui_input",
+		"_notification", "_init",
+	]
+
+func _has_null_test(body: String) -> bool:
+	var r := RegEx.new()
+	r.compile("get_tree\\s*\\(\\s*\\)\\s*(==|!=)\\s*null|null\\s*(==|!=)\\s*get_tree\\s*\\(\\s*\\)")
+	return r.search(body) != null
+
+func _inv37c_npc_acquire_target_survives_detached_bot() -> void:
+	var bot_scene: PackedScene = load("res://src/npcs/bot/bot.tscn")
+	if bot_scene == null:
+		_check("INV-37c", "npc_acquire_target_survives_detached_bot", false,
+			"bot.tscn missing", "F-TARGET: cannot reach NpcBot._acquire_target() to check the guard")
+		return
+
+	var bot: Node = bot_scene.instantiate()
+	root.add_child(bot)
+	await process_frame
+	await process_frame
+
+	# Detach it, so get_tree() has no receiver. Assert the precondition BEFORE the
+	# call, or this can pass by never getting near the guarded line.
+	root.remove_child(bot)
+	var detached_before: bool = not bot.is_inside_tree()
+	bot.call("_acquire_target")
+	var detached_after: bool = not bot.is_inside_tree()
+	_check("INV-37c", "npc_acquire_target_survives_detached_bot",
+		detached_before and detached_after,
+		"detached_before=%s after=%s (a runtime error here fails the gate)" % [
+			str(detached_before), str(detached_after)],
+		"F-TARGET: is_inside_tree() must be checked before get_tree() (712e22d)")
+	bot.free()
 func _has_corrupt_backup() -> bool:
 	var d := DirAccess.open(META_TEST_DIR)
 	if d == null:
