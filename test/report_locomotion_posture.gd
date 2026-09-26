@@ -172,16 +172,32 @@ func _run() -> void:
 		quit(1)
 		return
 
-	print("P|clip              MIN     MAX    SPAN  | basis_scale  y_off | verdict  | classified")
+	print("P|clip              MIN     MAX    SPAN  | rig node path                 SCALE  MOUNT_DEG | verdict  | classified")
 	var undriven: Array = []
 	for clip in _clips():
 		var r := await _sample(clip, hi, fi)
 		if r == null:
 			undriven.append(clip)
 			continue
-		print("P|%-16s %+.3f  %+.3f  %.3f  |    %6.3f  %6.3f | %-8s | %s" % [
+		# FOUR fields, because a gate that cannot say which node it read cannot
+		# notice it read the wrong one. The coordinator extended this from three
+		# to four: PATH, QUANTITY, EXPECTED, OBSERVED. What that extension is FOR
+		# is the 120-versus-90 error, which was invisible precisely because nobody
+		# recorded which number was an instantiation and which was a file.
+		#
+		# MOUNT_DEG is a control in a DIFFERENT UNIT from the scale beside it, and
+		# that is the reason it is here rather than the scale. A basis scale is a
+		# LENGTH RATIO, so rotation does not change it: a scale gate passes a rig
+		# rolled ninety degrees at any tolerance, which is why INV-38 went green
+		# against a rig whose node was rolled -90. The angle between the node's
+		# basis applied to UP and world UP is rotation sensitive and scale
+		# invariant, so the two cannot both be fooled by the same failure.
+		var gb: Basis = _sk.global_transform.basis
+		var up: Vector3 = (gb * Vector3.UP).normalized()
+		var mount_deg: float = rad_to_deg(acos(clampf(up.dot(Vector3.UP), -1.0, 1.0)))
+		print("P|%-16s %+.3f  %+.3f  %.3f  | %-32s %.4f  %7.2f | %-8s | %s" % [
 			clip, r["min"], r["max"], r["span"],
-			_sk.transform.basis.get_scale().x, _sk.global_position.y,
+			str(_sk.get_path()), gb.get_scale().x, mount_deg,
 			_band(r["min"]), CLASSIFIED.get(clip, "-")])
 	if undriven.size() > 0:
 		print("P|")
