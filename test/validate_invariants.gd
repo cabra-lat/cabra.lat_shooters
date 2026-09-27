@@ -71,6 +71,7 @@ func _run() -> void:
 	_inv13_escrow_moves_item_by_mass()
 	_inv14_listing_expires_on_raid_counter()
 	_inv15_listing_fee_floor()
+	_inv46_rest_sources_disagree_as_a_spike_not_an_offset()
 
 	await _run_player_invariants()
 	await _inv33_inventory_escape_order()
@@ -1786,6 +1787,135 @@ func _inv15_listing_fee_floor() -> void:
 	_check("INV-15", "listing_fee_rate_and_floor", ok,
 		"fee(1000)=%d fee(0)=%d fee(100000)=%d" % [f.listing_fee(1000), f.listing_fee(0), f.listing_fee(100000)],
 		"listing fee formula is the flea sink's floor (5%, min 100)")
+
+# ─── INV-46: the rest sources disagree as a SPIKE, not as one frame offset ──
+# ORIGIN: the NPC roll investigation. All 24 clips carry the roll on spine_01 against
+# EVERY available rest reference (engine rest 95.3, shipped bind 129.6, DCC export 150.3),
+# so the offset lives in the keys rather than in any one reference. The two candidate CANONICAL
+# rests, the engine rest and the authored DCC export, are NOT related by a single rotation:
+# across 87 bones the median rest-vs-DCC angle is 11.8 degrees while the maximum is 179.2.
+# A pipeline defect would look like a constant frame offset and would push EVERY bone the
+# same way. This one leaves the median ordinary and breaks a minority catastrophically, and
+# the minority is the distal upper body (palms and thumbs near 179, then shoulders and upper
+# arms), with legs and mid-spine absent from the worst 15.
+# WHY THIS IS AN ASSERTION AND NOT A MAGNITUDE: every angle in this area is a function of
+# WHICH rest you compare against, so a threshold on any single angle would move underneath
+# itself the moment a canonical rest is chosen. The STRUCTURE - one ordinary median beside a
+# near-180 maximum, with the rest of the skeleton in between - survives that choice.
+# WHY IT MATTERS: if someone re-bakes the clips against one rest, the disagreement collapses
+# to a constant and this goes red, because a "fix" that silently baked the other two rests'
+# disagreement into 24 clips would be indistinguishable from a correction afterwards.
+const _INV46_RIG := "res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn"
+const _INV46_GLB := "res://assets/models/player_model/psx_character_rigged.glb"
+
+func _inv46_rest_sources_disagree_as_a_spike_not_an_offset() -> void:
+	var rest := _inv46_table("bones", "name", "rest")
+	var bind := _inv46_table("bind", "name", "pose")
+	if rest.size() != 87 or bind.size() != 87:
+		_check("INV-46", "rest_sources_disagree_as_a_spike", false,
+			"rest=%d bind=%d (expected 87 each)" % [rest.size(), bind.size()],
+			"a rest table that is not 87 entries means the rig changed shape, so every other reading here is void")
+		return
+	if not rest.has("spine_01") or not bind.has("spine_01"):
+		_check("INV-46", "rest_sources_disagree_as_a_spike", false,
+			"spine_01 rest=%s bind=%s" % [str(rest.has("spine_01")), str(bind.has("spine_01"))],
+			"the two tables must join BY NAME; bind/N/bone is -1 for every entry and index alignment is a coincidence")
+		return
+	var glb: PackedScene = load(_INV46_GLB) as PackedScene
+	if glb == null:
+		_check("INV-46", "rest_sources_disagree_as_a_spike", false,
+			"authoring export did not load", "the third reference is missing, so there is no canonical rest to compare against")
+		return
+	var node: Node = glb.instantiate()
+	var gs: Skeleton3D = _inv46_skel(node)
+	if gs == null:
+		node.free()
+		_check("INV-46", "rest_sources_disagree_as_a_spike", false,
+			"no Skeleton3D in the authoring export", "the export and the rig are not the same skeleton")
+		return
+	var angles: Array = []
+	for i in range(gs.get_bone_count()):
+		var nm := str(gs.get_bone_name(i))
+		if not rest.has(nm):
+			continue
+		var d := _inv46_angle((rest[nm] as Transform3D).basis.get_rotation_quaternion(),
+			gs.get_bone_rest(i).basis.get_rotation_quaternion())
+		angles.append(d)
+	node.free()
+	if angles.size() != 87:
+		_check("INV-46", "rest_sources_disagree_as_a_spike", false,
+			"compared=%d (expected 87)" % angles.size(),
+			"the export and the rig must have the same 87 joints, or the comparison is not joint-for-joint")
+		return
+	var sorted := angles.duplicate()
+	sorted.sort()
+	var median: float = sorted[sorted.size() / 2]
+	var maximum: float = sorted[sorted.size() - 1]
+	var spike: int = 0
+	for v in angles:
+		if v > 90.0:
+			spike += 1
+	# A CONSTANT frame offset pushes every bone the same way, so the median would be high
+	# too. This is the falsifier. A minority spike leaves the median ordinary.
+	var not_an_offset: bool = median < 30.0 and maximum > 120.0
+	var is_a_minority: bool = spike > 0 and spike < 44
+	var ok: bool = not_an_offset and is_a_minority
+	_check("INV-46", "rest_sources_disagree_as_a_spike", ok,
+		"n=%d median=%.4f max=%.4f spike_over_90=%d constant_offset=%s" % [
+			angles.size(), median, maximum, spike, str(not not_an_offset)],
+		"if the two candidate rests are reconciled, the disagreement was a single frame offset and the re-bake baked it in; a collapsed median here means 24 clips were rewritten against one rest while two others disagreed")
+
+func _inv46_table(prefix: String, nkey: String, vkey: String) -> Dictionary:
+	var d: Dictionary = {}
+	var f := FileAccess.open(_INV46_RIG, FileAccess.READ)
+	if f == null:
+		return d
+	var nm := ""
+	var val := Transform3D.IDENTITY
+	var hn := false
+	var hv := false
+	while not f.eof_reached():
+		var line := f.get_line().strip_edges()
+		if line.begins_with(prefix + "/") and "/" + nkey + " = " in line:
+			if hn and hv:
+				d[nm] = val
+			# The two tables write names differently: bones/ uses "spine_01" and bind/ uses
+			# &"spine_01". Stripping the ampersand unconditionally mangles one side, which
+			# cost two runs and looked exactly like a missing bone.
+			var t := line.split(" = ", true, 1)[1].strip_edges()
+			if t.begins_with("&"):
+				t = t.substr(1)
+			nm = t.trim_prefix("\"").trim_suffix("\"")
+			hn = true
+			hv = false
+		elif line.begins_with(prefix + "/") and "/" + vkey + " = " in line:
+			val = _inv46_tf(line.split(" = ", true, 1)[1])
+			hv = true
+	if hn and hv:
+		d[nm] = val
+	return d
+
+func _inv46_tf(s: String) -> Transform3D:
+	var v: Array = []
+	for tok in s.trim_prefix("Transform3D(").trim_suffix(")").split(","):
+		v.append(float(tok))
+	return Transform3D(
+		Basis(Vector3(v[0], v[1], v[2]), Vector3(v[3], v[4], v[5]), Vector3(v[6], v[7], v[8])),
+		Vector3(v[9], v[10], v[11]))
+
+func _inv46_angle(a: Quaternion, b: Quaternion) -> float:
+	# |q| is the chord distance; its half-angle is the rotation angle. Folding on abs()
+	# handles the quaternion double cover, so a tiny difference does not read as ~360.
+	return rad_to_deg(2.0 * acos(clampf(absf(a.dot(b)), -1.0, 1.0)))
+
+func _inv46_skel(n: Node) -> Skeleton3D:
+	if n is Skeleton3D:
+		return n
+	for c in n.get_children():
+		var r := _inv46_skel(c)
+		if r != null:
+			return r
+	return null
 
 func _has_corrupt_backup() -> bool:
 	var d := DirAccess.open(META_TEST_DIR)
