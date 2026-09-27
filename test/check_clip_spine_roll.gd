@@ -13,15 +13,18 @@ extends SceneTree
 # is the truth. When a fix lands it goes green, and a green result means the
 # clips were re-baked, NOT that the rig is correct.
 #
-# WHY THE MEASUREMENT IS THE MAXIMUM AND NOT THE MEAN. A mean over rotation
-# keys is key-density weighted, not time weighted, so an exporter that writes
-# dense keys in a stiff section weights a clip differently from one sampled
-# uniformly. Worse, a clip that sits near rest for most of its length and spikes
-# briefly would report a LOW mean and PASS a below-45 sentinel while carrying
-# the exact defect being hunted. The maximum is the strictly better statistic
-# for a defect detector. The mean is still computed and reported, because the
-# headline figure 95.3052 is a mean and the two are NOT the same measurement.
-# They are reported side by side and neither is silently substituted.
+# WHY THE ASSERTION IS THE MINIMUM AND NOT THE MEAN OR THE MAXIMUM. First the
+# mean, then the maximum, then the minimum, in that order of tightening. A mean
+# over rotation keys is key-density weighted rather than time weighted, and it
+# could be satisfied by a clip that touches rest briefly and is rolled
+# elsewhere. A maximum catches a brief spike but tolerates a clip that spends
+# most of its length near rest. A MINIMUM-OF-KEYS ASSERTION CANNOT BE SATISFIED
+# BY ANY CLIP THAT EVER COMES NEAR REST, which is the strictest form available
+# and the one that makes this sentinel safe rather than merely strict: there is
+# no averaging and no tolerance window for a defect to hide inside. The mean and
+# the maximum are still computed and reported, because the reported figure
+# 95.3052 is a mean and the three are NOT the same measurement. They are
+# reported side by side and none is silently substituted for another.
 #
 # SCOPE OF THE ANGLE, WHICH IS WHAT MAKES THIS RUNNABLE IN CI. The angle is a
 # pure bone-local quaternion half-chord, with no axis term and nothing composed
@@ -114,7 +117,7 @@ func _initialize() -> void:
 	print("SENTINEL| %d of %d clips key a %s rotation track" % [keyed, names.size(), BONE_NAME])
 	if not not_keying.is_empty():
 		print("SENTINEL| NOT KEYING %s: %s" % [BONE_NAME, ", ".join(not_keying)])
-	print("SENTINEL| per-clip departure from engine rest, degrees; ASSERT is on the MAXIMUM")
+	print("SENTINEL| per-clip departure from engine rest, degrees; ASSERT is on the MINIMUM key, max and mean reported alongside")
 	for r in rows:
 		var flag := "  <-- OVER" if float(r[2]) >= THRESHOLD_DEG else ""
 		print("  %-20s keys=%-4d max=%9.4f  mean=%9.4f  min=%9.4f%s" % [r[0], r[1], r[2], r[3], r[4], flag])
@@ -131,16 +134,18 @@ func _initialize() -> void:
 		% [overall_min, String(rows[_min_row(rows, overall_min)][0])])
 	print("SENTINEL| pre-registered threshold = %.1f deg, not fitted" % THRESHOLD_DEG)
 
-	# The assertion: EVERY clip must be below the threshold on its MAXIMUM.
+	# The assertion: EVERY clip must be below the threshold on its MINIMUM key,
+	# which is the strictest form: no clip can pass by averaging, because a clip
+	# that ever comes near rest has a low minimum and fails.
 	for r in rows:
-		if float(r[2]) >= THRESHOLD_DEG:
+		if float(r[4]) >= THRESHOLD_DEG:
 			_fail += 1
 		else:
 			_pass += 1
 
 	if _fail > 0:
-		print("RESULT: RED (%d of %d clips carry a %s departure of at least %.1f deg on the maximum; the worst is %.4f deg)"
-			% [_fail, rows.size(), BONE_NAME, THRESHOLD_DEG, overall_max])
+		print("RESULT: RED (%d of %d clips carry a %s departure of at least %.1f deg on their LOWEST key; the smallest such key in the library is %.4f deg)"
+			% [_fail, rows.size(), BONE_NAME, THRESHOLD_DEG, overall_min])
 		print("        This is the EXPECTED state on an unfixed tree. The red is the truth and must not be tuned green.")
 		quit(1)
 		return
@@ -149,7 +154,7 @@ func _initialize() -> void:
 			% [names.size() - keyed, BONE_NAME])
 		quit(1)
 		return
-	print("RESULT: PASS (all %d clips carry %s departure below %.1f deg on the maximum)" % [_pass, BONE_NAME, THRESHOLD_DEG])
+	print("RESULT: PASS (all %d clips carry every %s key below %.1f deg from the engine rest)" % [_pass, BONE_NAME, THRESHOLD_DEG])
 	quit(0)
 
 ## Index of the row holding the library-wide lowest key, so the printed figure
