@@ -20,7 +20,6 @@ enum Kind {
 }
 
 @export var kind: Kind = Kind.MEDKIT
-@export_multiline var description: String = ""
 
 @export_group("Use")
 @export var use_time: float = 3.0 # s

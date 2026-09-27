@@ -171,10 +171,6 @@ func play(anim: StringName) -> bool:
 	a.play(anim)
 	return true
 
-func anim_names() -> PackedStringArray:
-	var a := _ensure_anim()
-	return a.get_animation_list() if a != null else PackedStringArray()
-
 # ─── BODY REFERENCE BONES (M7) ─────────────────────────────────────────────────
 ## Head/eye bone index for a look-at / eye anchor (M7). No caller yet.
 func head_bone_index() -> int:
@@ -183,13 +179,6 @@ func head_bone_index() -> int:
 ## Chest bone index for aim/anchor points (M7). No caller yet.
 func chest_bone_index() -> int:
 	return find_bone(CHEST_BONE)
-
-## World-space origin of a named bone (eye/chest/hand), for LOS/aim (M7).
-func bone_global_position(bone_name: String) -> Vector3:
-	var idx := find_bone(bone_name)
-	if idx < 0:
-		return global_position
-	return global_transform * get_bone_global_rest(idx).origin
 
 # ─── ANALYTIC ARM IK (replaces the GodotIK arm path) ─────────────────────────
 ## Two-bone analytic solve (shoulder→elbow→wrist) driven by live Node3D grips.

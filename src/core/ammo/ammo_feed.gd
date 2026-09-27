@@ -11,7 +11,6 @@ enum Type {
   EXTERNAL,
 }
 
-@export_multiline var description: String = "This Ammofeed is the default one."
 @export var type: Type = Type.INTERNAL
 @export_custom(PROPERTY_HINT_NONE, "suffix:g") var empty_mass: float = 0.0
 @export var compatible_calibers: PackedStringArray = []

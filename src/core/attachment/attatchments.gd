@@ -30,7 +30,6 @@ enum ReticleType {
 }
 
 # ─── METADATA ──────────────────────────────────────
-@export_multiline var description: String = "This Attachment is the default one."
 @export var type: AttachmentType = AttachmentType.OTHER
 @export var attachment_point: int  # Weapon.AttachmentPoint (bit flag)
 @export var cost: int = 100

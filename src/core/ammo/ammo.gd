@@ -6,7 +6,6 @@ extends Item
   set(value):
     _caliber_data = Utils.parse_caliber(value)
     caliber = value
-@export_multiline var description: String = "Generic ammunition"
 
 # ─── BALLISTIC PROPERTIES ─────────────────────────
 enum Type {
