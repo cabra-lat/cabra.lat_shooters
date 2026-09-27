@@ -12,6 +12,9 @@ signal inventory_closed()
 var player_controller: PlayerController
 var open_containers: Array[InventoryContainerUI] = []
 var current_drag_data: Dictionary = {}
+## Owns the decided behaviour of the three weapon request actions. Created once
+## the player is known, so a null player is a guarded no-op rather than a crash.
+var _weapon_requests: WeaponRequests = null
 
 func _ready():
     if equipment_ui:
@@ -22,8 +25,11 @@ func _ready():
 
 func open_inventory(player: PlayerController, container: InventoryContainer = null):
     player_controller = player
+    if _weapon_requests == null:
+        _weapon_requests = WeaponRequests.new(player)
     if equipment_ui:
         equipment_ui.setup_player(player)
+        _wire_weapon_requests(equipment_ui)
         if not equipment_ui.request_use_item.is_connected(_on_use_item_requested):
             equipment_ui.request_use_item.connect(_on_use_item_requested)
         if not equipment_ui.request_modify_weapon.is_connected(_on_modify_weapon_requested):
@@ -229,6 +235,37 @@ func _on_modify_weapon_requested(weapon: Weapon) -> void:
     if player_controller == null or weapon == null:
         return
     player_controller.request_weapon_modify(weapon)
+
+## The three request signals that were emitted with no connection and no handler
+## anywhere in the tree. They are connected HERE, in the UI that owns them, and
+## delegate to WeaponRequests, which owns the decided behaviour -- so there is one
+## implementation of each action rather than one per call site.
+##
+## Forwarding the outcome is not optional: every case including every refusal has
+## to report, because a live-looking control that does nothing silently is the
+## defect the owner reported. There is no notification surface in the project to
+## render into, so the typed outcome is what exists for now.
+func _wire_weapon_requests(ui: Node) -> void:
+    if ui == null or _weapon_requests == null:
+        return
+    if not ui.request_unload_magazine.is_connected(_on_unload_magazine_requested):
+        ui.request_unload_magazine.connect(_on_unload_magazine_requested)
+    if not ui.request_extract_rounds.is_connected(_on_extract_rounds_requested):
+        ui.request_extract_rounds.connect(_on_extract_rounds_requested)
+    if not ui.request_cycle_action.is_connected(_on_cycle_action_requested):
+        ui.request_cycle_action.connect(_on_cycle_action_requested)
+
+func _on_unload_magazine_requested(weapon: Weapon) -> void:
+    if _weapon_requests != null:
+        _weapon_requests.unload_magazine(weapon)
+
+func _on_extract_rounds_requested(source: Item, number: int) -> void:
+    if _weapon_requests != null:
+        _weapon_requests.extract_rounds(source, number)
+
+func _on_cycle_action_requested(weapon: Weapon) -> void:
+    if _weapon_requests != null:
+        _weapon_requests.cycle_action(weapon)
 
 func _on_world_drop(data: Dictionary):
     if data and data.has("item") and data.has("source"):
