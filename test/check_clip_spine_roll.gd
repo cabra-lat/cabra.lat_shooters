@@ -82,6 +82,7 @@ func _initialize() -> void:
 	var not_keying: Array[String] = []
 	var rows: Array = []
 	var overall_max := 0.0
+	var overall_min := 1.0e9
 	var sum_mean := 0.0
 	var keyed := 0
 
@@ -94,6 +95,7 @@ func _initialize() -> void:
 		keyed += 1
 		var nk := anim.track_get_key_count(track)
 		var worst := 0.0
+		var best := 1.0e9
 		var acc := 0.0
 		for k in nk:
 			var kq: Quaternion = anim.track_get_key_value(track, k)
@@ -101,9 +103,12 @@ func _initialize() -> void:
 			acc += d
 			if d > worst:
 				worst = d
+			if d < best:
+				best = d
 		var mean := acc / float(maxi(nk, 1))
-		rows.append([String(n), nk, worst, mean])
+		rows.append([String(n), nk, worst, mean, best])
 		overall_max = maxf(overall_max, worst)
+		overall_min = minf(overall_min, best)
 		sum_mean += mean
 
 	print("SENTINEL| %d of %d clips key a %s rotation track" % [keyed, names.size(), BONE_NAME])
@@ -112,9 +117,18 @@ func _initialize() -> void:
 	print("SENTINEL| per-clip departure from engine rest, degrees; ASSERT is on the MAXIMUM")
 	for r in rows:
 		var flag := "  <-- OVER" if float(r[2]) >= THRESHOLD_DEG else ""
-		print("  %-20s keys=%-4d max=%9.4f  mean=%9.4f%s" % [r[0], r[1], r[2], r[3], flag])
+		print("  %-20s keys=%-4d max=%9.4f  mean=%9.4f  min=%9.4f%s" % [r[0], r[1], r[2], r[3], r[4], flag])
 	print("SENTINEL| worst maximum across the library = %.4f deg; library mean of per-clip means = %.4f deg"
 		% [overall_max, sum_mean / float(maxi(rows.size(), 1))])
+	# THE PER-CLIP MINIMUM, WHICH IS NEITHER A MEAN NOR A MAXIMUM AND IS THE
+	# STRONGEST STATEMENT AVAILABLE ABOUT THE ASSET. If the LOWEST single key in
+	# the whole library is still far from rest, then the roll is not a moment in
+	# an animation, it is the animation: there is no key anywhere that comes near
+	# the neutral pose. It also retires the objection that motivated asserting on
+	# the maximum, namely that a mean could hide a brief spike, because a spike
+	# requires SOME key to come back toward rest and here none does.
+	print("SENTINEL| LOWEST SINGLE KEY IN THE ENTIRE LIBRARY = %.4f deg (clip %s)"
+		% [overall_min, String(rows[_min_row(rows, overall_min)][0])])
 	print("SENTINEL| pre-registered threshold = %.1f deg, not fitted" % THRESHOLD_DEG)
 
 	# The assertion: EVERY clip must be below the threshold on its MAXIMUM.
@@ -137,6 +151,15 @@ func _initialize() -> void:
 		return
 	print("RESULT: PASS (all %d clips carry %s departure below %.1f deg on the maximum)" % [_pass, BONE_NAME, THRESHOLD_DEG])
 	quit(0)
+
+## Index of the row holding the library-wide lowest key, so the printed figure
+## names WHICH clip that key lives in rather than reporting a bare number.
+func _min_row(rows: Array, lowest: float) -> int:
+	var idx := 0
+	for i in rows.size():
+		if float(rows[i][4]) <= lowest:
+			idx = i
+	return idx
 
 ## The bone-local half-chord, folded on absf so the quaternion double cover does
 ## not turn a tiny difference into about 360 degrees.
