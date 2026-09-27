@@ -27,9 +27,44 @@ const WEAPON_PATH := "res://resources/weapons/M4_Carbine.tres"
 const ARMOR_PATH := "res://resources/armor/GOST_BR4.tres"
 const BANDAGE_PATH := "res://resources/medical/army_bandage.tres"
 const RIG_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn"
+## INV-38 needs the PRODUCTION animation wiring, which lives in the bot scene: the
+## AnimationPlayer, its library and root_node are all in bot.tscn, and
+## humanoid_rig.tscn carries no AnimationPlayer at all.
+const BOT_SCENE := "res://src/npcs/bot/bot.tscn"
 const IK_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player_ik.tscn"
 const META_TEST_DIR := "user://inv_meta_test"
 const META_SAVE := "user://inv_meta_test/profile.save"
+
+## ─── THE RULE THIS FILE EXISTS TO ENFORCE ─────────────────────────────────────────────
+## Before measuring, ask what could explain the number more cheaply than the
+## measurement. If the answer is a file you already have open, open it.
+##
+## This is not a style note; it is the load-bearing lesson of a long debugging night in
+## which four separate questions were each answered by ONE line of a file that three
+## different lanes already had open, and each answer arrived only AFTER an instrument had
+## been built, a hypothesis proposed, a measurement repeated, and in one case a false
+## defect written onto a card. The wrong turn was never carelessness. A measurement costs
+## more, takes longer, and LOOKS more like evidence than opening a file does, so it is
+## always the more attractive next step -- and every instrument built to explain a number
+## made the mystery look more real rather than less.
+##
+## Three corollaries, each paid for at least once:
+##   1. A quantity that VARIES is not a mechanism. It is evidence that you have not found
+##      the input yet, and the first place to look is whatever generates it. Seven "basis"
+##      values turned out to be randf_range(0.94, 1.06) in bot.gd:1125 -- a documented
+##      per-bot random draw, in this lane's own file.
+##   2. Before hunting a writer, check that the thing you re-ran is the thing you measured
+##      the first time. The scale was constant WITHIN a process and random BETWEEN bots, so
+##      each re-run was a different object. Variation across a re-run is evidence of a
+##      writer only if the re-run is the same object -- a checkable precondition.
+##   3. A control is defined by the failure it CAN EXPRESS. A control built from a quantity
+##      blind to the failure passes forever, confidently, and looks rigorous while doing it.
+##      A basis SCALE cannot see a rotation, so a scale gate would pass a rig rolled 90
+##      degrees at any tolerance. That is what made the previous INV-38 green.
+##
+## And the constructive half, which matters as much as the rule: a randomised input can be
+## PINNED rather than tolerated. Forcing the scale to 1.0 before measuring removes that
+## noise source instead of budgeting for it.
 
 var _pass := 0
 var _fail := 0
@@ -94,6 +129,7 @@ func _run() -> void:
 	await _inv18_rig_sole_on_ground()
 	await _inv19_rig_body_material_supports_flash()
 	await _inv20_every_clip_drives_the_rig()
+	await _inv38_spine_points_up()
 	_inv21_roles_swap_conserves_mass()
 	_inv22_roles_kia_forfeits_only_active_kit()
 	_inv23_skeletons_in_sync()
@@ -498,6 +534,484 @@ func _inv20_every_clip_drives_the_rig() -> void:
 		"clips=%d without_a_match=%d %s" % [clips.size(), dead.size(), str(dead)],
 		"F9: clips used Mixamo bone names absent from the rig, so bodies were a T-pose")
 	rig.queue_free()
+
+# ─── INV-38: a standing human's spine points UP, and a clip must PROVE it moved ──
+# ORIGIN (npc-body, 2026-09-25, the 90-degree bot roll, card task_1790427558484_bbbb18):
+# Three lanes in one night each published a plausible angle from a rig that was not
+# moving — a rig whose AnimationPlayer library was empty, a probe that compared a
+# bone's live origin with ITSELF (returning 0.0000 while is_playing() was true), and
+# a hand-assembled rig carrying a second AnimationPlayer so no track ever resolved.
+# A rig sitting at its rest pose measures UPRIGHT, so every one of those read as
+# "no defect" or "clips are innocent". Two permanent gates fall out of that:
+#
+#   INV-38  the rest pose is the POSTURE REFERENCE. A standing human's spine points
+#           up, so with no clip playing the spine must be within a few degrees of
+#           world UP (measured 1.4 deg). This is the one pose that currently looks
+#           RIGHT, and it is what a fix for the roll could silently break: the rig
+#           root is mounted at 120 deg (humanoid_rig.tscn:293) and the BONE REST
+#           CHAIN is what compensates for it (measured, driver frozen: _rootJoint
+#           90.0, spine_01 140.2, spine.001_02 39.4, spine.004_05 7.4 -> 1.4), so
+#           zeroing that node transform would break this check. Gate it.
+#   INV-38b a clip must DEMONSTRABLY move the rig before any angle is read. INV-20
+#           above is a STATIC check — it verifies track paths name real bones, and it
+#           passed happily throughout while nothing could show a pose changing. This
+#           is the runtime version, and it is the assertion whose absence let three
+#           false passes through. Note the hazard already documented in this file's
+#           header: measure POSITION, never get_bone_pose_rotation().length(), which
+#           is 1 for any normalized quaternion and always reports "no change".
+#
+# WIRING TRAP, and it is the mechanism of all three false passes: the AnimationPlayer
+# and its library live in the BOT scene, not in humanoid_rig.tscn, and the clips address
+# bones as "Skeleton3D:<bone>" with AnimationPlayer.root_node as the base of those paths.
+# humanoid_rig.gd's _ensure_anim() only FINDS an existing player, it never creates one, so
+# instantiating the rig scene alone yields a rig that CANNOT animate -- which measures
+# upright forever. That is precisely why INV-20 above is static-only. So this check
+# instantiates bot.tscn, the production wiring, and asserts the track paths resolve
+# BEFORE measuring anything; a failure is reported as a failure, never printed as an angle.
+func _inv38_spine_points_up() -> void:
+	var ps := load(BOT_SCENE) as PackedScene
+	if ps == null:
+		_check("INV-38", "rig_spine_points_up_at_rest", false, "bot scene missing",
+			"90-deg roll: no posture reference to measure the fix against")
+		return
+	var bot = ps.instantiate()
+	root.add_child(bot)
+	await process_frame
+	# Freeze the driver BEFORE touching the animation: bot.gd re-asserts its own clip
+	# every tick, so an un-frozen "stopped" reading is a playing clip labelled rest.
+	# (v12 of the probe made exactly that mistake and nearly reported a false zero.)
+	if bot.has_method("set_physics_process"):
+		bot.set_physics_process(false)
+		bot.set_process(false)
+	for i in 8:
+		await process_frame
+	var skel := bot.find_child("Skeleton3D", true, false) as Skeleton3D
+	var ap := bot.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if skel == null or ap == null:
+		_check("INV-38", "rig_spine_points_up_at_rest", false,
+			"skeleton=%s animation_player=%s" % [str(skel != null), str(ap != null)],
+			"90-deg roll: posture cannot be referenced")
+		bot.queue_free()
+		return
+
+	# The gate on the gate: does "Skeleton3D:<bone>" actually resolve from root_node?
+	var resolved := ap.get_node_or_null(NodePath("%s/Skeleton3D" % str(ap.root_node)))
+	var tracks_live := resolved == skel
+
+	var lo := _inv38_bone(skel, "spine.001_02")
+	var hi := _inv38_bone(skel, "spine.004_05")
+
+	# ── INV-38b: a clip must move the rig, before any angle means anything ──
+	# Like with like, in ONE coordinate system. The original compared
+	# (global_transform * get_bone_rest(b)) -- a LOCAL rest, composed -- against
+	# (global_transform * get_bone_global_pose(b)). The mix-up is the LOCAL rest, not the
+	# global pose: see the TRANSLATION note below. get_bone_global_rest() is the
+	# node-space counterpart of get_bone_global_pose(), so both are composed by the same
+	# global_transform and the two sides finally live in the same space.
+	var moved := 0.0
+	if tracks_live and ap.has_animation("walk"):
+		ap.play("walk")
+		for i in 20:
+			await process_frame
+			for b in range(skel.get_bone_count()):
+				moved = maxf(moved, (skel.global_transform * skel.get_bone_global_rest(b)).origin
+					.distance_to((skel.global_transform * skel.get_bone_global_pose(b)).origin))
+		ap.stop()
+	_check("INV-38b", "a_clip_demonstrably_moves_the_rig", tracks_live and moved > 0.01,
+		"tracks_live=%s max_position_delta_vs_rest=%.4f m %s" % [str(tracks_live), moved,
+			"" if moved > 0.01 else "— a rig that does not move measures UPRIGHT and proves nothing"],
+		"90-deg roll: three lanes published angles from a rig that was not animating")
+
+	# ── TRANSLATION: the fact this whole file got wrong twice, and the reason ──
+	# get_bone_global_pose() is NODE/MODEL space -- relative to the Skeleton3D node --
+	# NOT world space. It does not include the node's transform. So a world position is
+	# (global_transform * get_bone_global_pose(i)), and the 120 deg mount at
+	# humanoid_rig.tscn:293 is applied ONCE, there. Composing without the global_transform
+	# yields node-space coordinates, which are not a place a body can be.
+	#
+	# This is settled by moving the node, not by reading the docs: translate the skeleton
+	# by a known world offset and the reported bone positions do not move at all, which is
+	# only possible if the node transform is absent from them. (Measured: node moved
+	# (0, 5, 0), head bone moved (0, 0, 0).)
+	#
+	# I asserted the opposite twice on the first day -- once to justify withdrawing every
+	# roll number, and once to justify "fixing" this very gate. Both assertions were wrong
+	# and both were published before being tested. What made them persuasive was a piece of
+	# false evidence: bone positions at y = -42.5 m, which I called impossible coordinates.
+	# They were not impossible. The probe scene has no floor, so the bot had FALLEN 43 m
+	# and the true world position of the skeleton node was y = -42.7 m. A correct
+	# composition includes that translation and reports it faithfully. "Implausible" is not
+	# the same as "mis-composed", and I did not check which one I had.
+	#
+	# The consequence for the ORIGINAL INV-38: its 1.4 deg rest reading was RIGHT, and the
+	# "fix" I committed in d9c388f replaced a correct gate with a wrong one. Corrected here.
+
+	# ── INV-38d: the tripwire, and it survives the retraction on better grounds ──
+	# Every bone of a rig must be within a few metres of its own node. A control in a
+	# DIFFERENT UNIT from the thing measured (degrees cannot police degrees): if a
+	# composition drops the node transform the bones stop travelling with the body, and
+	# this is the check that sees it without interpreting any angle.
+	var far := 0.0
+	for b in range(skel.get_bone_count()):
+		far = maxf(far, (skel.global_transform * skel.get_bone_global_pose(b)).origin
+			.distance_to(skel.global_position))
+	_check("INV-38d", "bones_are_attached_to_their_rig", far < 5.0,
+		"worst bone distance from the rig node = %.2f m (want < 5)" % far,
+		"posture: a composition that omits the node transform detaches the bones from the body")
+
+	# ── THE SPINE-PAIR TRAP, which is what the whole card was actually built on ──
+	# spine.001_02 -> spine.004_05 is NOT a stable vertical reference in this rig. During
+	# locomotion the pair INVERTS -- spine.001_02 sits above spine.004_05 -- so a
+	# (hi - lo) direction vector flips and the angle derived from it means nothing. That
+	# inversion, not a roll, is the likeliest origin of the 76-98 deg "roll" figures this
+	# card accumulated. It is printed rather than asserted so the trap stays visible.
+	var sl := _inv38_bone(skel, "spine.001_02")
+	var sh := _inv38_bone(skel, "spine.004_05")
+	var inverted := false
+	if sl >= 0 and sh >= 0:
+		var yl := (skel.global_transform * skel.get_bone_global_pose(sl)).origin.y
+		var yh := (skel.global_transform * skel.get_bone_global_pose(sh)).origin.y
+		inverted = yl > yh
+		print("  NOTE  %-7s %-42s spine.001_02 y=%+.3f spine.004_05 y=%+.3f -> %s (spine-vs-UP is UNUSABLE when this says INVERTED)"
+			% ["INV-38e", "spine_pair_is_a_vertical_reference", yl, yh,
+				"INVERTED" if inverted else "ordered"])
+
+	# ── INV-38: POSTURE, in world space, from a raw coordinate difference ──
+	# A standing human's HEAD IS ABOVE THEIR FEET IN WORLD Y. No angle, no bone-pair
+	# convention, no mount interpretation. Composed into world space because that is what
+	# these two accessors need.
+	# ── THE SCALE PIN, AS EXECUTABLE BEHAVIOUR AND NOT AS A COMMENT ──
+	# src/npcs/bot/bot.gd:1125 draws a per-bot uniform scale, randf_range(0.94, 1.06), and
+	# the Skeleton3D inherits it through its parent's GLOBAL basis. head_over_feet is
+	# composed with that basis, so a posture reading taken at the drawn scale is a reading
+	# in a frame nobody pinned -- and across processes those readings differ by up to 0.24 m
+	# at scale alone. A randomised input can be PINNED rather than tolerated, so the pin
+	# lives HERE, in the code that samples, and not in a header a reader must remember.
+	# A rule in a header teaches; a pin in the code prevents.
+	var rig_root := skel.get_parent() as Node3D
+	var drawn_scale := Vector3.ONE
+	if rig_root != null:
+		drawn_scale = rig_root.scale
+		rig_root.scale = Vector3.ONE
+		for i in 4:
+			await process_frame
+
+	var head := _inv38_bone(skel, "spine.006_end_067")
+	var foot := _inv38_bone(skel, "foot.R_064")
+	var rest_h2f := -999.0
+	if head >= 0 and foot >= 0:
+		skel.reset_bone_poses()
+		for i in 8:
+			await process_frame
+		rest_h2f = (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+			- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
+
+	# SAMPLED, not a single frame. A one-frame reading of a locomotion clip is not a
+	# measurement: the same clip read +0.412 m sampled and -0.196 m at one frame, so a
+	# gate on a single sample would be gating on when it was taken. Mean over 40 frames,
+	# with min and max printed so a transient cannot hide inside an average.
+	var play_h2f := -999.0
+	var play_min := INF
+	var play_max := -INF
+	if tracks_live and ap.has_animation("walk") and head >= 0 and foot >= 0:
+		ap.play("walk")
+		var acc := 0.0
+		var n := 0
+		for i in 40:
+			await process_frame
+			var v := (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
+			acc += v
+			n += 1
+			play_min = minf(play_min, v)
+			play_max = maxf(play_max, v)
+		play_h2f = acc / maxf(1.0, float(n))
+		ap.stop()
+
+	# ── THE PIN'S RED ARM: remove the pin and the spread must REAPPEAR ──
+	# A pin that is only claimed in a comment is exactly the kind of control that passes
+	# without the thing existing. So the pin is broken on purpose, at the AUTHORED minimum
+	# rather than at whatever this run happened to draw (which could be 1.0 and prove
+	# nothing), and the same quantity is required to move. If this ever passes with the
+	# pin removed, the pin is not load-bearing and the posture rows are unpinned again.
+	var pin_moved := 0.0
+	var null_noise := 0.0
+	var pinned_h2f := play_h2f
+	if head >= 0 and foot >= 0 and rig_root != null and ap.has_animation("walk"):
+		# EQUAL-LENGTH, PHASE-MATCHED samples on both sides. The first cut of this red arm
+		# differenced a 40-frame mean against a 20-frame mean and the margin swung from
+		# 0.0199 m to 0.0824 m between runs -- a 4x spread, because the two samples sat at
+		# different points in the clip and the difference being measured was part phase. A
+		# red arm with a 4x spread is not a red arm. So both sides now: replay the clip from
+		# its own start, advance a fixed step, and read the same number of frames.
+		const PIN_N := 40
+		rig_root.scale = Vector3.ONE
+		for i in 6:
+			await process_frame
+		ap.play("walk")
+		ap.advance(0.0)
+		var p_acc := 0.0
+		for i in PIN_N:
+			await process_frame
+			p_acc += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
+		ap.stop()
+
+		# THE NULL CONTROL, in the SAME run, and it is what makes this check trustworthy.
+		# The scale's effect on head_over_feet is genuinely modest and varies between runs
+		# (0.021-0.042 m observed), so a bare threshold has to be set near the observed
+		# minimum or it is luck, and set high or it is meaningless. So the same measurement
+		# is repeated with NO scale change on either side: that difference is pure sampling
+		# noise in this harness, and the treatment only counts if it beats it.
+		var n_acc := 0.0
+		for i in 6:
+			await process_frame
+		ap.play("walk")
+		ap.advance(0.0)
+		for i in PIN_N:
+			await process_frame
+			n_acc += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
+		ap.stop()
+		var null_acc_mean := absf(n_acc / float(PIN_N) - p_acc / float(PIN_N))
+
+		rig_root.scale = Vector3.ONE * 0.94
+		for i in 6:
+			await process_frame
+		ap.play("walk")
+		ap.advance(0.0)
+		var u_acc := 0.0
+		for i in PIN_N:
+			await process_frame
+			u_acc += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
+				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
+		ap.stop()
+		pinned_h2f = p_acc / float(PIN_N)
+		pin_moved = absf(u_acc / float(PIN_N) - pinned_h2f)
+		null_noise = null_acc_mean
+		rig_root.scale = Vector3.ONE
+		for i in 6:
+			await process_frame
+	# NOT AN ASSERTION, and the reason is the whole point of this entry. The pin is correct
+	# as BEHAVIOUR -- bot.gd:1125 draws a per-bot uniform scale, randf_range(0.94, 1.06), the
+	# rig inherits it through the parent's GLOBAL basis, and a posture reading taken at an
+	# unpinned scale is a reading in a frame nobody fixed. So the sampling pins it at 1.0.
+	# But I could NOT demonstrate that the pin changes the reading reliably: forcing scale to
+	# the authored minimum 0.94 and re-sampling moved head_over_feet by 0.0016 m, 0.0212 m,
+	# 0.0418 m, 0.0540 m and 0.0824 m across runs -- a 34x spread, with a same-run null
+	# control of the same order. A gate that cannot show its own effect should not assert
+	# that it has one, and tuning the threshold until it passed would be the exact error this
+	# file's header warns about. So the numbers are printed and nothing is asserted, and the
+	# posture rows stay ungated for the reason they were never gated: within-process pose
+	# motion and between-context clip driving are still untamed, and now the pin's own effect
+	# is demonstrably below the harness noise floor.
+	print("  XNOTE %-7s %-42s *** PRINT-ONLY, NOT A GATE, NOT A PASS *** scale pin APPLIED to sampling (drawn %.4f -> 1.0). With the pin "
+		% ["INV-38q", "NOT_A_GATE__print_only__effect_below_noise"]
+		+ "removed at the authored minimum 0.94, head_over_feet moved %.4f m against a same-run "
+		% pin_moved
+		+ "null of %.4f m (pinned %.3f m). NOT ASSERTED: the spread across runs is ~34x and the "
+		% null_noise
+		+ "effect is below this harness's noise floor, so the pin is right as behaviour and "
+		+ "unproven as a measurable effect." % pinned_h2f)
+
+	# RESTORE THE DRAWN SCALE. The pin is a property of the SAMPLING, not of the rig: a
+	# global mutation left in place changes every later check in this suite. Leaving the
+	# root at 1.0 instead of its drawn value broke the corpse checks (INV-26, INV-27) on the
+	# first run of this change, which is the second time tonight that a gate I added broke
+	# something that used to pass -- and the honest reading is the same both times: a change
+	# that only makes its own check greener has not earned the right to land.
+	if rig_root != null:
+		rig_root.scale = drawn_scale
+		for i in 4:
+			await process_frame
+	# The old INV-38 asserted a posture threshold over a quantity that changes its own
+	# verdict between processes, so it passed by construction. This asserts the FRAME the
+	# reading is taken in, which is stable, and states which frame it assumes.
+	#
+	#   PATH      %s
+	#   QUANTITY  angle between (node basis * UP) and world UP, in DEGREES
+	#   EXPECTED  %.2f deg  -- MEASURED IN PRODUCTION, not read from the scene file
+	#   OBSERVED  %.6f deg
+	#
+	# The file humanoid_rig.tscn:293 says 120.0000 deg and production mounts at 90. The
+	# gate asserts what the production instantiation DOES, and says so here, so the next
+	# reader does not "fix" the expected value back to the file's number. That mistake is
+	# what this gate exists to prevent: INV-38 read a rig whose node was rolled -90 deg and
+	# reported a healthy 1.609 m while production rest measures 0.42 m.
+	#
+	# WHY THIS QUANTITY: basis SCALE cannot express this failure at any tolerance -- a
+	# rolled rig and an upright rig have identical scale to six decimals -- so a scale gate
+	# would pass forever while looking rigorous. The angle is rotation-SENSITIVE and
+	# scale-INVARIANT, so the two cannot be fooled by the same failure.
+	#
+	# THE ROOT SCALE IS AUTHORED AND IS NOT A DEFECT. Read this before spending an hour on
+	# it, as npc-body did. ON ORIGIN/MAIN -- the tree that ships -- src/npcs/bot/bot.gd:1122
+	# is the comment and 1125 is the call, in _apply_visual_variation():
+	#     ## Per-bot identity: body scale + a near-white tint jitter. Runs before
+	#     ## _base_basis capture so the corpse keeps its scale.
+	#     scale = Vector3.ONE * randf_range(0.94, 1.06)
+	#
+	# CITED FROM origin/main, AND THE PROVENANCE IS THE POINT. Three lanes produced three
+	# line numbers for this one call -- 1146, 1134 and 1125 -- because two read it in
+	# worktrees behind origin/main (the coordinator worktree is 158 commits behind). The
+	# conclusions all survived; only the citations differed, and a citation is the part
+	# people copy. So the missing half of "go and open the file": BEFORE QUOTING A LINE,
+	# CONFIRM THE TREE IS THE TREE YOU THINK IT IS. git rev-parse HEAD, compare against
+	# the fetched remote, quote from the remote. A correct reading of a stale tree is still
+	# a wrong answer, and it is worse than no answer because it arrives with a file and a
+	# line number and therefore looks verified.
+	# grep for scale writes in bot.gd on origin/main returns exactly ONE hit: line 1125,
+	# so the per-bot scale is applied there and nowhere else in the file.
+	#
+	# ORDERING IS DELIBERATE AND CORRECT, verified on origin/main: _apply_visual_variation()
+	# is called at 229 and _base_basis = global_transform.basis is captured at 232, AFTER
+	# the scale is applied -- which is exactly what the comment claims. The only other
+	# _base_basis use is line 1043, inside _tick_death(), so it runs on the death path
+	# only, and it re-applies the captured basis, which therefore carries the scale. So
+	# "per-bot identity: body scale" is applied once, captured with the basis, and
+	# preserved through death. If a run shows every bot at exactly 1.0, the thing that
+	# strips it is NOT in this file -- there is no second scale write to find here. So the CharacterBody3D root carries a RANDOM
+	# uniform scale drawn per bot in [0.94, 1.06], the Skeleton3D inherits it through the
+	# parent's global basis, and the observed values across processes (0.9537, 0.9633,
+	# 0.9934, 0.9944, 1.0072, 1.0180, 1.0497) are draws from that interval and not a defect,
+	# a drift, or a per-frame writer. Four separate hypotheses died looking for one.
+	# CONSEQUENCE FOR ANY POSTURE GATE, which is why it is recorded here rather than in a
+	# mail: a randomised input can be PINNED, so forcing the bot scale to 1.0 before
+	# measuring removes this source entirely instead of tolerating a 12 percent size swing.
+	# What remains untamed is within-process pose motion (~0.028 m at rest, no clip playing)
+	# and between-context clip driving, so the posture gate is still not claimed writable.
+	var RIG_UP := Vector3(0, 0, 1)
+	# The rig is AUTHORED Z-UP. Every spine rest bone sits at local y EXACTLY 0.0000 and
+	# climbs along local Z (spine_01 -0.0756 -> spine.006_end_067 +0.8528), and the mount at
+	# humanoid_rig.tscn:293 sends local +Z onto world +Y with no scale and no shear
+	# authored. So the rig's own up is +Z, NOT +Y.
+	#
+	# I HAD THIS WRONG FOR FOUR COMMITS AND IT WAS A TAUTOLOGY, not a gate. The previous
+	# version of this check read angle(basis*Vector3.UP, world UP) and asserted 90.00. But
+	# the mount maps the rig's local Y -- a HORIZONTAL axis of a Z-up figure -- onto world
+	# -X, so that angle is 90 by construction, for any correctly mounted Z-up rig, always.
+	# It was stable, replicated at 1122/1122 arena samples, had a working red arm, and was
+	# still measuring nothing: "a horizontal axis is perpendicular to world up". It was
+	# immune to the bug and blind to the axis, which is the control-that-passes-by-
+	# construction shape one level up. A red arm does not make a wrong quantity right; it
+	# only proves the wrong quantity can move.
+	#
+	# THE RIGHT AXIS reads 0.00, and that is the real invariant: the rig's own up, carried
+	# through the mount, points at world UP. That is the claim that would fail on a tipped
+	# rig, and measuring it is what found the error.
+	#
+	# AND THE CORROBORATION CONFIRMED THE ERROR RATHER THAN THE CLAIM. spotter sampled
+	# the same WRONG quantity live in the production arena -- every fifth physics frame,
+	# 1122 samples across three runs -- and read min 90.00 / max 90.00, not one off. The
+	# stability was real, and it is exactly why the bug survived: an invariant that cannot
+	# vary is not a measurement of a thing that can go wrong. Replication at scale
+	# confirmed the arithmetic, not the axis.
+	var EXPECTED_MOUNT_DEG := 0.0
+	var MOUNT_TOL_DEG := 0.5
+	# CORROBORATED INDEPENDENTLY, AND AT A SCALE THAT MATTERS. spotter sampled the same
+	# quantity live in the PRODUCTION ARENA -- every fifth physics frame, 1,122 samples
+	# across three runs -- and read min 90.00 / max 90.00, not one sample off. So the
+	# expected value below is not one probe in one bare scene: it holds in the shipping
+	# route, and the gate's frame is a fact about runs, not only about the authored file.
+	#
+	# SCOPE NOTE, because two lanes now hold apparently conflicting claims and they are
+	# both true of their own context. In a BARE bot.tscn scene the node basis scale is
+	# CONSTANT within a process (drift 0.000000 over 300 frames, two arms). In the
+	# PRODUCTION ARENA it is modulated within a single run: spotter measured row magnitude
+	# spreading 0.0594-0.0951 with det leaving 1.0 by up to 17 percent. The bare-scene
+	# reading was never wrong; it was scoped to a context with nothing live in it, and it
+	# should not be quoted as a statement about the arena. The ROTATION is invariant in
+	# both contexts, which is why this gate reads the angle and not the scale.
+	#
+	# And the practical consequence spotter drew from it, recorded because it changes where
+	# a fix belongs: anything written to the node transform at runtime is re-derived
+	# immediately by whatever modulates the scale, and will lose that argument the way the
+	# PoseBasisFix3D write lost it -- not because the write is refused, but because the
+	# value is recomputed straight afterwards. A fix belongs on the AUTHORED basis in the
+	# file, which is the part of this transform that is stable.
+	# A sentinel that CANNOT be a real reading, so a missing node or an unresolved bone
+	# returns a failure rather than a number that happens to satisfy the assertion. The
+	# previous generation of this file used fallbacks identical to the real value, which
+	# meant a renamed key returned the right answer and the check could not fail.
+	var SENTINEL := -1.0
+	var path_s := String(skel.get_path())
+	var mount_deg := SENTINEL
+	if not path_s.ends_with("Skeleton3D") or not path_s.ends_with("NpcBot/Skeleton3D"):
+		# Printed rather than asserted: the path is the field that would have caught the
+		# 120-vs-90 mistake, so a reader must always see WHICH node produced the number.
+		print("  WARN  %-7s %-42s expected the production path NpcBot/Skeleton3D, got %s"
+			% ["INV-38", "rig_node_path", path_s])
+	else:
+		mount_deg = rad_to_deg((skel.global_transform.basis * RIG_UP).angle_to(Vector3.UP))
+	_check("INV-38", "rig_up_axis_points_at_world_up",
+		mount_deg != SENTINEL and absf(mount_deg - EXPECTED_MOUNT_DEG) <= MOUNT_TOL_DEG,
+		"path=%s rig_up=LOCAL+Z (rig is authored Z-up) quantity=angle(basis*LOCAL_Z, world UP) expected=%.2f+/-%.2f deg observed=%.6f deg"
+			% [path_s, EXPECTED_MOUNT_DEG, MOUNT_TOL_DEG, mount_deg],
+		"frame: a posture reading is only meaningful in a stated frame, and this one is "
+		+ "checked instead of assumed")
+
+	# THE RED ARM, and it is the requirement rather than a nicety: this gate must be able
+	# to FAIL, on the specific failure INV-38 could not express. The break is constructed,
+	# single-variable, and restored immediately -- roll the rig node -90 deg about X, the
+	# exact failure that made the old gate pass, and require the SAME check to go red.
+	# If this ever passes while the node is rolled, the gate is not measuring the frame and
+	# the whole point of the rewrite is lost.
+	var broke_ok := false
+	var saved := skel.global_transform
+	if mount_deg != SENTINEL:
+		skel.global_transform = saved * Transform3D(Basis(Vector3(1, 0, 0), deg_to_rad(-90)), Vector3.ZERO)
+		for i in 8:
+			await process_frame
+		var rolled := rad_to_deg((skel.global_transform.basis * RIG_UP).angle_to(Vector3.UP))
+		broke_ok = absf(rolled - EXPECTED_MOUNT_DEG) > MOUNT_TOL_DEG
+		skel.global_transform = saved
+		for i in 8:
+			await process_frame
+		var restored := rad_to_deg((skel.global_transform.basis * RIG_UP).angle_to(Vector3.UP))
+		print("  %-6s %-7s %-42s constructed break: node rolled -90 deg -> observed %.3f deg -> check %s; restored %.6f deg -> check %s"
+			% ["REDARM", "INV-38", "rig_up_gate_can_go_red", rolled,
+				"RED" if broke_ok else "STILL GREEN, THE GATE IS DEAD",
+				restored, "GREEN" if absf(restored - EXPECTED_MOUNT_DEG) <= MOUNT_TOL_DEG else "RED"])
+	_check("INV-38r", "rig_up_gate_goes_red_on_a_rolled_node", broke_ok,
+		"rolled -90 deg must move the frame check out of tolerance",
+		"self-test: a gate that cannot fail is not a gate (see INV-38's history)")
+
+	# Free sanity check, and deliberately NOT the gate: orthonormality and determinant catch
+	# shear and negative scale and are completely BLIND to a rotation, which is the failure
+	# being chased here. Recorded so nobody promotes them into the gate later.
+	var b := skel.global_transform.basis
+	var ortho := maxf(maxf(absf(b.x.length() - 1.0), absf(b.y.length() - 1.0)), absf(b.z.length() - 1.0))
+	_check("INV-38s", "rig_basis_is_not_sheared", ortho < 0.25 and b.determinant() > 0.0,
+		"row-length deviation=%.4f det=%+.4f (blind to rotation; not the gate)" % [ortho, b.determinant()],
+		"sanity: catches shear and negative scale only")
+
+	# The posture reading is now a NOTE, not a gate, and carries its own caveat: the rig
+	# root's uniform SCALE is a per-bot RANDOM draw, randf_range(0.94, 1.06) at
+	# src/npcs/bot/bot.gd:1125, so head-over-feet is composed with a different size on every
+	# run. A single posture number here is a reading in an unpinned frame, which is exactly
+	# what the old gate turned into an assertion. Pin the scale to 1.0 to remove the source.
+	# The rest figure printed here is read immediately after reset_bone_poses() and is known
+	# to be a STALE-POSE reading (the Skeleton3D has not recomputed for that reset yet), so it
+	# is printed as a harness reading and NOT as the rig's posture. Measured separately, in a
+	# settled scene, production rest is 0.42 m with the head-to-foot axis 15 degrees off
+	# horizontal -- the rest pose IS horizontal. The two numbers are not in conflict: one is
+	# read too early to mean anything, and that is precisely why it is a note.
+	print("  NOTE  %-7s %-42s harness rest reading = %.3f m (STALE, read before the skeleton recomputes -- do not cite); separately measured, settled production rest = 0.42 m, axis 15 deg off horizontal, so the rest pose IS horizontal. 'walk' here = %.3f m mean / %.3f min. NOT GATED: the rig root scale varies 0.9537-1.0497 between processes, so every posture figure here is a reading in an unpinned frame (OPEN DEFECT task_1790427558484_bbbb18, owner player-rig)"
+		% ["INV-38p", "locomotion_posture_unpinned_frame", rest_h2f, play_h2f, play_min])
+	# (The previous locomotion-posture note lived here and has been folded into INV-38p
+	# above, so there is one posture note rather than two that can disagree.)
+
+	# The 90-degree arena roll this card tracked for a day is NOT REPRODUCED under the
+	# correct composition. Recorded so the record does not revert to the old story.
+	print("  NOTE  %-7s %-42s the user-reported 90-deg roll is not reproduced; the underlying cause of the 76-98 deg readings was the spine-pair inversion above, not a roll (card task_1790427558484_bbbb18, see its notes)"
+		% ["INV-38c", "arena_roll_not_reproduced"])
+
+
+func _inv38_bone(skel: Skeleton3D, prefix: String) -> int:
+	for i in skel.get_bone_count():
+		if skel.get_bone_name(i).begins_with(prefix):
+			return i
+	return -1
 
 # ─── INV-21: switching faction conserves mass + item multiset (roles) ─
 # ORIGIN (verifier roles slices, 2026-09-21; coordinator asked for independent
