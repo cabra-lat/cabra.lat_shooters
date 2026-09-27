@@ -268,13 +268,26 @@ func _detach_gate_is_not_bypassable() -> void:
 	var internal := _weapon(AmmoFeed.Type.INTERNAL, 2)
 	var internal_feed: AmmoFeed = internal.ammo_feed
 	var before_refusals: Array[String] = []
+	var internal_changes: Array[int] = []
 	internal.ammo_feed_incompatible.connect(func(_w, _a) -> void: before_refusals.append("incompatible"))
+	internal.ammo_feed_changed.connect(func(_w, _o, _n) -> void: internal_changes.append(1))
 	var refused: bool = WeaponSystem.change_magazine(internal, null)
 	_check(not refused, "gate: INTERNAL + null is REFUSED, the permission rule the unload action depends on")
 	_check(internal.ammo_feed == internal_feed, "gate: and the feed is still seated, so a refusal moved nothing")
 	_check(internal_feed.capacity == 2, "gate: and its rounds are intact [count %d of 2]" % internal_feed.capacity)
 	_check(before_refusals.size() == 1,
 		"gate: and it announced the refusal rather than declining quietly [signals %d of 1]" % before_refusals.size())
+	# THE COUNTERPART, and the assertion this section was missing.
+	#
+	# "INTERNAL + null emits none" is not implied by any of the checks above. The
+	# first four all pass on an implementation that detaches a sealed feed and
+	# then refuses afterwards, because a refusal emitted after a successful detach
+	# still leaves before_refusals at 1 and the caller still gets false. What makes
+	# the bypass visible is that the weapon was never CHANGED, and the signal that
+	# says so is ammo_feed_changed. Without this line the gate had no observation
+	# of the thing it exists to protect.
+	_check(internal_changes.is_empty(),
+		"gate: and NO ammo_feed_changed was emitted -- a refusal must not announce a change it did not make [emitted %d of 0]" % internal_changes.size())
 
 	# EXTERNAL + null: the detach, which is what the whole authorisation is for.
 	var external := _weapon(AmmoFeed.Type.EXTERNAL, 2)
@@ -298,6 +311,14 @@ func _detach_gate_is_not_bypassable() -> void:
 	var detached_internal: bool = WeaponSystem.change_magazine(internal2, null)
 	_check(not detached_internal and internal2.ammo_feed.capacity == 0,
 		"gate: an INTERNAL feed with ZERO rounds is still refused -- a guard written as 'only if it holds rounds' would pass every other test here")
+	# And the counterpart again, on the empty-feed case, because "does not detach"
+	# is a claim about the SIGNAL as much as about the return value.
+	var internal3 := _weapon(AmmoFeed.Type.INTERNAL, 0)
+	var empty_changes: Array[int] = []
+	internal3.ammo_feed_changed.connect(func(_w, _o, _n) -> void: empty_changes.append(1))
+	WeaponSystem.change_magazine(internal3, null)
+	_check(empty_changes.is_empty(),
+		"gate: and an empty INTERNAL feed announces no change either [emitted %d of 0]" % empty_changes.size())
 
 
 # ── the evidence is real, not stubbed ───────────────────────────────────────
