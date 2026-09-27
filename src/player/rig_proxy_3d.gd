@@ -35,6 +35,9 @@ extends Node3D
 ## constant changes and nothing else does.
 
 ## Reserved visual layer for debug 3D gizmos. Never layer 1.
+## RULED, not provisional: coordinator fixed this at layer 20, mask value 524288, and
+## the gameplay camera excludes bit 19. Chosen as the TOP render layer so a
+## mistake that puts debug geometry on a LOW number is loud rather than silent.
 const DEBUG_VISUAL_LAYER: int = 20
 ## Mask form of DEBUG_VISUAL_LAYER, for a camera cull_mask that must EXCLUDE it.
 const DEBUG_VISUAL_LAYER_BIT: int = 1 << (DEBUG_VISUAL_LAYER - 1)
