@@ -74,7 +74,16 @@ func is_area_free(position: Vector2i, size: Vector2i) -> bool:
             print("DEBUG: Cell occupied at: ", Vector2i(check_x, check_y), " by different item")
             return false
         else:
-          print("DEBUG: Invalid item index: ", item_index)
+          # Fail CLOSED. An occupancy index with no matching entry in `items`
+          # means _occupancy_grid and the item list disagree. Falling through
+          # here reported the cell as FREE, which is an out-of-range index
+          # being indistinguishable from an empty cell, and that admits an
+          # overlapping or duplicate placement instead of refusing it: data
+          # corruption wearing the costume of a success. A cell we cannot
+          # resolve is not a cell we may hand out.
+          # Red arm: src/dev/red_arm_occupancy_dangling_tmp.gd, task_1790524348929_6cac7b
+          print("DEBUG: Invalid item index: ", item_index, " for items.size() ", items.size(), " — treating cell as OCCUPIED (fail closed)")
+          return false
             # NEW: Also check if this position is part of the ignored item's original area
       elif _is_position_ignored(Vector2i(check_x, check_y)):
                 # This position is currently occupied by the ignored item, treat as free
