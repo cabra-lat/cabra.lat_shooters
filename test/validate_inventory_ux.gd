@@ -13,6 +13,11 @@ extends SceneTree
 const AMMO_PATH := "res://resources/ammo/7_62_39mm_PS_GOST_BR4.tres"
 const WEAPON_PATH := "res://resources/weapons/M4_Carbine.tres"
 const CONTAINER_UI_SCENE := "res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn"
+const MAIN_UI_SCENE := "res://addons/cabra.lat_shooters/src/ui/inventory/main.tscn"
+## Mirrors scenes/arena_manager_core.gd INVENTORY_PANEL_CHROME: the arena sizes a
+## live panel from its own grid, and this harness has to do the same or every
+## panel keeps a zero minimum height and the scroll assertions below are vacuous.
+const ARENA_PANEL_CHROME := 64.0
 
 var _pass := 0
 var _fail := 0
@@ -23,6 +28,13 @@ func _initialize() -> void:
 
 func _finish() -> void:
 	print("")
+	# The count is a check. See MIN_CHECKS: a run that died partway through
+	# would otherwise report PASS for the checks that happened to run.
+	if _pass + _fail < MIN_CHECKS:
+		print("  FAIL  harness ran %d checks, expected at least %d — checks were lost, not passed"
+			% [_pass + _fail, MIN_CHECKS])
+		_fail += 1
+		_fail_lines.append("harness ran %d checks, expected at least %d" % [_pass + _fail - 1, MIN_CHECKS])
 	print("=== validate_inventory_ux summary ===")
 	print("  checks passed  %d" % _pass)
 	print("  FAILURES       %d" % _fail)
@@ -51,6 +63,17 @@ func _check(cond: bool, msg: String) -> void:
 		_fail_lines.append(msg)
 		print("  FAIL  " + msg)
 
+## Floor on the number of checks this harness must run. Found on 2026-09-26: a
+## compile error in the class UNDER TEST (a sabotaged base.gd) made every
+## InventoryContainerUI instantiate as Nil, four check functions died on their
+## first line, and the harness still printed "RESULT: PASS" — 71 of 102 checks,
+## green. A gate that reports success for the part of itself that survived an
+## error is worse than one that fails, because the missing checks are invisible
+## in the output. So the count itself is asserted: adding checks is free, and
+## LOSING checks (deleted, or skipped by an exception) goes red. Bump this when
+## you add checks; never lower it to make a run pass.
+const MIN_CHECKS := 102
+
 func _run() -> void:
 	print("=== validate_inventory_ux: tetris inventory logic ===")
 	_check_rotation_in_place()
@@ -68,6 +91,8 @@ func _run() -> void:
 	_check_tooltip()
 	_check_nested_container_branch()
 	_check_generated_icons_wired()
+	await _check_ui_rebuild_cost()
+	await _check_corpse_panel_scroll()
 	await _check_no_self_drop()
 	await _check_context_menu_right_click()
 	# Let the last UI's deferred queue_free complete before SceneTree.quit().
@@ -117,6 +142,264 @@ func _check_no_self_drop() -> void:
 	if slot != null:
 		_check(not slot._validate_drop(bp_item), "self-drop: UI drop-validation refuses")
 	await _dispose_ui(ui)
+
+## PERF INVARIANT (promoted from a disposable probe, 2026-09-26).
+## The user reported "the inventory is too slow" and the arena's corpse-loot
+## open stalled the death frame. A probe (addons/.../test/inv_perf_probe_tmp.gd,
+## deleted after the run) measured a same-size container reopen at 12-75 ms
+## because every open freed and re-instantiated one InventorySlotUI per cell
+## and rebuilt every InventoryItemUI; a close+reopen of the corpse panel cost
+## ~87 ms. After the reuse change the same measurements are 0.9-2.2 ms and
+## ~1.6 ms. The cost is behavioural, so it is asserted here: a refactor that
+## brings back the free+rebuild path must fail the gate again, not just feel
+## slow.
+func _check_ui_rebuild_cost() -> void:
+	var first := _container(6, 6)
+	first.add_item(_item(Vector2i(1, 1)), Vector2i(0, 0))
+	first.add_item(_item(Vector2i(2, 2)), Vector2i(2, 1))
+
+	var ui := load(CONTAINER_UI_SCENE).instantiate() as InventoryContainerUI
+	get_root().add_child(ui)
+	get_root().size = Vector2i(1280, 720)
+	await process_frame  # let @onready resolve before open_container
+	ui.open_container(first)
+
+	var slots_before: Array[InventorySlotUI] = []
+	for slot in ui.slot_displays:
+		slots_before.append(slot)
+	var item_nodes_before := ui.items_container.get_child_count()
+	_check(item_nodes_before == 2, "reuse: one item widget per item (got %d)" % item_nodes_before)
+
+	# Same-size reopen (the corpse-after-corpse case): the slot nodes must be the
+	# SAME objects, not new ones.
+	var second := _container(6, 6)
+	second.add_item(_item(Vector2i(1, 1)), Vector2i(5, 5))
+	ui.open_container(second)
+	var same_slots := true
+	for i in slots_before.size():
+		if i >= ui.slot_displays.size() or ui.slot_displays[i] != slots_before[i]:
+			same_slots = false
+			break
+	_check(same_slots, "reuse: same-size reopen keeps the slot nodes")
+	_check(ui.grid_background.get_child_count() == slots_before.size() + 1,
+		"reuse: no duplicate slot nodes after reopen (got %d)" % ui.grid_background.get_child_count())
+
+	# A refresh must not stack a second icon on a reused widget.
+	ui._update_ui()
+	ui._update_ui()
+	await process_frame
+	_check(ui.items_container.get_child_count() == 1,
+		"reuse: refresh does not duplicate item widgets (got %d)" % ui.items_container.get_child_count())
+	var widget: InventoryItemUI = ui.items_container.get_child(0) as InventoryItemUI
+	_check(widget != null and widget.get_child_count() == 1,
+		"reuse: item widget holds exactly one icon after re-setup")
+	# IDENTITY, not just the count. Found by the reactive-UI probe on
+	# 2026-09-26: base.gd's _update_ui() USED TO be _clear_item_displays()
+	# followed by _create_item_displays(), i.e. free-and-rebuild, and a count
+	# cannot tell reuse from rebuild — a rebuilt tree also has exactly one child
+	# holding exactly one icon. Rebuild is the ~87 ms we removed, so the
+	# assertion has to be about the objects, not the tally.
+	#
+	# Read the ids from the model's own list, never from get_child(0): a
+	# freed-but-still-parented widget keeps its tree slot, so child order is
+	# exactly the unestablished read this file keeps warning about — and it made
+	# this assertion pass on the rebuild path twice before it was fixed.
+	var ids_before := _live_child_ids(ui.items_container)
+	ui._update_ui()
+	await process_frame
+	var ids_after := _live_child_ids(ui.items_container)
+	_check(ids_before == ids_after,
+		"reuse: a refresh keeps the SAME item widgets (a rebuild passes the count checks above)")
+	await _dispose_ui(ui)
+
+## Ids of the LIVE children of a node, for identity (not count)
+## assertions about widget reuse. Reads the tree, not the model.s display list,
+## and skips anything already queued for deletion: a freed widget can still hold
+## its tree slot for the rest of the frame, which is how a rebuild path looks
+## identical to a reuse path if you count or index instead of identifying.
+func _live_child_ids(parent: Node) -> Array[int]:
+	var ids: Array[int] = []
+	for c in parent.get_children():
+		if is_instance_valid(c) and not c.is_queued_for_deletion():
+			ids.append(c.get_instance_id())
+	ids.sort()
+	return ids
+
+## LAYOUT INVARIANT for the corpse-loot scroll (QA blocker on the arena half).
+## The arena's _focus_corpse_inventory() may skip the scroll only when the corpse
+## panel is genuinely already at the top; its first version guarded on
+## `scroll_vertical <= 0`, which means "viewport at the top", NOT "corpse
+## visible", and turned scroll-to-corpse into a permanent no-op. The guard it
+## settled on is `open_containers.size() <= 1` (single panel => the corpse is the
+## only child of containers_vbox => y == 0 => nothing to scroll).
+##
+## Those two cases are asserted here, on the real InventoryUI scene, because the
+## distinction is exactly what QA refused to pass on assertion alone. It also
+## pins the premise that guard relies on: a POOLED panel left parented in
+## containers_vbox (hidden, from my _panel_pool) must not push the single
+## visible panel off y == 0. If that ever stops being true, the arena's fast
+## path has to go.
+func _check_corpse_panel_scroll() -> void:
+	var ui := load(MAIN_UI_SCENE).instantiate() as InventoryUI
+	get_root().add_child(ui)
+	get_root().size = Vector2i(1280, 720)
+	ui.show()  # hidden Controls do not run container layout
+	await process_frame  # let @onready resolve and the first layout settle
+
+	var first := _container(5, 5)
+	var weapon: Weapon = load(WEAPON_PATH)
+	first.add_item(InventoryItem.slurp(weapon), Vector2i(0, 0))
+	ui._open_container_once(first)
+	_size_panel_like_arena(ui.open_containers[0])
+	await process_frame
+	_check(ui.open_containers.size() == 1, "scroll: one open panel")
+	_check(ui.open_containers[0].position.y == 0.0,
+		"scroll: a single panel sits at y == 0 (nothing to scroll, got %.1f)" % ui.open_containers[0].position.y)
+
+	# Second open = the corpse beside the backpack: the panel is now below the
+	# first one, so the scroll must actually move.
+	var second := _container(5, 5)
+	second.add_item(InventoryItem.slurp(weapon), Vector2i(0, 0))
+	ui._open_container_once(second)
+	_size_panel_like_arena(ui.open_containers[1])
+	await process_frame
+	await process_frame
+	var corpse: InventoryContainerUI = ui.open_containers[1]
+	_check(ui.open_containers.size() == 2, "scroll: two open panels")
+	_check(corpse.position.y > 0.0,
+		"scroll: the second panel is below the first (y %.1f)" % corpse.position.y)
+	var column := corpse.get_parent()
+	var scroll := column.get_parent() as ScrollContainer if column != null else null
+	_check(scroll != null, "scroll: the panel column lives inside a ScrollContainer")
+	if scroll != null:
+		scroll.scroll_vertical = int(maxf(0.0, corpse.position.y))
+		await process_frame
+		_check(scroll.scroll_vertical > 0,
+			"scroll: the container actually scrolls to the corpse (got %d)" % scroll.scroll_vertical)
+		_check(corpse.get_global_rect().intersects(get_root().get_visible_rect()),
+			"scroll: the corpse panel is inside the visible rect after scrolling")
+
+	# The pooled-panel premise behind the arena's `open_containers.size() <= 1`
+	# fast path: released panels stay parented (hidden), so the VB has more
+	# children than there are open panels. A hidden child must not consume
+	# layout space, or a lone corpse would sit at y > 0 and never be scrolled to.
+	ui.close_inventory()
+	await process_frame
+	_check(ui.open_containers.is_empty(), "pool: close_inventory released every panel")
+	_check(ui._panel_pool.size() == 2, "pool: both panels were parked for reuse (got %d)" % ui._panel_pool.size())
+	# Mirror the arena: it closes and re-opens the inventory on the same frame,
+	# and open_inventory() shows the root again. A hidden root does not run
+	# container layout, so without show() the reopened panel would report a
+	# STALE position from the previous two-panel state and the check below would
+	# be measuring nothing.
+	ui.show()
+	var third := _container(5, 5)
+	ui._open_container_once(third)
+	_size_panel_like_arena(ui.open_containers[0])
+	await process_frame
+	await process_frame
+	_check(ui.open_containers.size() == 1, "pool: one panel open again")
+	_check(ui.containers_vbox.get_child_count() > 1,
+		"pool: a parked panel is still a child of containers_vbox (premise under test)")
+	_check(ui.open_containers[0].position.y == 0.0,
+		"pool: a parked (hidden) panel does not push the visible one off y == 0 (got %.1f)"
+			% ui.open_containers[0].position.y)
+
+	# The visual order of the stack must match the order the panels were opened
+	# in. Pooling makes this non-obvious: a popped panel keeps its old child
+	# index, so without an explicit move_child a panel opened SECOND can be laid
+	# out ABOVE the first one. That is player-visible (the corpse section can end
+	# up above the backpack it was opened beside) and it silently invalidates any
+	# position math done per open_containers index, so it is asserted here.
+	var fourth := _container(5, 5)
+	ui._open_container_once(fourth)
+	_size_panel_like_arena(ui.open_containers[1])
+	await process_frame
+	await process_frame
+	var child_panels: Array[InventoryContainerUI] = []
+	for child in ui.containers_vbox.get_children():
+		if child is InventoryContainerUI and child.visible:
+			child_panels.append(child as InventoryContainerUI)
+	_check(child_panels.size() == ui.open_containers.size(),
+		"pool: every open panel is a visible child of containers_vbox (%d vs %d)"
+			% [child_panels.size(), ui.open_containers.size()])
+	_check(child_panels == ui.open_containers,
+		"pool: stack order matches open order (child %s vs open %s)"
+			% [_panel_ids(child_panels), _panel_ids(ui.open_containers)])
+	_check(ui.open_containers[1].position.y > ui.open_containers[0].position.y,
+		"pool: the panel opened second is laid out below the first (%.1f vs %.1f)"
+			% [ui.open_containers[1].position.y, ui.open_containers[0].position.y])
+
+	# NEGATIVE ARM (coordinator's rule: a layout-reading assertion ships a
+	# constructed break proving it can go red). Deliberately reproduce the
+	# stale-read trap this function exists to document: a HIDDEN root runs no
+	# container layout, so a size change is invisible and the position read
+	# returns the PREVIOUS layout — a real-looking number that means nothing.
+	#
+	# It runs on a FRESH InventoryUI on purpose. The hazard being demonstrated is
+	# "hidden root, no layout", not pooling, and on a fresh scene the layout is
+	# known to be live, so a failure means the hazard changed shape rather than
+	# that some earlier state leaked in. Two panels are needed: a lone panel's
+	# own y cannot move, the SECOND panel's y depends on the first one's height.
+	var fresh := load(MAIN_UI_SCENE).instantiate() as InventoryUI
+	get_root().add_child(fresh)
+	fresh.show()
+	await process_frame
+	fresh._open_container_once(_container(5, 5))
+	_size_panel_like_arena(fresh.open_containers[0])
+	await process_frame
+	fresh._open_container_once(_container(5, 5))
+	_size_panel_like_arena(fresh.open_containers[1])
+	await process_frame
+	await process_frame
+	var leader: InventoryContainerUI = fresh.open_containers[0]
+	var follower: InventoryContainerUI = fresh.open_containers[1]
+	var before := follower.position.y
+	_check(before > 0.0, "stale: on a live root the follower starts below the leader (y %.1f)" % before)
+	fresh.hide()
+	leader.custom_minimum_size = Vector2(0.0, 500.0 + ARENA_PANEL_CHROME)
+	await process_frame
+	_check(follower.position.y == before,
+		"stale: a hidden root does not lay out, so the read is last frame's (expected %.1f, got %.1f)"
+			% [before, follower.position.y])
+	# Non-vacuity, and it must not depend on layout: the size change above is
+	# real, so the stale read below is a stale read and not a no-op.
+	_check(leader.get_combined_minimum_size().y >= 500.0,
+		"stale: the hidden leader's minimum height really changed (%.1f)"
+			% leader.get_combined_minimum_size().y)
+	# ...and it is a LAYOUT read that only catches up once the root is shown.
+	# Bounded wait, then assert it moved: a harness must not read a layout it has
+	# not established (see the standing rule).
+	fresh.show()
+	fresh.containers_vbox.queue_sort()
+	var moved := false
+	for i in 10:
+		await process_frame
+		if follower.position.y > before:
+			moved = true
+			break
+	_check(moved, "stale: once shown, the same read DOES move, so the change above was real (%.1f -> %.1f)"
+		% [before, follower.position.y])
+	await _dispose_ui(fresh)
+	await _dispose_ui(ui)
+
+## Identity of a panel list, for failure messages: node names, in order.
+func _panel_ids(panels: Array) -> String:
+	var ids: Array[String] = []
+	for p in panels:
+		ids.append(p.name)
+	return str(ids)
+
+## Size a live panel from its own grid, the way scenes/arena_manager_gameplay.gd
+## _fit_inventory_panel() does. Without this every panel has a zero minimum
+## height and "is the corpse below the fold" cannot be true at all.
+func _size_panel_like_arena(panel: InventoryContainerUI) -> void:
+	if panel == null or not is_instance_valid(panel):
+		return
+	var container := panel.current_inventory_source as InventoryContainer
+	if container == null:
+		return
+	panel.custom_minimum_size = Vector2(0.0, container.grid_height * panel.slot_size + ARENA_PANEL_CHROME)
 
 ## The context menu must open on a REAL right-click over a slot. Regression for
 ## the bug where a full-grid overlay Control (ItemsContainer, MOUSE_FILTER_STOP)
