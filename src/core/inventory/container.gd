@@ -50,12 +50,19 @@ func get_total_mass() -> float:
             total += (nested as InventoryContainer).get_total_mass()
     return total
 
+## Resize rebuilds the grid AND re-occupies the items already in it. It used to
+## end in a bare grid._reset_grid(), which wiped the occupancy table: a caller
+## assigning grid_width on a populated container made every cell read as free, so
+## the items were still in `items` but invisible to get_item_at() and their cells
+## were re-usable. _rebuild_from_items() is the same path the dimension setters
+## and remove_item() use, so the three cannot disagree
+## (task_1790474791642_7a1361).
 func _rebuild_grid() -> void:
     if grid == null:
         grid = InventoryGrid.new()
     grid.width = grid_width
     grid.height = grid_height
-    grid._reset_grid()
+    grid._rebuild_from_items()
 
 func _init():
     _rebuild_grid()

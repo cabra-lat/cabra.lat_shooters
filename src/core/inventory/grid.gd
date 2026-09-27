@@ -2,15 +2,43 @@
 class_name InventoryGrid
 extends Resource
 
-@export var width: int = 5
-@export var height: int = 5
+# Grid dimensions REBUILD the occupancy cache on assignment. They used to be plain
+# exported fields, so a caller that assigned width/height after construction kept
+# an _occupancy_grid built from the OLD size until some remove_item() happened to
+# rebuild it (_reset_grid was reachable only from _init and remove_item).
+# Measured consequence, on a grid declared 16x19 with a 5x5 cache and every
+# declared cell occupied: get_used_area() 25, get_free_area() 279 — a container
+# reporting 279 free cells while none are (task_1790474791642_7a1361). Both call
+# sites that assign dims (container.gd:56-57, meta_profile.gd:199-200) happened to
+# call _reset_grid() straight after, so there was no live exposure — but
+# correctness depended on every caller remembering a method whose name marks it
+# private, from a different repository, in two places.
+#
+# NOTE the shrink case: rebuilding PRESERVES the items already placed. An item
+# that no longer fits the new size cannot be written into the cache, so
+# _rebuild_from_items() reports it loudly (push_error) and keeps it in `items`
+# rather than dropping it — silently deleting a placed item here would be the
+# eviction policy of task_1790472720790_ffe361, and it is not this function's
+# call to make. Shrinking a grid below its contents is unsupported.
+@export var width: int = 5:
+  set(value):
+    if width == value:
+      return
+    width = value
+    _rebuild_from_items()
+@export var height: int = 5:
+  set(value):
+    if height == value:
+      return
+    height = value
+    _rebuild_from_items()
 
 var items: Array[InventoryItem] = []
 var _occupancy_grid: Array[Array] = [] # -1 = free, item_index = occupied
 var _temp_ignored_item: InventoryItem = null
 
 func _init():
-  _reset_grid()
+  _rebuild_from_items()
 
 func _reset_grid():
   _occupancy_grid.clear()
@@ -20,6 +48,20 @@ func _reset_grid():
     for x in range(width):
       row[x] = -1
     _occupancy_grid.append(row)
+
+## The ONE rebuild path. The dimension setters, _init() and remove_item() all go
+## through here, so a cache rebuilt by a resize and a cache rebuilt by a removal
+## cannot disagree (task_1790474791642_7a1361, control arm). It re-occupies every
+## item at its own position instead of clearing, so a resize no longer orphans the
+## items that were already in the grid.
+func _rebuild_from_items() -> void:
+  _reset_grid()
+  for i in range(items.size()):
+    var it := items[i]
+    if it.position.x + it.dimensions.x > width or it.position.y + it.dimensions.y > height:
+      push_error("InventoryGrid: '%s' at %s size %s does not fit a %dx%d grid; kept in items but occupying no cell" % [
+        it.name if it else "?", it.position, it.dimensions, width, height])
+    occupy_area(it.position, it.dimensions, i)
 
 # NEW: Check if a position is occupied by the ignored item
 func _is_position_ignored(position: Vector2i) -> bool:
@@ -34,6 +76,34 @@ func _is_position_ignored(position: Vector2i) -> bool:
     position.y >= item_pos.y and
     position.x < item_pos.x + item_size.x and
     position.y < item_pos.y + item_size.y)
+
+## Who occupies a cell: the item's index, or -1 when the cell is free or outside
+## the table.
+##
+## A PURE READ. It does not rebuild, re-scan or re-occupy anything, which is the
+## point: the loadout screen asks this of a kit that is already assembled, and a
+## rebuild-on-read would be both a lie about the grid's current state and a cost
+## paid per question. The occupancy table is maintained by occupy_area() /
+## free_area() as items are placed, so reading it is reading the truth.
+func occupant_at(position: Vector2i) -> int:
+    if position.x < 0 or position.y < 0:
+        return -1
+    if position.y >= _occupancy_grid.size():
+        return -1
+    if position.x >= _occupancy_grid[position.y].size():
+        return -1
+    return _occupancy_grid[position.y][position.x]
+
+## Does a rectangle lie inside the grid at all? BOUNDS ONLY, no occupancy: this
+## answers "could this ever fit here", which is a different question from
+## is_area_free()'s "is it free right now".
+func fits_in_bounds(position: Vector2i, size: Vector2i) -> bool:
+    if position.x < 0 or position.y < 0:
+        return false
+    if size.x <= 0 or size.y <= 0:
+        return false
+    return position.x + size.x <= width and position.y + size.y <= height
+
 
 func is_area_free(position: Vector2i, size: Vector2i) -> bool:
     # Check bounds more carefully
@@ -179,10 +249,9 @@ func remove_item(item: InventoryItem) -> bool:
   if index != -1:
     free_area(item.position, item.dimensions)
     items.remove_at(index)
-        # Rebuild occupancy grid for remaining items
-    _reset_grid()
-    for i in range(items.size()):
-      occupy_area(items[i].position, items[i].dimensions, i)
+        # Rebuild occupancy grid for remaining items. Same path as a resize, so
+        # the two cannot produce different tables.
+    _rebuild_from_items()
     print("DEBUG: Item removed successfully")
     return true
   print("DEBUG: Item not found in grid")
