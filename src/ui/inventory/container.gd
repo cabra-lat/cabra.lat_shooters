@@ -20,6 +20,11 @@ var drop_preview: ColorRect
 var current_hovered_slot: InventorySlotUI = null
 var dragged_item: InventoryItem = null  # Track currently dragged item
 
+## Geometry the live slot grid was built for, so an equal-size reopen can keep
+## the nodes instead of rebuilding them (see _setup_slots).
+var _built_grid := Vector2i.ZERO
+var _built_slot_size := 0
+
 func _ready():
     super._ready()
     close_button.pressed.connect(_on_close_button_pressed)
@@ -45,9 +50,32 @@ func setup_inventory(container: Resource):
     _update_ui()
 
 func _setup_slots():
+    # Rebuild the slot grid only when its size really changes. Every open used
+    # to free and re-instantiate one InventorySlotUI per cell (a 6x6 corpse grid
+    # = 36 nodes), which is pure construction on the frame the arena opens the
+    # corpse inventory. The slots are position-independent of the container
+    # instance, so an equal-size grid can be kept and simply re-pointed.
+    if _slots_match_grid():
+        return
     _clear_existing_slots()
     _setup_grid_size()
     _create_grid_slots()
+
+## True when the live slot grid already covers this container's dimensions.
+func _slots_match_grid() -> bool:
+    var container = current_inventory_source as InventoryContainer
+    if container == null or slot_displays.is_empty():
+        return false
+    if slot_size != _built_slot_size:
+        return false
+    if Vector2i(container.grid_width, container.grid_height) != _built_grid:
+        return false
+    if slot_displays.size() != container.grid_width * container.grid_height:
+        return false
+    for slot in slot_displays:
+        if not is_instance_valid(slot) or slot.get_parent() != grid_background:
+            return false
+    return true
 
 func _clear_existing_slots():
     for child in grid_background.get_children():
@@ -55,6 +83,8 @@ func _clear_existing_slots():
             grid_background.remove_child(child)
             child.queue_free()
     slot_displays.clear()
+    _built_grid = Vector2i.ZERO
+    _built_slot_size = 0
 
 func _setup_grid_size():
     var container = current_inventory_source as InventoryContainer
@@ -90,6 +120,8 @@ func _create_grid_slots():
             _setup_grid_slot(slot, Vector2i(x, y))
             grid_background.add_child(slot)
             slot_displays.append(slot)
+    _built_grid = Vector2i(container.grid_width, container.grid_height)
+    _built_slot_size = slot_size
 
 func _setup_grid_slot(slot: InventorySlotUI, position: Vector2i):
     slot.grid_position = position

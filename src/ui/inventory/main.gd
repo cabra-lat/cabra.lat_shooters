@@ -11,6 +11,14 @@ signal inventory_closed()
 
 var player_controller: PlayerController
 var open_containers: Array[InventoryContainerUI] = []
+
+## Released container panels are parked here (hidden, still parented so their
+## _ready state survives) and reused by the next open. Instantiating
+## container.tscn was the last big cost left on the corpse-loot path: the arena
+## closes the inventory and immediately opens it again on the same death frame,
+## and a raid loots container after container.
+var _panel_pool: Array[InventoryContainerUI] = []
+const PANEL_POOL_MAX := 4
 var current_drag_data: Dictionary = {}
 
 func _ready():
@@ -47,8 +55,7 @@ func open_inventory(player: PlayerController, container: InventoryContainer = nu
 func close_inventory() -> void:
     hide()
     for ui in open_containers:
-        if is_instance_valid(ui):
-            ui.queue_free()
+        _release_container_ui(ui)
     open_containers.clear()
     current_drag_data = {}
     Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -127,23 +134,38 @@ func _open_container_once(container: InventoryContainer):
         if ui.current_inventory_source == container:
             return
 
-    var container_ui_scene = preload("res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn")
-    var container_ui = container_ui_scene.instantiate() as InventoryContainerUI
+    var container_ui: InventoryContainerUI = null
+    if not _panel_pool.is_empty():
+        # Reuse a released panel: its signals are already wired and its slot
+        # grid is size-keyed, so setup_inventory() re-points it in place.
+        container_ui = _panel_pool.pop_back()
+        # Pool order is release order, not open order: without this a panel
+        # opened second could be laid out ABOVE the one opened first, so the
+        # visual order of the stack would differ from open_containers and the
+        # corpse section could end up above the backpack it was opened beside.
+        containers_vbox.move_child(container_ui, -1)
+    else:
+        var container_ui_scene = preload("res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn")
+        container_ui = container_ui_scene.instantiate() as InventoryContainerUI
 
-    # Connect to the container's signals
-    if container.has_signal("container_changed"):
+        # Connect to the container's signals
+        if container.has_signal("container_changed"):
+            container.container_changed.connect(container_ui._update_ui)
+
+        container_ui.slot_dropped.connect(_on_slot_dropped)
+        container_ui.quick_equip_requested.connect(_on_quick_equip_requested)
+        if not container_ui.container_open_requested.is_connected(_on_container_open_requested):
+            container_ui.container_open_requested.connect(_on_container_open_requested)
+        if not container_ui.request_use_item.is_connected(_on_use_item_requested):
+            container_ui.request_use_item.connect(_on_use_item_requested)
+        if not container_ui.request_modify_weapon.is_connected(_on_modify_weapon_requested):
+            container_ui.request_modify_weapon.connect(_on_modify_weapon_requested)
+        container_ui.container_closed.connect(_on_container_closed.bind(container_ui))
+        containers_vbox.add_child(container_ui)
+
+    # A pooled panel is not wired to THIS container yet.
+    if container.has_signal("container_changed") and not container.container_changed.is_connected(container_ui._update_ui):
         container.container_changed.connect(container_ui._update_ui)
-
-    container_ui.slot_dropped.connect(_on_slot_dropped)
-    container_ui.quick_equip_requested.connect(_on_quick_equip_requested)
-    if not container_ui.container_open_requested.is_connected(_on_container_open_requested):
-        container_ui.container_open_requested.connect(_on_container_open_requested)
-    if not container_ui.request_use_item.is_connected(_on_use_item_requested):
-        container_ui.request_use_item.connect(_on_use_item_requested)
-    if not container_ui.request_modify_weapon.is_connected(_on_modify_weapon_requested):
-        container_ui.request_modify_weapon.connect(_on_modify_weapon_requested)
-    container_ui.container_closed.connect(_on_container_closed.bind(container_ui))
-    containers_vbox.add_child(container_ui)
     open_containers.append(container_ui)
     container_ui.open_container(container)
 
@@ -163,8 +185,22 @@ func _on_container_closed(container_ui: InventoryContainerUI):
             container_ui.current_inventory_source.container_changed.disconnect(container_ui._update_ui)
 
         open_containers.erase(container_ui)
-        containers_vbox.remove_child(container_ui)
-        container_ui.queue_free()
+        _release_container_ui(container_ui)
+
+## Park a panel for reuse instead of freeing it (see _panel_pool). The slot
+## grid is kept on purpose: it is validated against the next container's size by
+## InventoryContainerUI._slots_match_grid(), so a same-size corpse reuses it.
+## The panel's own minimum size is CLEARED: it is set by the opener (the arena
+## sizes the corpse section from its grid), so a pooled panel must never arrive
+## carrying the previous container's height.
+func _release_container_ui(container_ui: InventoryContainerUI) -> void:
+    if not is_instance_valid(container_ui):
+        return
+    container_ui.hide()
+    container_ui.custom_minimum_size = Vector2.ZERO
+    container_ui.current_inventory_source = null
+    if container_ui not in _panel_pool and _panel_pool.size() < PANEL_POOL_MAX:
+        _panel_pool.append(container_ui)
 
 func _on_equipment_slot_dropped(data: Dictionary, target_slot: EquipmentSlotUI):
     print("Main UI: Equipment slot drop received")

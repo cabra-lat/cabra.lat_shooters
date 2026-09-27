@@ -14,6 +14,14 @@ func setup(item: InventoryItem, container: BaseInventoryUI):
     inventory_item = item
     container_ui = container
 
+    # Idempotent: the owning BaseInventoryUI reuses widgets across refreshes
+    # (see _sync_item_displays), so setup() can run more than once on the same
+    # node. Drop the previous children instead of stacking a second icon (and a
+    # second stack label) on top of them.
+    for child in get_children():
+        remove_child(child)
+        child.queue_free()
+
     # Create the visual representation
     var texture_rect = TextureRect.new()
     texture_rect.texture = item.icon
