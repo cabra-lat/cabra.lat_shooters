@@ -33,6 +33,7 @@ func _run() -> void:
 	_unload_returns_the_feed_and_leaves_an_empty_one()
 	_unload_refuses_an_internal_feed_without_losing_it()
 	_cycle_changes_the_action_or_says_why_not()
+	_detach_gate_is_not_bypassable()
 	_evidence_is_real_objects_not_stubs()
 	_summary()
 
@@ -249,6 +250,54 @@ func _cycle_changes_the_action_or_says_why_not() -> void:
 		"carrying the reason [got '%s']" % String(_last(seen2).get("reason", "")))
 
 	player.queue_free()
+
+
+# ── the detach gate, isolated at the API the handler delegates to ───────────
+
+## change_magazine() is the rule, and the rule is "an INTERNAL feed cannot be
+## detached". The null branch that makes detach WORK lives in the same function,
+## immediately after that gate, which is exactly why the gate needs a control of
+## its own: a branch added beside a rule is a branch that can come to sit in front
+## of it, and the symptom would be an unload that destroys rounds instead of
+## refusing.
+##
+## This drives WeaponSystem.change_magazine DIRECTLY, not the handler, so a
+## handler that stopped delegating could not make the model look correct.
+func _detach_gate_is_not_bypassable() -> void:
+	# INTERNAL + null: refused, cleanly, and nothing moved.
+	var internal := _weapon(AmmoFeed.Type.INTERNAL, 2)
+	var internal_feed: AmmoFeed = internal.ammo_feed
+	var before_refusals: Array[String] = []
+	internal.ammo_feed_incompatible.connect(func(_w, _a) -> void: before_refusals.append("incompatible"))
+	var refused: bool = WeaponSystem.change_magazine(internal, null)
+	_check(not refused, "gate: INTERNAL + null is REFUSED, the permission rule the unload action depends on")
+	_check(internal.ammo_feed == internal_feed, "gate: and the feed is still seated, so a refusal moved nothing")
+	_check(internal_feed.capacity == 2, "gate: and its rounds are intact [count %d of 2]" % internal_feed.capacity)
+	_check(before_refusals.size() == 1,
+		"gate: and it announced the refusal rather than declining quietly [signals %d of 1]" % before_refusals.size())
+
+	# EXTERNAL + null: the detach, which is what the whole authorisation is for.
+	var external := _weapon(AmmoFeed.Type.EXTERNAL, 2)
+	var external_feed: AmmoFeed = external.ammo_feed
+	var changes: Array[int] = []
+	external.ammo_feed_changed.connect(func(_w, _o, _n) -> void: changes.append(1))
+	var detached: bool = WeaponSystem.change_magazine(external, null)
+	_check(detached, "gate: EXTERNAL + null DETACHES, which is the branch that was authorised and the reason unload can work at all")
+	_check(external.ammo_feed != external_feed, "gate: a different feed is now seated, so the original was genuinely removed")
+	_check(external.ammo_feed != null and external.ammo_feed.is_empty(),
+		"gate: the seated feed is empty, rather than being nulled -- 'a weapon has a feed' stays true for every caller")
+	_check(external.ammo_feed.type == AmmoFeed.Type.EXTERNAL,
+		"gate: and it is of the weapon's own feed type [type %d of %d]" % [external.ammo_feed.type, AmmoFeed.Type.EXTERNAL])
+	_check(changes.size() == 1,
+		"gate: and the change was announced [ammo_feed_changed %d of 1]" % changes.size())
+
+	# The gate must be FIRST, not merely present. A later refactor that moves the
+	# null branch in front of it would let INTERNAL detach, and the only symptom
+	# would be an unload quietly emptying a sealed feed.
+	var internal2 := _weapon(AmmoFeed.Type.INTERNAL, 0)
+	var detached_internal: bool = WeaponSystem.change_magazine(internal2, null)
+	_check(not detached_internal and internal2.ammo_feed.capacity == 0,
+		"gate: an INTERNAL feed with ZERO rounds is still refused -- a guard written as 'only if it holds rounds' would pass every other test here")
 
 
 # ── the evidence is real, not stubbed ───────────────────────────────────────
