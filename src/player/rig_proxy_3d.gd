@@ -87,7 +87,6 @@ func build(skeleton: Skeleton3D) -> void:
 	_proxy_root.name = "RigProxy"
 	# Rule, not default: every instance is created through here so no pane can
 	# reach the scene without a layer.
-	_proxy_root.layers = DEBUG_VISUAL_LAYER
 	add_child(_proxy_root)
 	_build_joint_balls()
 	_build_limb_capsules()
@@ -104,7 +103,7 @@ func _build_joint_balls() -> void:
 	for i in _skeleton.get_bone_count():
 		var mi := MeshInstance3D.new()
 		mi.mesh = sphere
-		mi.layers = DEBUG_VISUAL_LAYER
+		mi.layers = DEBUG_VISUAL_LAYER_BIT
 		mi.name = "Joint_%s" % _skeleton.get_bone_name(i)
 		_proxy_root.add_child(mi)
 		_joint_balls.append(mi)
@@ -122,7 +121,7 @@ func _build_limb_capsules() -> void:
 		var capsule := CapsuleMesh.new()
 		capsule.radius = LIMB_RADIUS
 		mi.mesh = capsule
-		mi.layers = DEBUG_VISUAL_LAYER
+		mi.layers = DEBUG_VISUAL_LAYER_BIT
 		mi.name = "Limb_%s" % _skeleton.get_bone_name(i)
 		# The bone index is the link between a capsule and the two joints it
 		# spans. Without it the orientation pass finds nothing to do and every
@@ -211,7 +210,7 @@ func _place_terminals() -> void:
 		var capsule := CapsuleMesh.new()
 		capsule.radius = LIMB_RADIUS
 		mi.mesh = capsule
-		mi.layers = DEBUG_VISUAL_LAYER
+		mi.layers = DEBUG_VISUAL_LAYER_BIT
 		mi.name = "Terminal_%s" % bone_name
 		_proxy_root.add_child(mi)
 		var length: float = HAND_LENGTH if is_hand else FOOT_LENGTH
@@ -242,3 +241,31 @@ func all_instances_off_layer_one() -> bool:
 		if (mi.layers & 1) != 0:
 			return false
 	return true
+
+
+## World-up reference, added after the root-mount measurement.
+##
+## The acceptance clause is that a body whose up axis is NOT world-up is
+## visible in one frame without reading a number. That needs something to be
+## visibly wrong AGAINST, so this draws world +Y from the skeleton root, in the
+## reserved debug layer like everything else. A figure whose own up axis lies
+## along this line is lying down, and that mismatch is the artefact.
+func add_world_up_reference() -> void:
+	if not _built or _skeleton == null:
+		return
+	if has_node("WorldUp"):
+		return
+	var mi := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.004
+	cyl.bottom_radius = 0.004
+	cyl.height = 0.6
+	# CylinderMesh is authored along +Y already, so no rotation is needed.
+	mi.mesh = cyl
+	mi.layers = DEBUG_VISUAL_LAYER_BIT
+	mi.name = "WorldUp"
+	add_child(mi)
+	# Drawn from the skeleton root, in the skeleton's own parent space, so the
+	# reference is world-vertical and the figure is free to disagree with it.
+	var root_world: Transform3D = _skeleton.global_transform
+	mi.global_transform = Transform3D(Basis(), root_world.origin + Vector3(0.0, 0.3, 0.0))
