@@ -28,6 +28,11 @@ const REST_X := Vector3(0.0, 0.0, -1.0)
 const REST_Y := Vector3(-1.0, 0.0, 0.0)
 const REST_Z := Vector3(0.0, 1.0, 0.0)
 const PILOT_SEED := 0x5EEDC0DE
+## Sentinel for a constant lookup that MUST resolve. Every default here used to be
+## identical to the real value, so a missing or renamed key returned the correct
+## number and the check could not fail -- a control that passes by construction is
+## not a control. A value that cannot be a real constant makes the absence loud.
+const _MISSING_CONST := -1.0
 
 enum PilotAction { MOVE, TURN, STOP, REVERSE }
 
@@ -271,54 +276,54 @@ func _check_movement_parameter_cases() -> void:
 				str(parameters != null)])
 		return
 	var constants: Dictionary = parameters_script.get_script_constant_map()
-	var eye_stand := float(constants.get("EYE_STAND", 1.62))
-	var eye_crouch := float(constants.get("EYE_CROUCH", 1.05))
-	var eye_prone := float(constants.get("EYE_PRONE", 0.45))
-	var capsule_stand := float(constants.get("CAPSULE_STAND", 1.0))
-	var capsule_crouch := float(constants.get("CAPSULE_CROUCH", 0.55))
-	var capsule_prone := float(constants.get("CAPSULE_PRONE", 0.35))
+	var eye_stand := float(constants.get("EYE_STAND", _MISSING_CONST))
+	var eye_crouch := float(constants.get("EYE_CROUCH", _MISSING_CONST))
+	var eye_prone := float(constants.get("EYE_PRONE", _MISSING_CONST))
+	var collider_stand := float(constants.get("COLLIDER_STAND", _MISSING_CONST))
+	var collider_crouch := float(constants.get("COLLIDER_CROUCH", _MISSING_CONST))
+	var collider_prone := float(constants.get("COLLIDER_PRONE", _MISSING_CONST))
 	_check_parameter_case(config, parameters, "stand",
 		"Stopped", "Standing", "NotAiming", "NotLeaning", 1.0, 1.0,
 		config.default_speed, config.default_bobing,
-		eye_stand, config.default_fov, capsule_stand, 0.0)
+		eye_stand, config.default_fov, collider_stand, 0.0)
 	_check_parameter_case(config, parameters, "walk",
 		"Walking", "Standing", "NotAiming", "NotLeaning", 1.0, 1.0,
 		config.walk_speed, config.walk_bobbing,
-		eye_stand, config.default_fov, capsule_stand, 0.0)
+		eye_stand, config.default_fov, collider_stand, 0.0)
 	_check_parameter_case(config, parameters, "crouch",
 		"Walking", "Crouching", "NotAiming", "NotLeaning", 1.0, 1.0,
 		config.crouch_speed, config.crouch_bobbing,
-		eye_crouch, config.default_fov, capsule_crouch, 0.0)
+		eye_crouch, config.default_fov, collider_crouch, 0.0)
 	_check_parameter_case(config, parameters, "prone",
 		"Walking", "Proning", "NotAiming", "NotLeaning", 1.0, 1.0,
 		config.prone_speed, config.prone_bobbing,
-		eye_prone, config.default_fov, capsule_prone, 0.0)
+		eye_prone, config.default_fov, collider_prone, 0.0)
 	_check_parameter_case(config, parameters, "lean_right",
 		"Walking", "Standing", "NotAiming", "LeaningRight", 1.0, 1.0,
 		config.lean_speed, config.walk_bobbing,
-		eye_stand, config.default_fov, capsule_stand, -1.0)
+		eye_stand, config.default_fov, collider_stand, -1.0)
 	_check_parameter_case(config, parameters, "lean_left",
 		"Walking", "Standing", "NotAiming", "LeaningLeft", 1.0, 1.0,
 		config.lean_speed, config.walk_bobbing,
-		eye_stand, config.default_fov, capsule_stand, 1.0)
+		eye_stand, config.default_fov, collider_stand, 1.0)
 	_check_parameter_case(config, parameters, "aim",
 		"Walking", "Standing", "Aiming", "NotLeaning", 1.0, 1.0,
 		config.crouch_speed, config.NO_BOBBING,
-		eye_stand, config.aim_fov, capsule_stand, 0.0)
+		eye_stand, config.aim_fov, collider_stand, 0.0)
 	_check_parameter_case(config, parameters, "focus",
 		"Walking", "Standing", "HoldingBreath", "NotLeaning", 1.0, 1.0,
 		config.prone_speed, config.NO_BOBBING,
-		eye_stand, config.aim_focused_fov, capsule_stand, 0.0)
+		eye_stand, config.aim_focused_fov, collider_stand, 0.0)
 	_check_parameter_case(config, parameters, "condition_and_stamina",
 		"Walking", "Standing", "NotAiming", "NotLeaning", 0.5, 0.8,
 		config.walk_speed * 0.5, config.walk_bobbing,
-		eye_stand, config.default_fov * 0.8, capsule_stand, 0.0)
+		eye_stand, config.default_fov * 0.8, collider_stand, 0.0)
 
 func _check_parameter_case(config, parameters,
 		label: String, moving_state: String, crouching_state: String,
 		aiming_state: String, leaning_state: String, condition_multiplier: float,
 		stamina_fov_multiplier: float, expected_speed: float, expected_bobbing: float,
-		expected_height: float, expected_fov: float, expected_capsule: float,
+		expected_height: float, expected_fov: float, expected_collider: float,
 		expected_lean: float) -> void:
 	parameters.resolve(config, moving_state, crouching_state, aiming_state,
 		leaning_state, condition_multiplier, stamina_fov_multiplier)
@@ -326,12 +331,12 @@ func _check_parameter_case(config, parameters,
 		and absf(parameters.head_bobbing - expected_bobbing) <= 0.001 \
 		and absf(parameters.camera_height - expected_height) <= 0.001 \
 		and absf(parameters.camera_fov - expected_fov) <= 0.001 \
-		and absf(parameters.capsule_factor - expected_capsule) <= 0.001 \
+		and absf(parameters.collider_factor - expected_collider) <= 0.001 \
 		and absf(parameters.lean_direction - expected_lean) <= 0.001
 	_check("MOVE", label, ok,
-		"speed=%.3f bob=%.3f height=%.3f fov=%.3f capsule=%.3f lean=%.1f" % [
+		"speed=%.3f bob=%.3f height=%.3f fov=%.3f collider=%.3f lean=%.1f" % [
 			parameters.speed, parameters.head_bobbing, parameters.camera_height,
-			parameters.camera_fov, parameters.capsule_factor, parameters.lean_direction])
+			parameters.camera_fov, parameters.collider_factor, parameters.lean_direction])
 
 func _check_motion(label: String, player_start: Vector3, bot_start: Vector3,
 		expected_player: Vector3, expected_bot: Vector3) -> void:

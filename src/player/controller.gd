@@ -130,8 +130,6 @@ const LEAN_PEEK_OFFSET: float = 0.45 # m of lateral eye travel at full lean
 const LEAN_PEEK_MARGIN: float = 0.25 # body radius: stay this far off walls
 const LEAN_ROLL_MAX: float = deg_to_rad(8.0) # secondary camera roll
 const LEAN_BODY_MAX: float = deg_to_rad(10.0) # visual body tilt about the feet
-const LEAN_STANCE_SCALE_CROUCH: float = 0.6
-const LEAN_STANCE_SCALE_PRONE: float = 0.25
 const LEAN_VISUAL_RATE: float = 10.0
 var _lean_dir: float = 0.0 # -1 right, +1 left, 0 none (matches leaned signal)
 var _lean_peek: float = 0.0 # lateral offset currently applied to the eye
@@ -211,8 +209,8 @@ func _ready():
   # Duplicate the shared BoxShape3D before stance scaling (never edit the asset).
   if collision and collision.shape:
     collision.shape = collision.shape.duplicate()
-    set_meta("_capsule_base_size", (collision.shape as BoxShape3D).size)
-    set_meta("_capsule_base_y", collision.position.y)
+    set_meta("_collider_base_size", (collision.shape as BoxShape3D).size)
+    set_meta("_collider_base_y", collision.position.y)
   # Remember the mesh's authored basis so the lean tilt can be composed in
   # the body frame without fighting the baked 90 deg rotation.
   if skeleton:
@@ -1037,20 +1035,20 @@ func _update_movement_parameters(delta: float = 0.0) -> void:
     head.position.y = lerp(head.position.y, current_camera_height, stance_t)
   if spring_arm:
     spring_arm.position.y = lerp(spring_arm.position.y, current_camera_height, stance_t)
-  _apply_capsule_stance(parameters.capsule_factor)
+  _apply_collider_stance(parameters.collider_factor)
   _apply_camera_bob_and_lean(delta)
 
-func _apply_capsule_stance(factor: float) -> void:
+func _apply_collider_stance(factor: float) -> void:
   if not collision or not collision.shape:
     return
   var box := collision.shape as BoxShape3D
   if not box:
     return
   # Vertical extent lives on shape Z (node is rotated ~90 deg about X).
-  if not has_meta("_capsule_base_size"):
+  if not has_meta("_collider_base_size"):
     return
-  var base_size: Vector3 = get_meta("_capsule_base_size")
-  var base_y: float = float(get_meta("_capsule_base_y"))
+  var base_size: Vector3 = get_meta("_collider_base_size")
+  var base_y: float = float(get_meta("_collider_base_y"))
   var bottom_y: float = base_y - base_size.z * 0.5
   var new_size := base_size
   new_size.z = base_size.z * factor
@@ -1103,15 +1101,30 @@ func _tremor_offset(delta: float) -> Vector2:
     sin(_tremor_phase) * amp,
     sin(_tremor_phase * 1.7 + 1.3) * amp * 0.7)
 
+## Stance scale for the lean, taken from the ONE stance table.
+##
+## These were a second, independent encoding of "how much smaller is the body
+## when crouched/prone" (0.6 / 0.25 here against 0.55 / 0.35 in
+## PlayerMovementParameters.COLLIDER_*, which scales the collider), and they
+## disagreed by 29% in prone. One table, one number, both readers.
+##
+## Held back in 0c59289 pending a corner assertion, then landed on the evidence:
+## validate_lean_corner.gd shows the clamp is CORNER-BLIND at BOTH values -- it
+## casts a single lateral ray, so against an inside corner it hits nothing and
+## returns the full desired value, putting the eye 0.2125 m from the corner edge
+## at 0.25 and 0.1741 m at 0.35, both violating LEAN_PEEK_MARGIN. So the +40%
+## was not a corner regression, and holding it for that reason was holding it
+## for the wrong one. The pre-existing corner-blindness is a separate defect and
+## is deliberately NOT fixed here; validate_lean_corner.gd pins it.
 func _lean_stance_scale() -> float:
   if not crouching:
-    return 1.0
+    return PlayerMovementParameters.COLLIDER_STAND
   match crouching.state:
     CROUCHING:
-      return LEAN_STANCE_SCALE_CROUCH
+      return PlayerMovementParameters.COLLIDER_CROUCH
     PRONING:
-      return LEAN_STANCE_SCALE_PRONE
-  return 1.0
+      return PlayerMovementParameters.COLLIDER_PRONE
+  return PlayerMovementParameters.COLLIDER_STAND
 
 ## Leaning for real: translate the eye sideways (in body space, so the view
 ## axis is unchanged) and clamp it against walls so a corner peek cannot see
