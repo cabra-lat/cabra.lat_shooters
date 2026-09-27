@@ -135,8 +135,24 @@ func show_context_menu(slot: InventorySlotUI):
         var weapon = item.extra as Weapon
         # Primary action: open the gunsmith for this weapon (range's UI).
         context_menu.add_item("Modificar", 105)
-        context_menu.add_item("Unload Magazine", 101)
-        if weapon.feed_type in [Firemode.PUMP, Firemode.BOLT]:
+        # Gates for the magazine actions, and both of them are the MODEL's
+        # predicates rather than tests re-derived here.
+        #
+        # UNLOAD detaches the feed, so it is offered only where the weapon model
+        # permits a detach: WeaponSystem.change_magazine refuses an INTERNAL feed.
+        # Offering it unconditionally would advertise an action the handler must
+        # refuse, which from the player is indistinguishable from the dead
+        # control this whole card is about.
+        if weapon.feed_type == AmmoFeed.Type.EXTERNAL:
+            context_menu.add_item("Unload Magazine", 101)
+        # CYCLE is a property of the weapon's ACTION, not of its feed. The old
+        # test was `weapon.feed_type in [Firemode.PUMP, Firemode.BOLT]`, which
+        # compares an AmmoFeed.Type (INTERNAL=0, EXTERNAL=1) against Firemode bit
+        # flags (PUMP=16, BOLT=32) -- a cross-enum comparison that is false for
+        # every weapon in the game, so "Cycle Action" was never added to the menu
+        # and request_cycle_action could never be emitted at all. is_firemode_
+        # available() is the bitmask test the rest of the addon already uses.
+        if weapon.is_firemode_available(Firemode.PUMP) or weapon.is_firemode_available(Firemode.BOLT):
             context_menu.add_item("Cycle Action", 104)
         # Add ammo extraction options for internal magazines
         if weapon.feed_type == AmmoFeed.Type.INTERNAL and weapon.ammo_feed and weapon.ammo_feed.capacity > 0:

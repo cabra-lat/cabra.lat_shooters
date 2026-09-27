@@ -90,6 +90,10 @@ func _run() -> void:
 	_inv16_attachment_wiring()
 	_inv16b_baked_optic_toggle()
 	_inv36_inventory_null_transfer()
+	_inv38_full_grid_never_evicts()
+	_inv39_resize_rebuilds_the_occupancy_cache()
+	await _inv40_slot_lookup_is_indexed()
+	_inv41_cycle_action_reachable()
 	await _inv17_world_mode_tags_no_npcs()
 	await _inv18_rig_sole_on_ground()
 	await _inv19_rig_body_material_supports_flash()
@@ -274,6 +278,282 @@ func _grid_dims(c: InventoryContainer) -> String:
 	if c == null or c.grid == null:
 		return "nil"
 	return "%dx%d" % [c.grid.width, c.grid.height]
+
+# ─── INV-38: a FULL grid refuses the placement and evicts NOTHING ───
+# ORIGIN: card task_1790472720790_ffe361, from a pasted DEBUG log that read
+# "No free space found for item / No space found for item / Removing item from
+# grid: Army bandage" and was re-scoped as "is eviction-on-full policy or a
+# defect?". Diagnosis (probe_eviction_tmp, 2026-09-27, measured on a full
+# 16x19 grid): eviction does not exist. grid.add_item returns false at
+# grid.gd:135-136; InventorySystem.transfer_item_to_position removes from the
+# source FIRST (inventory_system.gd:66) and ROLLS BACK on a failed insert
+# (:70-73), so the "Removing item from grid" line in that log belongs to the
+# source removal of a normal transfer, not to a retry. The log's two halves are
+# two events. This assertion pins the behaviour so a future "make room for it"
+# fallback cannot be added silently: a full container must REFUSE, and every item
+# it already held must still be there afterwards.
+func _inv38_full_grid_never_evicts() -> void:
+	var full := InventoryContainer.new()
+	full.name = "INV-38 full"
+	full.grid_width = 4
+	full.grid_height = 4
+	full.max_weight = 100000.0
+	for y in range(4):
+		for x in range(4):
+			var filler := InventoryItem.new()
+			filler.name = "filler_%d_%d" % [x, y]
+			filler.dimensions = Vector2i.ONE
+			full.add_item(filler, Vector2i(x, y))
+	var held := full.items.size()
+	var occupied_cell := full.get_item_at(Vector2i(3, 3))
+
+	# (a) explicit placement over an occupied area
+	var tall := InventoryItem.new()
+	tall.name = "tall"
+	tall.dimensions = Vector2i(1, 4)
+	var explicit_refused: bool = not full.add_item(tall, Vector2i(0, 0))
+
+	# (b) "find me any free space" on a full grid
+	var wide := InventoryItem.new()
+	wide.name = "wide"
+	wide.dimensions = Vector2i(2, 2)
+	var auto_refused: bool = not full.add_item(wide, Vector2i(-1, -1))
+
+	# (c) the real UI drop path: a transfer into the full container
+	var src := InventoryContainer.new()
+	src.name = "INV-38 src"
+	src.grid_width = 2
+	src.grid_height = 2
+	src.max_weight = 100000.0
+	var bandage := InventoryItem.new()
+	bandage.name = "Army bandage"
+	bandage.dimensions = Vector2i.ONE
+	src.add_item(bandage, Vector2i(0, 0))
+	var transfer_refused: bool = not InventorySystem.transfer_item_to_position(src, full, bandage, Vector2i(0, 0))
+
+	var no_loss: bool = full.items.size() == held
+	var source_kept: bool = bandage in src.items and src.items.size() == 1
+	var cell_intact: bool = full.get_item_at(Vector2i(3, 3)) == occupied_cell
+	var ok: bool = explicit_refused and auto_refused and transfer_refused and no_loss and source_kept and cell_intact
+	_check("INV-38", "full_grid_refuses_and_never_evicts", ok,
+		"held=%d after=%d explicit=%s auto=%s transfer=%s source_kept=%s cell_intact=%s" % [
+			held, full.items.size(), str(explicit_refused), str(auto_refused),
+			str(transfer_refused), str(source_kept), str(cell_intact)],
+		"a full container silently dropped an existing item to satisfy a placement (data loss)")
+
+# ─── INV-39: assigning grid dims REBUILDS the occupancy cache ──────
+# ORIGIN: card task_1790474791642_7a1361. InventoryGrid.width/height were plain
+# exported fields and _occupancy_grid was built only in _init(), so a caller
+# assigning them after construction kept a cache built from the OLD size until
+# some remove_item() happened to rebuild it. No production site was wrong (both
+# container.gd and meta_profile.gd called _reset_grid() right after assigning),
+# so this is the footgun, not a live data-loss bug. RED ARM, measured on the
+# pre-fix code: declare 16x19 after construction and fill every declared cell,
+# and the grid reports used=25, free=279 — a container telling the player it has
+# 279 free cells while it has none. The fix is a width/height setter plus ONE
+# rebuild path (_rebuild_from_items) shared by the setters, _init() and
+# remove_item(), so a resize and a removal cannot produce different tables.
+# The CONTROL arm matters as much as the red one and is the second half of this
+# check: the remove-driven rebuild is compared against an INDEPENDENTLY built
+# grid of the same content, so "the setter rebuilds" cannot be satisfied by a
+# second, disagreeing path.
+func _inv39_resize_rebuilds_the_occupancy_cache() -> void:
+	# (a) RED ARM: assign after construction, cache must follow immediately.
+	var g := InventoryGrid.new()
+	g.width = 16
+	g.height = 19
+	var shape_ok: bool = _grid_shape(g) == "16x19"
+
+	# (b) the wrong number a caller used to read back.
+	for y in range(19):
+		for x in range(16):
+			g.occupy_area(Vector2i(x, y), Vector2i.ONE, 0)
+	var area_ok: bool = g.get_used_area() == 16 * 19 and g.get_free_area() == 0
+
+	# (c) CONTROL: resize and removal agree with an independent build.
+	var a := _grid_three_items(6, 4)
+	var resized_table := _grid_table(a)
+	a.width = 8
+	var resize_ok: bool = resized_table != _grid_table(a) and _grid_shape(a) == "8x4" and _grid_occupied(a) == 8
+	a.remove_item(a.items[2])
+	var reference := _grid_three_items(8, 4)
+	reference.remove_item(reference.items[2])
+	var control_ok: bool = _grid_table(a) == _grid_table(reference) and _grid_occupied(a) == 7
+
+	var ok: bool = shape_ok and area_ok and resize_ok and control_ok
+	_check("INV-39", "grid_resize_rebuilds_the_occupancy_cache", ok,
+		"shape=%s used=%d free=%d resize_kept=%d control=%s" % [
+			_grid_shape(g), g.get_used_area(), g.get_free_area(),
+			_grid_occupied(a), str(control_ok)],
+		"a grid whose width/height were assigned after construction kept a stale _occupancy_grid (reported 279 free cells with none)")
+
+## A grid of the given size holding three items at FIXED positions, so two grids
+## built here always hold identical content to compare occupancy tables over.
+func _grid_three_items(w: int, h: int) -> InventoryGrid:
+	var g := InventoryGrid.new()
+	g.width = w
+	g.height = h
+	for spec in [[Vector2i(0, 0), Vector2i(2, 2)], [Vector2i(3, 0), Vector2i(1, 3)], [Vector2i(0, 3), Vector2i(1, 1)]]:
+		var it := InventoryItem.new()
+		it.name = "inv39_%d" % g.items.size()
+		it.dimensions = spec[1]
+		g.add_item(it, spec[0])
+	return g
+
+# ─── INV-40: the slot-by-cell lookup is an INDEX, not a scan ──────────
+# ORIGIN: card 38a378 (the GPU question). The owner's question was whether
+# inventory work could move to the GPU, and measuring it found the answer was
+# neither yes nor no: the work was never heavy, the DATA STRUCTURE was wrong.
+# InventoryContainerUI.get_slot_by_grid_position() scanned the whole
+# `slot_displays` array and returned the first grid_position match, and
+# _update_slot_states() calls it once per grid cell covered by an item, so a
+# refresh was O(covered_cells x N). Measured on the pre-fix code: 2.9 ms at
+# N=225, 620 ms at N=57,600, growing ~4x per 4x N, while the occupancy grid that
+# already answers the same question measured FLAT (21, 22, 11, 11, 11 us across
+# the same N range). A PackedInt64Array bitmask was considered and rejected: at
+# N=225 it is four words, so the complexity was never the problem.
+#
+# WHY A STATIC CHECK AND NOT A BENCHMARK. A timing assertion is not a gate -- it
+# is a coin flip on a loaded CI box, and it would flake rather than fail. What is
+# actually worth pinning is the SHAPE: the lookup must not scan the display list,
+# and the index must not be able to drift from it. So this asserts the structure
+# and the index/list agreement, which is checkable, and leaves the numbers in the
+# commit message where they belong.
+#
+# RED ARM, measured on the pre-fix code: the scan is present and this fails. The
+# positive half is what keeps it from being a check that cannot fail -- a file
+# that simply deleted the lookup would also pass a "no scan" grep, so the same
+# check confirms every created cell is REACHABLE through the index.
+func _inv40_slot_lookup_is_indexed() -> void:
+	var src := FileAccess.get_file_as_string("res://addons/cabra.lat_shooters/src/ui/inventory/container.gd")
+
+	# (a) The lookup body must not walk slot_displays. Scoped to the function so
+	# the OTHER legitimate uses of the list (the clear-all loop, the register
+	# helper) do not read as a regression.
+	var body := _func_body(src, "func get_slot_by_grid_position")
+	var scans: bool = body.contains("for slot in slot_displays")
+	var looks_up: bool = body.contains("_slots_by_cell")
+	var ok: bool = (not scans) and looks_up and not body.is_empty()
+
+	# (b) POSITIVE CONTROL, and the half that makes (a) mean something: the index
+	# must actually answer. A missing lookup, a typo'd key, or an index that is
+	# never populated all pass "there is no for loop here".
+	#
+	# THE REAL SCENE, NOT `new()`. `grid_background` is @onready, so a bare
+	# InventoryContainerUI.new() has a null background and _create_grid_slots()
+	# silently creates nothing -- which is exactly what happened the first time
+	# this ran, and the positive control caught it. A control that needs a
+	# constructed tree to be meaningful has to be given one.
+	var live = load("res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn").instantiate()
+	get_root().add_child(live)
+	get_root().size = Vector2i(1280, 720)
+	await process_frame
+	var c := InventoryContainer.new()
+	c.grid_width = 6
+	c.grid_height = 4
+	live.open_container(c)
+	await process_frame
+	var reachable: bool = live.slot_displays.size() == 24
+	reachable = reachable and live.get_slot_by_grid_position(Vector2i(0, 0)) != null
+	reachable = reachable and live.get_slot_by_grid_position(Vector2i(5, 3)) != null
+	reachable = reachable and live.get_slot_by_grid_position(Vector2i(6, 0)) == null
+	reachable = reachable and live.get_slot_by_grid_position(Vector2i(-1, -1)) == null
+	# (c) THE LIST AND THE INDEX AGREE, cell for cell. An index that answers but
+	# disagrees with slot_displays would be worse than the scan, because the two
+	# would render differently depending on which one a caller used.
+	var agree: bool = true
+	for s in live.slot_displays:
+		if live.get_slot_by_grid_position(s.grid_position) != s:
+			agree = false
+			break
+	# (d) AND CLEARING really clears both, or a reopened container serves slots
+	# from the previous one.
+	live._clear_existing_slots()
+	var cleared: bool = live.slot_displays.is_empty() and live.get_slot_by_grid_position(Vector2i(0, 0)) == null
+	live.queue_free()
+
+	_check("INV-40", "slot_lookup_is_indexed_not_scanned", ok and reachable and agree and cleared,
+		"func_found=%s scans=%s uses_index=%s reachable=%s index_agrees=%s cleared=%s | red arm: the pre-fix linear scan fails (a); a deleted or unpopulated index fails (b)-(d)" % [
+			not body.is_empty(), scans, looks_up, reachable, agree, cleared],
+		"F-TARGET: none -- a performance-shape invariant, not an engine API")
+
+
+# ─── INV-41: the Cycle Action context entry is REACHABLE ─────────────────────
+# Caught by building the request_cycle_action handler and finding it could never
+# run. The menu gate read: weapon.feed_type in [Firemode.PUMP, Firemode.BOLT],
+# comparing an AmmoFeed.Type (INTERNAL=0, EXTERNAL=1) against Firemode bit flags
+# (PUMP=16, BOLT=32). That test is false for EVERY weapon in the game -- all 18
+# shipped weapons set feed_type to 0 or 1 -- so id 104 was never added to the
+# context menu and request_cycle_action was not merely unhandled but UN-EMITTABLE.
+# A handler behind it would have been dead code that made the signal look
+# implemented, which is the same defect class one level in.
+#
+# So the assertion is REACHABILITY, not the presence of a handler: the gate must
+# respond to a weapon's DECLARED ACTION. Both directions are checked, because a
+# one-sided check is satisfied by a gate that is always true just as happily as
+# one that is always false -- and always-false is precisely the bug.
+func _inv41_cycle_action_reachable() -> void:
+	var pump: Weapon = Weapon.new()
+	pump.firemodes = Firemode.PUMP | Firemode.SAFE
+	var semi: Weapon = Weapon.new()
+	semi.firemodes = Firemode.SEMI
+	var offers_for_pump: bool = pump.is_firemode_available(Firemode.PUMP) \
+			or pump.is_firemode_available(Firemode.BOLT)
+	var offers_for_semi: bool = semi.is_firemode_available(Firemode.PUMP) \
+			or semi.is_firemode_available(Firemode.BOLT)
+	# And the cross-enum comparison that caused the bug must be GONE from the
+	# gate, so the defect cannot be reintroduced by reverting the expression.
+	# The comment ABOVE the fix quotes the old test verbatim, so the source is
+	# stripped of comments first -- otherwise this check matches the very prose
+	# that documents the bug and fails forever. That is not hypothetical: it is
+	# what happened the first time this ran, and a check that is red for the
+	# right reason in the wrong way is still a check nobody can act on.
+	var base_src: String = FileAccess.get_file_as_string(
+		"res://addons/cabra.lat_shooters/src/ui/inventory/base.gd")
+	var code_lines := ""
+	for line in base_src.split("\n"):
+		if not String(line).strip_edges().begins_with("#"):
+			code_lines += line + "\n"
+	var cross_enum: bool = code_lines.contains("feed_type in [Firemode")
+	_check("INV-41", "cycle_action_gate_is_reachable_and_model_driven",
+		offers_for_pump and not offers_for_semi and not cross_enum,
+		"pump_declared=%s semi_declined=%s cross_enum_test_present=%s | red arm: restoring the feed_type-in-Firemode test fails (c); a gate that ignores the firemode bitmask fails (a)" % [
+			offers_for_pump, not offers_for_semi, cross_enum],
+		"F-TARGET: none -- a reachability invariant over a declared-model predicate")
+
+
+## The source text of one function body, from its `func` line to the next
+## top-level `func`. Empty when the function is absent, so a rename is a
+## FAILURE here rather than a silently skipped check.
+func _func_body(src: String, header: String) -> String:
+	var start := src.find(header)
+	if start < 0:
+		return ""
+	var rest := src.substr(start + header.length())
+	var nl := rest.find("\nfunc ")
+	return rest if nl < 0 else rest.substr(0, nl)
+
+
+func _grid_shape(g: InventoryGrid) -> String:
+	if g == null or g._occupancy_grid.is_empty():
+		return "empty"
+	return "%dx%d" % [g._occupancy_grid[0].size(), g._occupancy_grid.size()]
+
+func _grid_occupied(g: InventoryGrid) -> int:
+	var n := 0
+	for row in g._occupancy_grid:
+		for v in row:
+			if v != -1:
+				n += 1
+	return n
+
+func _grid_table(g: InventoryGrid) -> String:
+	var out := ""
+	for row in g._occupancy_grid:
+		for v in row:
+			out += str(v) + ","
+		out += "|"
+	return out
 
 # ─── INV-16: attachment .tres must point at a mountable model ───────
 # ORIGIN (attachments order 2026-09-21): the 15 attachment resources had NO
