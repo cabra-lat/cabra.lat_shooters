@@ -2,6 +2,30 @@
 class_name InventoryGrid
 extends Resource
 
+# THE DEBUG-LOGGING GATE. Every diagnostic print in this file sits behind this
+# one flag. The prints are load-bearing: they are how whoever debugs a
+# placement problem next sees WHICH cell was rejected and WHY, and they fire on
+# the success path too, not only on refusal. So this gates them rather than
+# deleting them, and they still fire in a debug build, including an unexported
+# harness run. In an exported release they are skipped, which removes the
+# measured print I/O from a player-triggered refusal.
+#
+# WHY A PLAIN PER-SITE `if` AND NOT ONE _dbg() CHOKE POINT: a variadic
+# forwarder, func _dbg(...args) with print(...args), does not parse in this
+# Godot build, and that was settled by bisection rather than by taste, so the
+# one-place design was not available. A wider diff across every site is the
+# price. The compensating control is tools/check_no_bare_prints.sh, which fails
+# the harness if a print appears here without the guard, because a rule with no
+# instrument is what rotted here in the first place.
+var _debug_logging: bool = OS.is_debug_build()
+
+## Harness hook: close the gate to measure the path an exported build takes.
+func set_debug_logging(enabled: bool) -> void:
+  _debug_logging = enabled
+
+func is_debug_logging() -> bool:
+  return _debug_logging
+
 @export var width: int = 5
 @export var height: int = 5
 
@@ -38,10 +62,12 @@ func _is_position_ignored(position: Vector2i) -> bool:
 func is_area_free(position: Vector2i, size: Vector2i) -> bool:
     # Check bounds more carefully
   if position.x < 0 or position.y < 0:
-    print("DEBUG: Position out of bounds (negative): ", position)
+    if _debug_logging:
+      print("DEBUG: Position out of bounds (negative): ", position)
     return false
   if position.x + size.x > width or position.y + size.y > height:
-    print("DEBUG: Position out of bounds (exceeds grid): ", position, " size: ", size, " grid: ", width, "x", height)
+    if _debug_logging:
+      print("DEBUG: Position out of bounds (exceeds grid): ", position, " size: ", size, " grid: ", width, "x", height)
     return false
 
     # Check occupancy - with proper bounds checking
@@ -52,10 +78,12 @@ func is_area_free(position: Vector2i, size: Vector2i) -> bool:
 
             # Double-check bounds
       if check_y >= _occupancy_grid.size():
-        print("DEBUG: Grid row out of bounds: ", check_y, " >= ", _occupancy_grid.size())
+        if _debug_logging:
+          print("DEBUG: Grid row out of bounds: ", check_y, " >= ", _occupancy_grid.size())
         return false
       if check_x >= _occupancy_grid[check_y].size():
-        print("DEBUG: Grid column out of bounds: ", check_x, " >= ", _occupancy_grid[check_y].size())
+        if _debug_logging:
+          print("DEBUG: Grid column out of bounds: ", check_x, " >= ", _occupancy_grid[check_y].size())
         return false
 
       var cell_value = _occupancy_grid[check_y][check_x]
@@ -71,7 +99,8 @@ func is_area_free(position: Vector2i, size: Vector2i) -> bool:
             continue
           else:
                         # This is a different item, so the cell is occupied
-            print("DEBUG: Cell occupied at: ", Vector2i(check_x, check_y), " by different item")
+            if _debug_logging:
+              print("DEBUG: Cell occupied at: ", Vector2i(check_x, check_y), " by different item")
             return false
         else:
           # Fail CLOSED. An occupancy index with no matching entry in `items`
@@ -82,7 +111,8 @@ func is_area_free(position: Vector2i, size: Vector2i) -> bool:
           # corruption wearing the costume of a success. A cell we cannot
           # resolve is not a cell we may hand out.
           # Red arm: src/dev/red_arm_occupancy_dangling_tmp.gd, task_1790524348929_6cac7b
-          print("DEBUG: Invalid item index: ", item_index, " for items.size() ", items.size(), " — treating cell as OCCUPIED (fail closed)")
+          if _debug_logging:
+            print("DEBUG: Invalid item index: ", item_index, " for items.size() ", items.size(), " — treating cell as OCCUPIED (fail closed)")
           return false
             # NEW: Also check if this position is part of the ignored item's original area
       elif _is_position_ignored(Vector2i(check_x, check_y)):
@@ -94,13 +124,15 @@ func is_area_free(position: Vector2i, size: Vector2i) -> bool:
 # Rest of your existing functions remain the same...
 func set_temp_ignored_item(item: InventoryItem):
   _temp_ignored_item = item
-  print("DEBUG: Temporarily ignoring item at position: ", item.position if item else "null")
+  if _debug_logging:
+    print("DEBUG: Temporarily ignoring item at position: ", item.position if item else "null")
 
 func clear_temp_ignored_item():
   _temp_ignored_item = null
 
 func occupy_area(position: Vector2i, size: Vector2i, item_index: int):
-  print("DEBUG: Occupying area at ", position, " size ", size, " for item ", item_index)
+  if _debug_logging:
+    print("DEBUG: Occupying area at ", position, " size ", size, " for item ", item_index)
   for y in range(size.y):
     for x in range(size.x):
       var occ_y = position.y + y
@@ -110,10 +142,12 @@ func occupy_area(position: Vector2i, size: Vector2i, item_index: int):
       if occ_y < _occupancy_grid.size() and occ_x < _occupancy_grid[occ_y].size():
         _occupancy_grid[occ_y][occ_x] = item_index
       else:
-        print("ERROR: Attempted to occupy out-of-bounds cell: ", Vector2i(occ_x, occ_y))
+        if _debug_logging:
+          print("ERROR: Attempted to occupy out-of-bounds cell: ", Vector2i(occ_x, occ_y))
 
 func free_area(position: Vector2i, size: Vector2i):
-  print("DEBUG: Freeing area at ", position, " size ", size)
+  if _debug_logging:
+    print("DEBUG: Freeing area at ", position, " size ", size)
   for y in range(size.y):
     for x in range(size.x):
       var free_y = position.y + y
@@ -123,7 +157,8 @@ func free_area(position: Vector2i, size: Vector2i):
       if free_y < _occupancy_grid.size() and free_x < _occupancy_grid[free_y].size():
         _occupancy_grid[free_y][free_x] = -1
       else:
-        print("ERROR: Attempted to free out-of-bounds cell: ", Vector2i(free_x, free_y))
+        if _debug_logging:
+          print("ERROR: Attempted to free out-of-bounds cell: ", Vector2i(free_x, free_y))
 
 func can_add_item(item: InventoryItem, position: Vector2i = Vector2i(-1, -1)) -> bool:
   var target_pos = position
@@ -134,26 +169,32 @@ func can_add_item(item: InventoryItem, position: Vector2i = Vector2i(-1, -1)) ->
     return is_area_free(target_pos, item.dimensions)
 
 func find_free_space_for_item(item: InventoryItem) -> Vector2i:
-  print("DEBUG: Finding free space for item dimensions: ", item.dimensions)
+  if _debug_logging:
+    print("DEBUG: Finding free space for item dimensions: ", item.dimensions)
   for y in range(height - item.dimensions.y + 1):
     for x in range(width - item.dimensions.x + 1):
       if is_area_free(Vector2i(x, y), item.dimensions):
-        print("DEBUG: Found free space at: ", Vector2i(x, y))
+        if _debug_logging:
+          print("DEBUG: Found free space at: ", Vector2i(x, y))
         return Vector2i(x, y)
-  print("DEBUG: No free space found for item")
+  if _debug_logging:
+    print("DEBUG: No free space found for item")
   return Vector2i(-1, -1)
 
 func add_item(item: InventoryItem, position: Vector2i = Vector2i(-1, -1)) -> bool:
-  print("DEBUG: Adding item to grid at position: ", position)
+  if _debug_logging:
+    print("DEBUG: Adding item to grid at position: ", position)
   var target_pos = position
   if position == Vector2i(-1, -1):
     target_pos = find_free_space_for_item(item)
     if target_pos == Vector2i(-1, -1):
-      print("DEBUG: No space found for item")
+      if _debug_logging:
+        print("DEBUG: No space found for item")
       return false
 
   if not is_area_free(target_pos, item.dimensions):
-    print("DEBUG: Area not free at target position: ", target_pos)
+    if _debug_logging:
+      print("DEBUG: Area not free at target position: ", target_pos)
     return false
 
     # Handle stacking. `merge()` is a whole-stack merge (returns bool); the
@@ -179,11 +220,13 @@ func add_item(item: InventoryItem, position: Vector2i = Vector2i(-1, -1)) -> boo
   item.position = target_pos
   items.append(item)
   occupy_area(target_pos, item.dimensions, items.size() - 1)
-  print("DEBUG: Item added successfully at: ", target_pos)
+  if _debug_logging:
+    print("DEBUG: Item added successfully at: ", target_pos)
   return true
 
 func remove_item(item: InventoryItem) -> bool:
-  print("DEBUG: Removing item from grid: ", item.name if item else "Unknown")
+  if _debug_logging:
+    print("DEBUG: Removing item from grid: ", item.name if item else "Unknown")
   var index = items.find(item)
   if index != -1:
     free_area(item.position, item.dimensions)
@@ -192,26 +235,32 @@ func remove_item(item: InventoryItem) -> bool:
     _reset_grid()
     for i in range(items.size()):
       occupy_area(items[i].position, items[i].dimensions, i)
-    print("DEBUG: Item removed successfully")
+    if _debug_logging:
+      print("DEBUG: Item removed successfully")
     return true
-  print("DEBUG: Item not found in grid")
+  if _debug_logging:
+    print("DEBUG: Item not found in grid")
   return false
 
 func move_item(item: InventoryItem, new_position: Vector2i) -> bool:
-  print("DEBUG: Moving item to new position: ", new_position)
+  if _debug_logging:
+    print("DEBUG: Moving item to new position: ", new_position)
   if not is_area_free(new_position, item.dimensions):
-    print("DEBUG: Cannot move item - area not free")
+    if _debug_logging:
+      print("DEBUG: Cannot move item - area not free")
     return false
 
   var index = items.find(item)
   if index == -1:
-    print("DEBUG: Cannot move item - not found")
+    if _debug_logging:
+      print("DEBUG: Cannot move item - not found")
     return false
 
   free_area(item.position, item.dimensions)
   item.position = new_position
   occupy_area(new_position, item.dimensions, index)
-  print("DEBUG: Item moved successfully")
+  if _debug_logging:
+    print("DEBUG: Item moved successfully")
   return true
 
 func get_item_at(position: Vector2i) -> InventoryItem:
@@ -220,7 +269,8 @@ func get_item_at(position: Vector2i) -> InventoryItem:
 
     # Bounds check for occupancy grid
   if position.y >= _occupancy_grid.size() or position.x >= _occupancy_grid[position.y].size():
-    print("ERROR: get_item_at out of bounds: ", position, " grid size: ", _occupancy_grid.size(), "x", (_occupancy_grid[0].size() if _occupancy_grid.size() > 0 else 0))
+    if _debug_logging:
+      print("ERROR: get_item_at out of bounds: ", position, " grid size: ", _occupancy_grid.size(), "x", (_occupancy_grid[0].size() if _occupancy_grid.size() > 0 else 0))
     return null
 
   var item_index = _occupancy_grid[position.y][position.x]
@@ -240,12 +290,14 @@ func get_used_area() -> int:
     for x in range(row.size()):
       if row[x] != -1:
         count += 1
-  print("DEBUG: Used area: ", count, "/", width * height)
+  if _debug_logging:
+    print("DEBUG: Used area: ", count, "/", width * height)
   return count
 
 func get_free_area() -> int:
   var free = width * height - get_used_area()
-  print("DEBUG: Free area: ", free, "/", width * height)
+  if _debug_logging:
+    print("DEBUG: Free area: ", free, "/", width * height)
   return free
 
 # ─── TETRIS UX (rotation / swap) ────────────────────
@@ -339,7 +391,8 @@ func can_swap_items(a: InventoryItem, b: InventoryItem) -> bool:
 
 # Add to inventory_grid.gd
 func debug_print_grid():
-  print("=== GRID STATE ===")
+  if _debug_logging:
+    print("=== GRID STATE ===")
   for y in range(height):
     var row = ""
     for x in range(width):
@@ -347,5 +400,7 @@ func debug_print_grid():
         row += "[ ]"
       else:
         row += "[X]"
-    print(row)
-  print("=================")
+    if _debug_logging:
+      print(row)
+  if _debug_logging:
+    print("=================")
