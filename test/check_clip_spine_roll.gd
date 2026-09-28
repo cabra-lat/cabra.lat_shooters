@@ -126,11 +126,23 @@ func _initialize() -> void:
 	# THE PER-CLIP MINIMUM, WHICH IS NEITHER A MEAN NOR A MAXIMUM AND IS THE
 	# STRONGEST STATEMENT AVAILABLE ABOUT THE ASSET. If the LOWEST single key in
 	# the whole library is still far from rest, then the roll is not a moment in
-	# an animation, it is the animation: there is no key anywhere that comes near
+	# an animation, it is the animation: there is no spine_01 key anywhere in this
+	# library that comes near rest.
 	# the neutral pose. It also retires the objection that motivated asserting on
 	# the maximum, namely that a mean could hide a brief spike, because a spike
 	# requires SOME key to come back toward rest and here none does.
-	print("SENTINEL| LOWEST SINGLE KEY IN THE ENTIRE LIBRARY = %.4f deg (clip %s)"
+	# SCOPE, CORRECTED AFTER A RETRACTION, AND THE CORRECTION IS THE POINT. An
+	# earlier version of these lines said "the lowest single key in the ENTIRE
+	# library" and "there is no key anywhere in the asset", and BOTH SENTENCES
+	# WERE FALSE GENERALISATIONS FROM ONE BONE TO 87. This sentinel measures
+	# spine_01 and NOTHING ELSE. A separate all-bones sweep found a global minimum
+	# of 0.1480 deg, in aim_idle, bone spine.001_02, key 21, and every one of the
+	# 24 clips comes within 7.2088 deg of rest on its own best bone, so THE ASSET
+	# DOES HAVE A NEUTRAL POSE. What is true is narrower: no spine_01 key in this
+	# library comes near rest. A sentinel that states a fact about the asset while
+	# measuring one bone is the same scope error as an assertion that looks global
+	# and is local, so the wording is now bounded to the bone under test.
+	print("SENTINEL| LOWEST spine_01 KEY IN THE LIBRARY = %.4f deg (clip %s) — SCOPED TO spine_01, NOT ALL 87 BONES"
 		% [overall_min, String(rows[_min_row(rows, overall_min)][0])])
 	print("SENTINEL| pre-registered threshold = %.1f deg, not fitted" % THRESHOLD_DEG)
 
