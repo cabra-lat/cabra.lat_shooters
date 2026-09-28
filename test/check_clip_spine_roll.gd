@@ -70,6 +70,7 @@ const THRESHOLD_DEG := 45.0
 
 var _pass := 0
 var _fail := 0
+var _skel_keepalive: Node = null
 
 func _initialize() -> void:
 	var lib: AnimationLibrary = load(LIB)
@@ -78,20 +79,26 @@ func _initialize() -> void:
 		quit(2)
 		return
 
-	# Locate the bone index by NAME, not by a hardcoded 1. The index is 1 in this
-	# tree, but an index that is only correct by coincidence is a latent failure.
-	var bone_index := _find_bone_index()
+	# THE REST NOW COMES FROM THE ENGINE, NOT FROM TEXT. The previous version read
+	# bones/N/rest out of humanoid_rig.tscn and that was TRANSPOSED: the serialised
+	# Transform3D text is row-major while the constructor is column-major, so the
+	# two readings differ by 119.9078 degrees on spine_01 and the transposed one
+	# understated the departure by about 39 degrees. Reading the rest positionally
+	# out of a text file WAS the bug, so the text file is no longer read at all.
+	# Skeleton3D.get_bone_rest(i) is the engine's own answer and it is the only
+	# source that cannot be wrong about its own memory layout.
+	var skel := _load_skeleton()
+	if skel == null:
+		print("RESULT: FAIL (could not instantiate a Skeleton3D from %s; refusing to report on a missing rest)" % RIG)
+		quit(2)
+		return
+	var bone_index: int = skel.find_bone(BONE_NAME)
 	if bone_index < 0:
-		print("RESULT: FAIL (bone %s not found in %s; the sentinel cannot run and must not report PASS)" % [BONE_NAME, RIG])
+		print("RESULT: FAIL (bone %s not found in the instantiated skeleton)" % BONE_NAME)
 		quit(2)
 		return
-
-	var rest_q := _read_engine_rest(bone_index)
-	if rest_q == null:
-		print("RESULT: FAIL (could not read the engine rest for bone %d; refusing to report on a missing value)" % bone_index)
-		quit(2)
-		return
-	print("SENTINEL| bone %s is index %d; engine rest read as text from bones/%d/rest" % [BONE_NAME, bone_index, bone_index])
+	var rest_q: Quaternion = skel.get_bone_rest(bone_index).basis.get_rotation_quaternion()
+	print("SENTINEL| bone %s is index %d; rest read from Skeleton3D.get_bone_rest, NOT from text" % [BONE_NAME, bone_index])
 
 	var names := lib.get_animation_list()
 	print("SENTINEL| library holds %d animations, no filter applied" % names.size())
@@ -199,6 +206,28 @@ func _min_row(rows: Array, lowest: float) -> int:
 		if float(rows[i][4]) <= lowest:
 			idx = i
 	return idx
+
+## The rig instantiated from its scene and type-walked to its Skeleton3D. No
+## scene tree, no mount, no AnimationPlayer: the rest is data, not a pose.
+func _load_skeleton() -> Skeleton3D:
+	var ps := load(RIG) as PackedScene
+	if ps == null:
+		return null
+	var inst := ps.instantiate()
+	var found := _find_skeleton(inst)
+	if found != null:
+		# Keep the instance alive for the life of the check, then release it.
+		_skel_keepalive = inst
+	return found
+
+func _find_skeleton(n: Node) -> Skeleton3D:
+	if n is Skeleton3D:
+		return n as Skeleton3D
+	for c in n.get_children():
+		var r := _find_skeleton(c)
+		if r != null:
+			return r
+	return null
 
 ## The bone-local half-chord, folded on absf so the quaternion double cover does
 ## not turn a tiny difference into about 360 degrees.
