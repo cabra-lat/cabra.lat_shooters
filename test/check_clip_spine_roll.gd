@@ -145,6 +145,8 @@ func _initialize() -> void:
 	var overall_max := 0.0
 	var overall_min := 1.0e9
 	var sum_mean := 0.0
+	var sum_all_keys := 0.0
+	var total_keys := 0
 	var keyed := 0
 
 	for n in names:
@@ -171,6 +173,8 @@ func _initialize() -> void:
 		overall_max = maxf(overall_max, worst)
 		overall_min = minf(overall_min, best)
 		sum_mean += mean
+		sum_all_keys += acc
+		total_keys += nk
 
 	print("SENTINEL| %d of %d clips key a %s rotation track" % [keyed, names.size(), BONE_NAME])
 	if not not_keying.is_empty():
@@ -179,8 +183,20 @@ func _initialize() -> void:
 	for r in rows:
 		var flag := "  <-- OVER" if float(r[2]) >= THRESHOLD_DEG else ""
 		print("  %-20s keys=%-4d max=%9.4f  mean=%9.4f  min=%9.4f%s" % [r[0], r[1], r[2], r[3], r[4], flag])
-	print("SENTINEL| worst maximum across the library = %.4f deg; library mean of per-clip means = %.4f deg"
-		% [overall_max, sum_mean / float(maxi(rows.size(), 1))])
+	# TWO MEANS, PRINTED SIDE BY SIDE WITH WHAT EACH ONE WEIGHS, BECAUSE I PUBLISHED
+	# A REPRODUCTION THAT COUNTED ONE OF THEM AS SOMEONE ELSE'S. The two differ by
+	# about 1.07 degrees and are not the same statistic: one weights every key, the
+	# other weights every clip equally. A reader who sees only "mean" cannot tell
+	# them apart, and I could not tell them apart from npc-body's published figures
+	# and reported a match that was not one. npc-body's key-weighted mean is
+	# 151.3946 over 661 keys; the per-clip mean here is 150.3293 over 24 clips. They
+	# are both correct and they are not interchangeable, and the failure was mine.
+	print("SENTINEL| MEAN OVER KEYS (every rotation key weighted equally) = %.4f deg over %d keys"
+		% [sum_all_keys / float(maxi(total_keys, 1)), total_keys])
+	print("SENTINEL| MEAN OF PER-CLIP MEANS (every clip weighted equally) = %.4f deg over %d clips"
+		% [sum_mean / float(maxi(rows.size(), 1)), rows.size()])
+	print("SENTINEL| the two means above differ by %.4f deg and are NOT the same statistic; do not quote either without saying which one"
+		% absf(sum_all_keys / float(maxi(total_keys, 1)) - sum_mean / float(maxi(rows.size(), 1))))
 	# THE PER-CLIP MINIMUM, WHICH IS NEITHER A MEAN NOR A MAXIMUM AND IS THE
 	# STRONGEST STATEMENT AVAILABLE ABOUT THE ASSET. If the LOWEST single key in
 	# the whole library is still far from rest, then the roll is not a moment in
