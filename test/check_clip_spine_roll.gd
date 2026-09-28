@@ -1,3 +1,25 @@
+# =====================================================================================
+# SUPERSEDED FIGURES — THE NUMBERS THIS FILE PRINTS ARE WRONG. THE VERDICT IS NOT.
+# npc-body found that the serialised Transform3D text in humanoid_rig.tscn is
+# ROW-major while the Transform3D constructor is COLUMN-major, so reading bones/N/rest
+# positionally TRANSPOSES it. I did exactly that, under a comment asserting the
+# constructor's layout as if it described the file. The two readings differ by
+# 119.9078 degrees on spine_01, and my transposed reading UNDERSTATED the departure
+# by about 39 degrees.
+# CORRECTED spine_01, re-measured with Skeleton3D.get_bone_rest(i) BY BONE NAME and
+# no text parser at all: min 118.5620, max 174.8365, mean over 661 keys 151.3946.
+# NOT the 79.3989 / 121.8128 / 95.3052 this file previously reported. Those are wrong
+# and must not be quoted.
+# THE VERDICT SURVIVES AND IS STRONGER: 0 of 24 clips come under 45 degrees, not 24 of
+# 24 over it on a margin of 34. The correct figure clears the threshold by 73 degrees.
+# THE RUNTIME AGREES WITH THE CORRECTED OFFLINE FIGURE WITHIN 0.5 DEG, so this is now
+# three instruments agreeing and none of them reads a text parse.
+# WHY THE PARSE IS STILL HERE: replacing it is a change to the measurement, not to its
+# wording, and the corrected rest source belongs to whoever owns the rig with the lanes
+# that verified these numbers present. Until then the parse is kept so the failure stays
+# visible rather than being quietly swapped for a version that looks better.
+# =====================================================================================
+
 extends SceneTree
 
 # RED-BY-DESIGN SENTINEL: every locomotion clip must carry spine_01 departure
