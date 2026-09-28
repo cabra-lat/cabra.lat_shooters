@@ -45,6 +45,64 @@ static func sight_compensation_table(ammo: Ammo, sight_height_m: float, zero_m: 
     rows.append({"distance_m": dd, "offset_m": off, "offset_cm": off * 100.0, "correction_moa": corr_moa})
   return rows
 
+# ─── RETICLE / MAGNIFICATION ───────────────────────
+# The ballistics layer and the optics layer meet HERE and nowhere else.
+#
+# Everything above this line is magnification-blind on purpose: drop is drop at
+# any power. But a reticle mark subtends `mark_mrad` of the SCENE at 1x, so at
+# magnification M that same mark subtends M * mark_mrad of real angle, and the
+# SAME drop becomes a different NUMBER of marks. That is why magnification
+# cannot be ignored here even though it is absent from the solver: it is a
+# property of the DISPLAY, and the display is what has to be honest.
+#
+# The value is derived from the same poi_height_vs_poa the solver uses, so a
+# reticle cannot disagree with the trajectory. If these two ever diverge, the
+# reticle is decoration again.
+#
+# sign: positive = aim ABOVE centre (holdover). Below the zero the round strikes
+# low, so the marks go up; at and past the zero they collapse toward zero as
+# the launch angle carries further.
+const MOA_TO_MRAD := 0.0002908882086657216  # (pi / 180) / 60
+
+static func reticle_holdover_marks(
+  ammo: Ammo,
+  sight_height_m: float,
+  zero_m: float,
+  distance_m: float,
+  magnification: float,
+  mark_mrad: float = 0.001,
+  gravity: float = 9.81
+) -> float:
+  # Holdover in reticle marks. 0 at the zeroed range by construction.
+  var d := max(distance_m, 0.0)
+  if d <= 0.01 or magnification <= 0.0 or mark_mrad <= 0.0:
+    return 0.0
+  var offset_m: float = poi_height_vs_poa(ammo, sight_height_m, zero_m, d, gravity)
+  var correction_rad: float = -atan(offset_m / d)   # + = aim above centre
+  return correction_rad / (mark_mrad * magnification)
+
+static func reticle_holdover_ladder(
+  ammo: Ammo,
+  sight_height_m: float,
+  zero_m: float,
+  distances: Array,
+  magnification: float,
+  mark_mrad: float = 0.001,
+  gravity: float = 9.81
+) -> Array:
+  # The drawable form: one row per range, in reticle marks, ready for a reticle
+  # to render. `marks` is the honest unit for a scope; `correction_moa` is kept
+  # because a dial marked in MOA is still a legitimate thing to show.
+  var rows: Array = []
+  for d in distances:
+    var dd := float(d)
+    rows.append({
+      "distance_m": dd,
+      "offset_m": poi_height_vs_poa(ammo, sight_height_m, zero_m, dd, gravity),
+      "marks": reticle_holdover_marks(ammo, sight_height_m, zero_m, dd, magnification, mark_mrad, gravity),
+    })
+  return rows
+
 static func calculate_impact(
   ammo: Ammo,
   target: BallisticMaterial,

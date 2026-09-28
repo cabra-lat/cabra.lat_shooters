@@ -53,6 +53,15 @@ func _initialize() -> void:
 	print("=== validate_ballistics ===")
 	var m855 := load("res://resources/ammo/5_56_45mm_M855_NIJ_RF2.tres") as Ammo
 	_check(m855 != null, "M855 file loads")
+	# The one arm in this file that guards the FIXTURE rather than the output. Every
+	# other check here asserts on a value the code under test produced; this one
+	# asserts that the projectile feeding them is a projectile. A silently
+	# degenerate Ammo - default 360 m/s, default 8 g - would leave the drop maths
+	# running and the self-consistency arms comparing two wrong answers, so the
+	# subject of those arms would be vacuous without this.
+	_check(m855.muzzle_velocity > 0.0 and m855.bullet_mass > 0.0 and m855.bullet_diameter > 0.0,
+		"M855 is a real projectile (mu=%.1f m/s, %.2f g, %.2f mm), not a default"
+			% [m855.muzzle_velocity, m855.bullet_mass, m855.bullet_diameter])
 
 	_test_multi_projectile(m855)
 	_test_durability_min_and_pen_vs_stop(m855)
@@ -64,6 +73,8 @@ func _initialize() -> void:
 	_test_effectiveness(m855)
 	_test_shotgun_data()
 	_test_attachment_ownership()
+	_test_zero_ownership()
+	_test_reticle_holdover(m855)
 
 	print("")
 	print("checks: %d pass, %d fail" % [_pass, _fail])
@@ -313,3 +324,70 @@ func _test_attachment_ownership() -> void:
 		"released attachment remounts on weapon B")
 	_check(weapon_b.detach_attachment(Weapon.AttachmentPoint.TOP_RAIL),
 		"cleanup detaches the remounted attachment")
+
+# ─── ZERO OWNERSHIP ───────────────────────────────────────────────
+# The zero is a WEAPON property. An optic supplies a DEFAULT for a weapon that
+# has never been zeroed and must never override one that has, because a part
+# swap is not the shooter's decision to re-zero. These arms are the regression
+# net for the form that used to sit here: `o.zero_distance if o != null else
+# zero_distance`, which reset the weapon's zero to the optic's factory 100 m.
+func _test_zero_ownership() -> void:
+	print("--- zero ownership ---")
+	var bare := Weapon.new()
+	bare.zero_distance = 50.0
+	_check(bare.is_zeroed(), "a weapon with a positive zero reports itself zeroed")
+
+	var optic := Attachment.new()
+	optic.type = Attachment.AttachmentType.OPTICS
+	optic.zero_distance = 100.0
+	optic.magnification = 10.0
+	bare.attach_attachment(Weapon.AttachmentPoint.TOP_RAIL, optic)
+	_check(bare.get_effective_zero_distance() == 50.0,
+		"mounting an optic does NOT override a zero the shooter set")
+
+	var unzeroed := Weapon.new()
+	unzeroed.zero_distance = 0.0
+	_check(not unzeroed.is_zeroed(), "zero_distance 0 means never zeroed")
+	_check(unzeroed.get_effective_zero_distance() == Weapon.DEFAULT_ZERO_DISTANCE_M,
+		"never-zeroed weapon with no optic falls back to the documented default")
+	unzeroed.attach_attachment(Weapon.AttachmentPoint.TOP_RAIL, optic)
+	_check(unzeroed.get_effective_zero_distance() == 100.0,
+		"never-zeroed weapon ADOPTS the optic's default zero")
+
+	_check(_approx(bare.set_zero(300.0), 300.0, 0.001), "set_zero puts the shooter's zero in force")
+	_check(bare.get_effective_zero_distance() == 300.0, "set_zero is not undone by a mounted optic")
+	_check(bare.set_zero(0.0) == Weapon.DEFAULT_ZERO_DISTANCE_M,
+		"zeroing to nothing is not a zero; it falls back")
+	_check(not bare.is_zeroed(), "set_zero(0) leaves the weapon explicitly un-zeroed")
+
+# ─── RETICLE HOLDOVER ─────────────────────────────────────────────
+# The reticle must be fed by the SAME drop curve the solver uses, or it is
+# decoration that teaches a hold that is wrong at every range the artist did
+# not check. These arms pin the two properties that make it honest: the marks
+# agree with the impact offset, and magnification changes the NUMBER of marks
+# for the same physical drop.
+func _test_reticle_holdover(ammo: Ammo) -> void:
+	print("--- reticle holdover ---")
+	var sight := 0.04
+	var zero := 100.0
+	var at_zero := BallisticsCalculator.reticle_holdover_marks(ammo, sight, zero, zero, 10.0)
+	_check(absf(at_zero) < 0.01, "holdover is ~0 marks at the zeroed range (%.4f)" % at_zero)
+
+	var far := 400.0
+	var marks_10x := BallisticsCalculator.reticle_holdover_marks(ammo, sight, zero, far, 10.0)
+	var marks_1x := BallisticsCalculator.reticle_holdover_marks(ammo, sight, zero, far, 1.0)
+	_check(marks_10x > 0.0, "beyond the zero the round strikes low, so holdover is UP")
+	_check(absf(marks_10x * 10.0 - marks_1x) < 0.0001,
+		"the same drop is 10x the marks at 1x as at 10x (%.4f vs %.4f)" % [marks_1x, marks_10x])
+
+	# The reticle must agree with the trajectory, not merely be monotone.
+	var offset_m: float = BallisticsCalculator.poi_height_vs_poa(ammo, sight, zero, far, 9.81)
+	var implied_drop_m: float = atan(marks_10x * 0.001 * 10.0) * far
+	_check(_approx(implied_drop_m, -offset_m, 0.05),
+		"reticle marks imply the same impact offset the solver computes (%.3f vs %.3f m)"
+			% [implied_drop_m, -offset_m])
+
+	var ladder := BallisticsCalculator.reticle_holdover_ladder(ammo, sight, zero, [zero, 200.0, 400.0], 10.0)
+	_check(ladder.size() == 3, "the ladder has one row per requested range")
+	_check(ladder[0].marks < ladder[1].marks and ladder[1].marks < ladder[2].marks,
+		"holdover grows monotonically with range")

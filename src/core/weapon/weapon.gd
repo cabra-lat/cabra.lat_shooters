@@ -34,6 +34,11 @@ enum AttachmentPoint {
 ## MagazinePoint / ammo_feed path instead of an attach_points rail bit.
 const MAGAZINE_POINT := -1
 
+# Used only when a weapon has never been zeroed AND no optic suggests a value.
+# It is a last resort, not a claim about the weapon: nothing may present it to
+# the player as a zero the shooter chose.
+const DEFAULT_ZERO_DISTANCE_M := 100.0
+
 # Genre-typical weapon faults. NONE = healthy.
 enum Malfunction {
   NONE,
@@ -82,8 +87,11 @@ var firemodes: int = Firemode.SEMI:
 # ─── SIGHTS (iron fallback; a mounted OPTICS attachment overrides) ──
 @export_group("Sights")
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var sight_height_over_bore: float = 0.04  # m, sight line above bore
+# The zero lives HERE, on the weapon, and NOT on the optic. `0` means "never
+# zeroed" - not a plausible-looking default, because a fabricated zero is a
+# claim the shooter never made. Any positive value is a zero somebody set.
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var zero_distance: float = 50.0  # m, POA == POI (resolver compensates drop)
-@export_custom(PROPERTY_HINT_NONE, "suffix:x") var magnification: float = 1.0  # 1.0 = irons; FOV only, never ballistics
+@export_custom(PROPERTY_HINT_NONE, "suffix:x") var magnification: float = 1.0  # 1.0 = irons
 
 # ─── RECOIL PHYSICS ────────────────────────────────
 @export_group("Recoil Physics")
@@ -137,9 +145,34 @@ func get_effective_sight_height() -> float:
   var o := get_optic_attachment()
   return o.sight_height_over_bore if o != null else sight_height_over_bore
 
+func is_zeroed() -> bool:
+  return zero_distance > 0.0
+
 func get_effective_zero_distance() -> float:
+  # THE ZERO IS A WEAPON PROPERTY, NOT AN OPTIC PROPERTY, and this line is where
+  # that gets decided. Zeroing is an act by the shooter against the configuration
+  # they are holding; an optic is a part that can be removed and refitted at any
+  # time. So a mounted optic's zero_distance is a DEFAULT for a weapon that has
+  # never been zeroed, and is never allowed to override one that has.
+  #
+  # The previous form was `o.zero_distance if o != null else zero_distance`,
+  # which meant fitting ANY optic silently reset the weapon's zero to that
+  # optic's factory value (100 m on every attachment resource in the project).
+  # That is the shooter's decision being made by a part swap, and it is the same
+  # shape as the defect this card is about: an accessor that was correct in
+  # isolation and read by nobody, guarding a field nothing consumed.
+  if is_zeroed():
+    return zero_distance
   var o := get_optic_attachment()
-  return o.zero_distance if o != null else zero_distance
+  if o != null and o.zero_distance > 0.0:
+    return o.zero_distance
+  return DEFAULT_ZERO_DISTANCE_M
+
+# The shooter's act. Returns the zero now in force, which is still a fallback if
+# `distance_m` is not positive - zeroing to nothing is not a zero.
+func set_zero(distance_m: float) -> float:
+  zero_distance = distance_m if distance_m > 0.0 else 0.0
+  return get_effective_zero_distance()
 
 func get_effective_magnification() -> float:
   var o := get_optic_attachment()
