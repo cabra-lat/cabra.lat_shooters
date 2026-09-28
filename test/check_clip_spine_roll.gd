@@ -64,6 +64,7 @@ extends SceneTree
 
 const LIB := "res://addons/cabra.lat_shooters/src/player/humanoid_body_anims.res"
 const RIG := "res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn"
+const BOT_SCENE := "res://src/npcs/bot/bot.tscn"
 const BONE_NAME := "spine_01"
 const TRACK_PATH := NodePath("Skeleton3D:" + BONE_NAME)
 const THRESHOLD_DEG := 45.0
@@ -71,6 +72,7 @@ const THRESHOLD_DEG := 45.0
 var _pass := 0
 var _fail := 0
 var _skel_keepalive: Node = null
+var _ap_keepalive: Node = null
 
 func _initialize() -> void:
 	var lib: AnimationLibrary = load(LIB)
@@ -87,6 +89,33 @@ func _initialize() -> void:
 	# out of a text file WAS the bug, so the text file is no longer read at all.
 	# Skeleton3D.get_bone_rest(i) is the engine's own answer and it is the only
 	# source that cannot be wrong about its own memory layout.
+	# THE SCENE-BINDING PRECONDITION, ADDED AFTER INVENTORY-UX FOUND THE HOLE IN
+	# MY OWN PRECONDITION. I asserted that the library I LOAD is non-empty, which is
+	# true and useless: it checks the resource, not what a scene BINDS. inventory-ux
+	# verified that player.tscn and player_ik.tscn each declare an AnimationLibrary
+	# sub-resource with NOTHING under it and bind it under the same empty-string key
+	# the bot uses. So a scene can bind a library, match the name, and have nothing
+	# in it to play, and every check I had would pass. BOUND BUT EMPTY IS THE SHAPE
+	# THAT SLIPS THROUGH. This asserts the thing I was actually measuring: the library
+	# the BOT SCENE binds under the empty-string key is non-empty AND is the same
+	# resource this sentinel measures. Type-walked, never by name, because the player
+	# side is a node NAMED StateMachine and TYPED AnimationPlayer, which is exactly the
+	# sign-authored-from-a-name trap.
+	var bound := _bound_library()
+	if bound == null:
+		print("RESULT: FAIL (no AnimationLibrary bound under the empty-string key in %s; the sentinel cannot claim to measure what the scene plays)" % BOT_SCENE)
+		quit(2)
+		return
+	var bound_clips: int = bound.get_animation_list().size()
+	if bound_clips <= 0:
+		print("RESULT: FAIL (the library %s binds is BOUND BUT EMPTY, 0 clips)" % BOT_SCENE)
+		quit(2)
+		return
+	if bound.resource_path != LIB:
+		print("RESULT: FAIL (the scene binds %s but this sentinel measures %s; the numbers would describe a library the scene never plays)" % [bound.resource_path, LIB])
+		quit(2)
+		return
+	print("SENTINEL| scene binds %d clips and it is the library measured below" % bound_clips)
 	var skel := _load_skeleton()
 	if skel == null:
 		print("RESULT: FAIL (could not instantiate a Skeleton3D from %s; refusing to report on a missing rest)" % RIG)
@@ -225,6 +254,31 @@ func _find_skeleton(n: Node) -> Skeleton3D:
 		return n as Skeleton3D
 	for c in n.get_children():
 		var r := _find_skeleton(c)
+		if r != null:
+			return r
+	return null
+
+## The library the bot scene BINDS under the empty-string key. Found by TYPE, never
+## by node name: player.tscn carries a node named "StateMachine" that is typed
+## AnimationPlayer, so a name lookup finds the wrong thing on one side and nothing
+## on the other.
+func _bound_library() -> AnimationLibrary:
+	var ps := load(BOT_SCENE) as PackedScene
+	if ps == null:
+		return null
+	var inst := ps.instantiate()
+	var ap := _find_anim_player(inst)
+	var lib: AnimationLibrary = null
+	if ap != null:
+		lib = ap.get_animation_library("")
+	_ap_keepalive = inst
+	return lib
+
+func _find_anim_player(n: Node) -> AnimationPlayer:
+	if n is AnimationPlayer:
+		return n as AnimationPlayer
+	for c in n.get_children():
+		var r := _find_anim_player(c)
 		if r != null:
 			return r
 	return null
