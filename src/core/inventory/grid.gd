@@ -26,8 +26,44 @@ func set_debug_logging(enabled: bool) -> void:
 func is_debug_logging() -> bool:
   return _debug_logging
 
-@export var width: int = 5
-@export var height: int = 5
+# Grid dimensions REBUILD the occupancy cache on assignment. They used to be plain
+# exported fields, so a caller that assigned width/height after construction kept
+# an _occupancy_grid built from the OLD size until some remove_item() happened to
+# rebuild it. Assigning dimensions is not a thing the caller should have to
+# remember, and the old shape made the two facts disagree: a grid declared 16x19
+# whose cache was 5x5 described a different world from the one it enforced.
+#
+# THE INVARIANT THIS EXISTS TO KEEP: what the grid REPORTS and what it ENFORCES
+# must be the same world. A grid that says a cell is free, then hands out a
+# placement, then cannot resolve the cell it just wrote, is the failure — the
+# answer has to be a refusal a caller can see, not a silent success followed by
+# an unresolvable index. That is also why the rebuild happens on ASSIGNMENT and
+# not at the first placement: correctness cannot depend on a private method that
+# every caller across two repositories has to remember to call afterwards.
+#
+# SHRINKING is the interesting direction, and see _rebuild_from_items(): an item
+# that no longer fits stays in the item list and is reported, rather than being
+# dropped. Removing a placed item is a separate, destructive decision.
+#
+# NOTE the shrink case: rebuilding PRESERVES the items already placed. An item
+# that no longer fits the new size cannot be written into the cache, so
+# _rebuild_from_items() reports it loudly (push_error) and keeps it in `items`
+# rather than dropping it — silently deleting a placed item here would be the
+# eviction policy of task_1790472720790_ffe361, and it is not this function's
+# call to make. Shrinking a grid below its contents is unsupported.
+@export var width: int = 5:
+  set(value):
+    if width == value:
+      return
+    width = value
+    _rebuild_from_items()
+@export var height: int = 5:
+  set(value):
+    if height == value:
+      return
+    height = value
+    _rebuild_from_items()
+
 
 var items: Array[InventoryItem] = []
 var _occupancy_grid: Array[Array] = [] # -1 = free, item_index = occupied
@@ -404,3 +440,35 @@ func debug_print_grid():
       print(row)
   if _debug_logging:
     print("=================")
+
+
+# ── appended by inventory-ux on top of current addon main ──
+func _rebuild_from_items() -> void:
+  _reset_grid()
+  for i in range(items.size()):
+    var it := items[i]
+    if it.position.x + it.dimensions.x > width or it.position.y + it.dimensions.y > height:
+      push_error("InventoryGrid: '%s' at %s size %s does not fit a %dx%d grid; kept in items but occupying no cell" % [
+        it.name if it else "?", it.position, it.dimensions, width, height])
+    occupy_area(it.position, it.dimensions, i)
+
+# NEW: Check if a position is occupied by the ignored item
+func occupant_at(position: Vector2i) -> int:
+    if position.x < 0 or position.y < 0:
+        return -1
+    if position.y >= _occupancy_grid.size():
+        return -1
+    if position.x >= _occupancy_grid[position.y].size():
+        return -1
+    return _occupancy_grid[position.y][position.x]
+
+## Does a rectangle lie inside the grid at all? BOUNDS ONLY, no occupancy: this
+## answers "could this ever fit here", which is a different question from
+## is_area_free()'s "is it free right now".
+func fits_in_bounds(position: Vector2i, size: Vector2i) -> bool:
+    if position.x < 0 or position.y < 0:
+        return false
+    if size.x <= 0 or size.y <= 0:
+        return false
+    return position.x + size.x <= width and position.y + size.y <= height
+
