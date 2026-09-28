@@ -22,6 +22,11 @@ var dragged_item: InventoryItem = null  # Track currently dragged item
 
 ## Geometry the live slot grid was built for, so an equal-size reopen can keep
 ## the nodes instead of rebuilding them (see _setup_slots).
+## Grid cell -> InventorySlotUI. The index that replaces the linear search in
+## get_slot_by_grid_position(). Kept beside the slot list because the two are
+## populated and cleared together, and an index that can drift from its list is
+## worse than no index at all.
+var _slots_by_cell: Dictionary = {}
 var _built_grid := Vector2i.ZERO
 var _built_slot_size := 0
 
@@ -82,6 +87,7 @@ func _clear_existing_slots():
         if child != drop_preview:
             grid_background.remove_child(child)
             child.queue_free()
+    _slots_by_cell.clear()
     slot_displays.clear()
     _built_grid = Vector2i.ZERO
     _built_slot_size = 0
@@ -119,7 +125,7 @@ func _create_grid_slots():
             var slot: InventorySlotUI = preload("res://addons/cabra.lat_shooters/src/ui/inventory/slot.tscn").instantiate()
             _setup_grid_slot(slot, Vector2i(x, y))
             grid_background.add_child(slot)
-            slot_displays.append(slot)
+            _register_slot(slot)
     _built_grid = Vector2i(container.grid_width, container.grid_height)
     _built_slot_size = slot_size
 
@@ -178,6 +184,8 @@ func _update_slot_states():
 
 ## Slot at a grid cell (see _update_slot_states).
 func get_slot_by_grid_position(cell: Vector2i) -> InventorySlotUI:
+    return _slots_by_cell.get(cell, null)
+
     for slot in slot_displays:
         if slot.grid_position == cell:
             return slot
@@ -292,3 +300,11 @@ func _on_close_button_pressed():
 func _on_container_changed():
     _update_stats()
     super._on_container_changed()
+## One place that adds a slot to BOTH the list and the index, so they cannot
+## disagree. get_slot_by_grid_position() is called once per covered cell, so the
+## linear scan it replaces was the hot path of a refresh.
+func _register_slot(slot: InventorySlotUI):
+    slot_displays.append(slot)
+    for y in range(slot.dimensions.y):
+        for x in range(slot.dimensions.x):
+            _slots_by_cell[Vector2i(slot.grid_position.x + x, slot.grid_position.y + y)] = slot
