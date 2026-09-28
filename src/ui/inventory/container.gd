@@ -186,11 +186,6 @@ func _update_slot_states():
 func get_slot_by_grid_position(cell: Vector2i) -> InventorySlotUI:
     return _slots_by_cell.get(cell, null)
 
-    for slot in slot_displays:
-        if slot.grid_position == cell:
-            return slot
-    return null
-
 # Drop preview methods
 func _create_drop_preview():
     drop_preview = ColorRect.new()
@@ -305,6 +300,4 @@ func _on_container_changed():
 ## linear scan it replaces was the hot path of a refresh.
 func _register_slot(slot: InventorySlotUI):
     slot_displays.append(slot)
-    for y in range(slot.dimensions.y):
-        for x in range(slot.dimensions.x):
-            _slots_by_cell[Vector2i(slot.grid_position.x + x, slot.grid_position.y + y)] = slot
+    _slots_by_cell[slot.grid_position] = slot
