@@ -1907,12 +1907,25 @@ func _inv46_rest_sources_disagree_as_a_spike_not_an_offset() -> void:
 ## a parser that gets the translation right and the rotation wrong looks like a working
 ## parser, and a transpose preserves the magnitude of a rotation and flips only its sign.
 ##
-## NO COLUMN SWAP, and no str_to_var, deliberately. Both were measured against
-## get_bone_rest on this rig and both leave a 0.039565 deg residual on foot.L_059 while
-## being exact on the other four sampled bones -- the same near-identity-bone trap that
-## hid the transpose, because a bone whose rest is close to identity cannot show it. A
-## corrected parser is still a parser the next reader can transpose. The engine's own
-## answer cannot be, and there is nothing left here to get wrong.
+## NO COLUMN SWAP, and no str_to_var, deliberately -- and NOT because they read the text
+## wrongly, which is now known to be false. Both read the .tscn faithfully, and the engine
+## loads that text VERBATIM: stored and live determinants are identical to every printed
+## digit, so there is no normalisation step for a parser to disagree with.
+##
+## The real reason is the one that survives the measurement: get_bone_rest is what
+## ACTUALLY PLAYS, so it removes the question instead of answering it. A corrected parser
+## is still a parser the next reader can transpose, and the engine's own answer cannot be.
+##
+## ON THE 0.039565 deg RESIDUAL, WHICH IS NOT WHAT I FIRST WROTE HERE. I attributed it to
+## the same near-identity-bone trap that hid the transpose. That is refuted: shin.L_058
+## has stored_det exactly 1.0 with identity rows and still carries it, while foot.L_059
+## carries the same value with a slightly off determinant, so it is neither a
+## non-orthonormality artefact nor a parser artefact. It is a genuine small rotation
+## difference between humanoid_rig.tscn and psx_character_rigged.glb, on 12 bones. At
+## 0.04 deg against displacements of 118-175 deg it is four orders of magnitude apart from
+## anything this check concludes, so it is the price of the asset having been exported
+## twice and it is a fixture note, not a card. I had the number right and the sentence
+## around it wrong, which is the recurring shape here and worth writing down.
 func _inv46_engine_rest(scene_path: String) -> Dictionary:
 	var out: Dictionary = {}
 	var ps: PackedScene = load(scene_path) as PackedScene
