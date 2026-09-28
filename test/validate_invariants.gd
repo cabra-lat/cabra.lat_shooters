@@ -3111,8 +3111,9 @@ func _inv38f_pose_precondition_guard() -> void:
 	# Distance reporting: with a camera supplied the message must carry the
 	# distance, because "frozen" without "how far" sends the next reader hunting.
 	var cam := Camera3D.new()
-	cam.global_position = Vector3(0, 0, 60)
 	root.add_child(cam)
+	await process_frame  # INV-38f: global_position is only expressible once the node is in the tree
+	cam.global_position = Vector3(0, 0, 60)
 	rig.set_lod(1)
 	var with_dist := _pose_precondition(rig, cam)
 	rig.set_lod(0)
