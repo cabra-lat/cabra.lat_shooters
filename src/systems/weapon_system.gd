@@ -89,8 +89,41 @@ static func insert_cartridge(weapon: Weapon, new_cartridge: Ammo) -> void:
   elif weapon.ammo_feed:
     weapon.ammo_feed.insert(new_cartridge)
 
+## Detach (`new_magazine == null`) or install a magazine.
+##
+## THE INTERNAL GATE IS FIRST AND ALONE, and that ordering is the point. The
+## original condition was `feed_type == INTERNAL or new_magazine.type !=
+## feed_type`, which reads `new_magazine.type` even when `new_magazine` is null:
+## for an EXTERNAL feed the first clause is false, the second is evaluated against
+## null, and the call raises "Invalid access to property or key 'type' on a base
+## object of type 'Nil'" and returns false. The unload action delegates its
+## permission check to exactly this call with null, so Unload magazine could not
+## succeed at all -- a fully wired control doing nothing, which is the exact shape
+## of the owner's original report.
+##
+## Splitting the gate out is also what makes the permission rule auditable: a
+## single-clause INTERNAL test that refuses on its own cannot be bypassed by a
+## later branch added beside it, which is how a refusal ends up destroying rounds
+## instead of returning them.
 static func change_magazine(weapon: Weapon, new_magazine: AmmoFeed) -> bool:
-  if weapon.feed_type == AmmoFeed.Type.INTERNAL or new_magazine.type != weapon.feed_type:
+  if weapon.feed_type == AmmoFeed.Type.INTERNAL:
+    weapon.ammo_feed_incompatible.emit(weapon, new_magazine)
+    return false
+
+  ## DETACH. Behind the gate above, so it is reachable only for a feed the model
+  ## permits removing. Seats an EMPTY feed of the weapon's own type rather than
+  ## nulling the field, so "a weapon has a feed" stays true everywhere and no
+  ## caller has to learn a second shape.
+  if new_magazine == null:
+    var detached = weapon.ammo_feed
+    var empty := AmmoFeed.new()
+    empty.type = weapon.feed_type
+    empty.compatible_calibers = weapon.ammo_feed.compatible_calibers.duplicate() if weapon.ammo_feed != null else []
+    weapon.ammo_feed = empty
+    weapon.ammo_feed_changed.emit(weapon, detached, null)
+    return true
+
+  if new_magazine.type != weapon.feed_type:
     weapon.ammo_feed_incompatible.emit(weapon, new_magazine)
     return false
 

@@ -166,21 +166,3 @@ grow_vertical = 2
 script = ExtResource("3_adt6v")
 slot_type = "secondary"
 allowed_categories = Array[String]([])
-
-[node name="utility" parent="Equipment/TabContainer/Loadout" instance=ExtResource("1_n82b3")]
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = 13.999985
-offset_top = -107.0
-offset_right = 114.000046
-offset_bottom = -7.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("3_adt6v")
-slot_type = "utility"
-allowed_categories = Array[String]([])
