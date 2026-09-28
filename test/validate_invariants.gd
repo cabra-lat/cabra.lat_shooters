@@ -118,6 +118,7 @@ func _initialize() -> void:
 func _run() -> void:
 	print("=== validate_invariants: cross-system invariants ===")
 
+	_inv38f_pose_precondition_guard()
 	_inv04_magazine_alias()
 	_inv06_wrapped_item_mass()
 	_inv07_undefined_cert_level()
@@ -2738,3 +2739,105 @@ func _meta_cleanup() -> void:
 		return
 	for f in d.get_files():
 		d.remove(f)
+
+# ─── INV-38f: POSE PRECONDITION — a frozen rig makes any pose reading VOID ──
+# ORIGIN: spotter's LOD measurement, 2026-09-26. Bots measured at
+# speed_scale 0.000 with AnimationPlayer position advancing 0.0000 s over 240
+# frames while the root travelled 6.100 m. Cause: humanoid_rig.gd:164 zeroes
+# speed_scale when LOD'd, and bot.gd _tick_lod keys on distance to the active
+# camera with anim_lod_distance = 45.0 (bot.gd:129).
+#
+# WHY THIS IS A PRECONDITION AND NOT A SCENE-WIDE ASSERTION. Written as a
+# global "speed_scale must be > 0" this would FAIL IN A NORMAL GAME every time
+# a player walks away from a bot, because that is production behaving correctly
+# at 45 m and 90 m. A global assertion here is a false-positive generator and it
+# gets deleted after it cries wolf once. So it guards the MEASUREMENT PATH: the
+# thing to assert is that a pose reading is only taken from a subject that can
+# move, and that a reading from a frozen subject is VOID rather than degenerate.
+#
+# This catches a failure that has bitten repeatedly: a valid-looking number read
+# off a rig that is in a locked pose. The number is real, the arithmetic is
+# right, and the subject never moved — the same shape as INV-20 passing happily
+# over a rig that could not animate.
+#
+# THE ASSERTION IS DEMONSTRATED RED HERE, ON PURPOSE. A guard that has only
+# ever been green is a hope, not a guard.
+func _pose_precondition(rig: Node, cam: Camera3D) -> String:
+	# Search by TYPE, the way humanoid_rig._ensure_anim() does, not by NAME.
+	# The first version of this guard used get_node("AnimationPlayer") and it
+	# reported "no AnimationPlayer" on a perfectly good rig, because the node in
+	# humanoid_rig.tscn is not named that. A guard that looks up the wrong thing
+	# reports a missing AnimationPlayer instead of a frozen pose, which is the
+	# most misleading possible answer: it sends the reader to the scene file
+	# instead of to the 45 m distance.
+	var anim: AnimationPlayer = null
+	var stack: Array = [rig]
+	while not stack.is_empty() and anim == null:
+		var n: Node = stack.pop_back()
+		if n is AnimationPlayer:
+			anim = n
+		else:
+			stack.append_array(n.get_children())
+	if anim == null:
+		return "POSE PRECONDITION FAILED: rig %s has no AnimationPlayer anywhere in its subtree — no pose reading is possible" % rig.name
+	if anim.speed_scale > 0.0:
+		return ""
+	var d := -1.0
+	if cam != null:
+		d = rig.global_position.distance_to(cam.global_position)
+	return "POSE PRECONDITION FAILED: rig %s has speed_scale=%.3f (frozen by LOD) and camera distance %.1f m — any pose reading from this subject is VOID, not degenerate" % [
+		rig.name, anim.speed_scale, d]
+
+
+func _inv38f_pose_precondition_guard() -> void:
+	var rig_ps := load(RIG_SCENE) as PackedScene
+	if rig_ps == null:
+		_check("INV-38f", "pose precondition guard", false, "rig scene missing", "spotter LOD precondition")
+		return
+	var rig := rig_ps.instantiate()
+	root.add_child(rig)
+
+	# Positive arm: a rig in a live scene with no camera-driven LOD applied is a
+	# VALID subject, and the guard must be quiet on it. A guard that fires on
+	# everything is not a guard.
+	var live := _pose_precondition(rig, null)
+	_check("INV-38f", "quiet on a live (unfrozen) subject", live == "",
+		"expected no precondition failure, got: %s" % (live if live != "" else "(silent)"),
+		"spotter LOD precondition: the guard must not cry wolf")
+
+	# RED ARM: the same rig, LOD'd to 1, which is production behaviour at >45 m.
+	# The guard MUST fire, and the message must carry the distance so a failing
+	# run says which side of 45 m the subject was on.
+	rig.set_lod(1)
+	var frozen := _pose_precondition(rig, null)
+	if frozen == "":
+		_check("INV-38f", "RED ARM: fires on an LOD-frozen subject", false,
+			"guard stayed silent on a rig with speed_scale 0.0 — a guard that cannot fail",
+			"spotter: the check that cannot fail")
+	else:
+		_check("INV-38f", "RED ARM: fires on an LOD-frozen subject",
+			frozen.contains("VOID") and frozen.contains("speed_scale"),
+			frozen, "spotter LOD precondition")
+
+	# And it must go quiet again once the subject is live, so it is a PRECONDITION
+	# and not a latch: a latched guard would poison every later measurement.
+	rig.set_lod(0)
+	var recovered := _pose_precondition(rig, null)
+	_check("INV-38f", "re-arms after the subject is live again", recovered == "",
+		"expected silent, got: %s" % (recovered if recovered != "" else "(silent)"),
+		"a latched guard would void every later reading")
+
+	# Distance reporting: with a camera supplied the message must carry the
+	# distance, because "frozen" without "how far" sends the next reader hunting.
+	var cam := Camera3D.new()
+	cam.global_position = Vector3(0, 0, 60)
+	root.add_child(cam)
+	rig.set_lod(1)
+	var with_dist := _pose_precondition(rig, cam)
+	rig.set_lod(0)
+	var reported := with_dist.contains("60.0 m")
+	_check("INV-38f", "failure message carries the camera distance", reported,
+		with_dist if with_dist != "" else "(silent)",
+		"a failing run must say which side of 45 m it was on")
+	rig.queue_free()
+	cam.queue_free()
