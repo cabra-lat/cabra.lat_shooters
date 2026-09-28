@@ -1,5 +1,9 @@
 class_name PlayerMovementParameters
 extends Resource
+
+## Authored selector states, one per leaning state. The directory is a const
+## because an inline long path is what I truncated once already.
+const LEANING_DIR := "res://addons/cabra.lat_shooters/src/player/resources/states/leaning/"
 ## Pure stance/movement parameter selection for PlayerController.
 ##
 ## State-machine and camera side effects stay in the controller. The caller
@@ -101,13 +105,20 @@ func resolve(
       result.speed = config.prone_speed
       result.head_bobbing = config.prone_bobbing
 
-  match leaning_state:
-    "LeaningRight":
-      result.speed = config.lean_speed
-      result.lean_direction = -1.0
-    "LeaningLeft":
-      result.speed = config.lean_speed
-      result.lean_direction = 1.0
+  # SELECTOR LAYER (leaning axis). The authored .tres carries state_id and
+  # lean_direction; speed still comes from config.lean_speed, so tuning stays in
+  # one place and no config value is frozen into authored data.
+  # Sign convention is owned by the CONSUMER, not by these files:
+  # controller.gd reads parameters.lean_direction into _lean_dir, documented
+  # there as -1 right, +1 left, and uses peek_target = -_lean_dir * OFFSET.
+  for _lkey in ["not_leaning", "leaningleft", "leaningright"]:
+    var _ls: PlayerMovementParameters = instantiate_local(
+        load(LEANING_DIR + _lkey + ".tres"))
+    if _ls != null and String(_ls.state_id) == leaning_state:
+      result.lean_direction = _ls.lean_direction
+      if String(_ls.state_id) != "NotLeaning":
+        result.speed = config.lean_speed
+      break
 
   match aiming_state:
     "Aiming":
