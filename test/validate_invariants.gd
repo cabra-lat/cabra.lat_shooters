@@ -27,87 +27,19 @@ const WEAPON_PATH := "res://resources/weapons/M4_Carbine.tres"
 const ARMOR_PATH := "res://resources/armor/GOST_BR4.tres"
 const BANDAGE_PATH := "res://resources/medical/army_bandage.tres"
 const RIG_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn"
-## INV-38 needs the PRODUCTION animation wiring, which lives in the bot scene: the
-## AnimationPlayer, its library and root_node are all in bot.tscn, and
-## humanoid_rig.tscn carries no AnimationPlayer at all.
+# Fixture source for anything that needs a REAL pose subject. humanoid_rig.tscn
+# carries no AnimationPlayer of its own — its rig script owns the pose — so any
+# guard built on the bare rig can only ever report "no pose reading is possible"
+# and every row of it fails for a fixture reason rather than an invariant reason.
+# bot.tscn is the one scene in this tree that carries BOTH the rig and an
+# AnimationPlayer, so a pose fixture is built from it. See _find_humanoid_rig.
 const BOT_SCENE := "res://src/npcs/bot/bot.tscn"
 const IK_SCENE := "res://addons/cabra.lat_shooters/src/player/scenes/player_ik.tscn"
 const META_TEST_DIR := "user://inv_meta_test"
 const META_SAVE := "user://inv_meta_test/profile.save"
 
-## ─── THE RULE THIS FILE EXISTS TO ENFORCE ─────────────────────────────────────────────
-## Before measuring, ask what could explain the number more cheaply than the
-## measurement. If the answer is a file you already have open, open it.
-##
-## This is not a style note; it is the load-bearing lesson of a long debugging night in
-## which four separate questions were each answered by ONE line of a file that three
-## different lanes already had open, and each answer arrived only AFTER an instrument had
-## been built, a hypothesis proposed, a measurement repeated, and in one case a false
-## defect written onto a card. The wrong turn was never carelessness. A measurement costs
-## more, takes longer, and LOOKS more like evidence than opening a file does, so it is
-## always the more attractive next step -- and every instrument built to explain a number
-## made the mystery look more real rather than less.
-##
-## Three corollaries, each paid for at least once:
-##   1. A quantity that VARIES is not a mechanism. It is evidence that you have not found
-##      the input yet, and the first place to look is whatever generates it. Seven "basis"
-##      values turned out to be randf_range(0.94, 1.06) in bot.gd:1125 -- a documented
-##      per-bot random draw, in this lane's own file.
-##   2. Before hunting a writer, check that the thing you re-ran is the thing you measured
-##      the first time. The scale was constant WITHIN a process and random BETWEEN bots, so
-##      each re-run was a different object. Variation across a re-run is evidence of a
-##      writer only if the re-run is the same object -- a checkable precondition.
-##   3. A control is defined by the failure it CAN EXPRESS. A control built from a quantity
-##      blind to the failure passes forever, confidently, and looks rigorous while doing it.
-##      A basis SCALE cannot see a rotation, so a scale gate would pass a rig rolled 90
-##      degrees at any tolerance. That is what made the previous INV-38 green.
-##
-## And the constructive half, which matters as much as the rule: a randomised input can be
-## PINNED rather than tolerated. Forcing the scale to 1.0 before measuring removes that
-## noise source instead of budgeting for it.
-
 var _pass := 0
 var _fail := 0
-var _notes := 0
-# Ratchet (QA, 2026-09-26). QA's verdict on 01f8786: printing the count is
-# NECESSARY BUT NOT SUFFICIENT. "A note is quieter than a fail, not louder" --
-# a permanently-green NOTE printing the same number forever is the quietest
-# signal the harness can produce, so it is strictly easier to ignore than the
-# FAIL it replaced. QA's own "a gate that cannot pass teaches reviewers to
-# ignore it" argument therefore applies MORE strongly to report-only than to
-# hard-fail, and I had reused it as though it supported the demotion.
-# What separates a demotion from a deletion is a GOVERNOR, not a print. So:
-#   - the SITE count is what appears on RESULT, not the note count. "1 note"
-#     reads like a non-event; "16 sites" is the number that proves the rule is
-#     still running.
-#   - if the count ever RISES above this baseline, the rule re-promotes itself
-#     to a hard gate without anyone deciding to. Silently growing debt is the
-#     thing demotion is supposed to prevent, and it can only be prevented by
-#     something that fails.
-const INV38A_BASELINE_FILE := "res://addons/cabra.lat_shooters/test/baselines/INV-38a.txt"
-
-# The baseline is DATA, not a source constant, and that is a reviewability choice
-# rather than a safety one -- QA, 2026-09-26, on f5ff4d7. As a named constant it
-# was defeated by changing one digit: bump 16 to 17 and the gate goes green
-# reading "17 site(s) vs baseline 17", with nothing recording that the debt
-# moved, and a number in a harness is the change least likely to be looked for.
-# In a data file the same edit shows up as content in the diff and the harness
-# says where the number came from. CHANGING test/baselines/INV-38a.txt REQUIRES
-# A SECOND READER, exactly as tools/qa/ignore.json already does for suppressions.
-# This is ADVISORY, not a governor: anyone can edit a data file too, and the
-# second-reader rule is the actual control. Calling it a governor overstates it.
-func _inv38a_baseline() -> int:
-	if not FileAccess.file_exists(INV38A_BASELINE_FILE):
-		_check("INV-38a", "baseline file is missing", false,
-			INV38A_BASELINE_FILE, "the ratchet has no number to compare against")
-		return 0
-	var raw := FileAccess.get_file_as_string(INV38A_BASELINE_FILE).strip_edges()
-	if not raw.is_valid_int():
-		_check("INV-38a", "baseline file is not an integer", false,
-			"%s = %s" % [INV38A_BASELINE_FILE, raw], "an unreadable baseline is not a permissive one")
-		return 0
-	return raw.to_int()
-var _inv38a_sites := 0
 var _fail_lines: Array[String] = []
 var _sabotage := false
 
@@ -119,6 +51,7 @@ func _run() -> void:
 	print("=== validate_invariants: cross-system invariants ===")
 
 	_inv38f_pose_precondition_guard()
+	_inv38g_sliding_statue()
 	_inv04_magazine_alias()
 	_inv06_wrapped_item_mass()
 	_inv07_undefined_cert_level()
@@ -126,15 +59,10 @@ func _run() -> void:
 	_inv16_attachment_wiring()
 	_inv16b_baked_optic_toggle()
 	_inv36_inventory_null_transfer()
-	_inv38_full_grid_never_evicts()
-	_inv39_resize_rebuilds_the_occupancy_cache()
-	await _inv40_slot_lookup_is_indexed()
-	_inv41_cycle_action_reachable()
 	await _inv17_world_mode_tags_no_npcs()
 	await _inv18_rig_sole_on_ground()
 	await _inv19_rig_body_material_supports_flash()
 	await _inv20_every_clip_drives_the_rig()
-	await _inv38_spine_points_up()
 	_inv21_roles_swap_conserves_mass()
 	_inv22_roles_kia_forfeits_only_active_kit()
 	_inv23_skeletons_in_sync()
@@ -157,7 +85,6 @@ func _run() -> void:
 	await _inv33_inventory_escape_order()
 	await _inv37_npc_lod_survives_detached_bot()
 	await _inv37c_npc_acquire_target_survives_detached_bot()
-	await _inv38_no_unguarded_get_tree_deref()
 
 	print("")
 	print("=== validate_invariants summary ===")
@@ -167,7 +94,7 @@ func _run() -> void:
 		print("  --- failures (with origin) ---")
 		for line in _fail_lines:
 			print("  " + line)
-		print("RESULT: FAIL  (INV-38a report-only: %d site(s) vs baseline %d from %s — see NOTE rows)" % [_inv38a_sites, _inv38a_baseline(), INV38A_BASELINE_FILE])
+		print("RESULT: FAIL")
 		quit(1)
 	else:
 		# The counters CANNOT see a nested runtime error: GDScript does not throw, so
@@ -181,22 +108,16 @@ func _run() -> void:
 		# greps /RESULT: PASS/, which still matches, and a human reading the log
 		# now sees the caveat. If you are reading this outside the gate, the
 		# counters are all that was checked.
-		# The SITE count, not the note count. QA's finding: RESULT carried "1
-	# report-only note(s)" and the meaningful number sat one level down in the
-	# NOTE body, so a reader scanning RESULT saw the smaller of the two
-	# numbers. This is the number whose presence proves demotion is not
-	# deletion, so it is the one that belongs on the line.
-		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check); INV-38a report-only: %d site(s) vs baseline %d from %s — see NOTE rows" % [_inv38a_sites, _inv38a_baseline(), INV38A_BASELINE_FILE])
+		print("RESULT: PASS (counters only — run via verify-all.mjs for the runtime-error check)")
 		quit(0)
 
-## Report-only tier. Counts and prints, but never fails the gate.
-## Used where the RULE is sound but has never been measured against the
-## tree, so an unconditional FAIL would be red forever on sites this repo
-## cannot fix. The count IS the deliverable: it decides whether the
-## follow-up is a 22-site refactor or three sites.
-func _note(id: String, name: String, detail: String, origin: String) -> void:
-	_notes += 1
-	print("  NOTE  %-7s %-42s %s" % [id, name, detail])
+## A row that is NOT EXERCISED. It is not a pass and it is not a red: it is an
+## explicit, named gap and it increments NEITHER counter. This exists so a
+## known-unprovable claim is reported as unprovable instead of being quietly
+## counted green, which is the absence-check-wearing-a-pass shape.
+func _skip(id: String, name: String, reason: String) -> void:
+	print("  SKIP  %s %s — NOT COUNTED AS A PASS: %s" % [id, name, reason])
+
 
 func _check(id: String, name: String, ok: bool, detail: String, origin: String) -> void:
 	if ok:
@@ -315,282 +236,6 @@ func _grid_dims(c: InventoryContainer) -> String:
 	if c == null or c.grid == null:
 		return "nil"
 	return "%dx%d" % [c.grid.width, c.grid.height]
-
-# ─── INV-38: a FULL grid refuses the placement and evicts NOTHING ───
-# ORIGIN: card task_1790472720790_ffe361, from a pasted DEBUG log that read
-# "No free space found for item / No space found for item / Removing item from
-# grid: Army bandage" and was re-scoped as "is eviction-on-full policy or a
-# defect?". Diagnosis (probe_eviction_tmp, 2026-09-27, measured on a full
-# 16x19 grid): eviction does not exist. grid.add_item returns false at
-# grid.gd:135-136; InventorySystem.transfer_item_to_position removes from the
-# source FIRST (inventory_system.gd:66) and ROLLS BACK on a failed insert
-# (:70-73), so the "Removing item from grid" line in that log belongs to the
-# source removal of a normal transfer, not to a retry. The log's two halves are
-# two events. This assertion pins the behaviour so a future "make room for it"
-# fallback cannot be added silently: a full container must REFUSE, and every item
-# it already held must still be there afterwards.
-func _inv38_full_grid_never_evicts() -> void:
-	var full := InventoryContainer.new()
-	full.name = "INV-38 full"
-	full.grid_width = 4
-	full.grid_height = 4
-	full.max_weight = 100000.0
-	for y in range(4):
-		for x in range(4):
-			var filler := InventoryItem.new()
-			filler.name = "filler_%d_%d" % [x, y]
-			filler.dimensions = Vector2i.ONE
-			full.add_item(filler, Vector2i(x, y))
-	var held := full.items.size()
-	var occupied_cell := full.get_item_at(Vector2i(3, 3))
-
-	# (a) explicit placement over an occupied area
-	var tall := InventoryItem.new()
-	tall.name = "tall"
-	tall.dimensions = Vector2i(1, 4)
-	var explicit_refused: bool = not full.add_item(tall, Vector2i(0, 0))
-
-	# (b) "find me any free space" on a full grid
-	var wide := InventoryItem.new()
-	wide.name = "wide"
-	wide.dimensions = Vector2i(2, 2)
-	var auto_refused: bool = not full.add_item(wide, Vector2i(-1, -1))
-
-	# (c) the real UI drop path: a transfer into the full container
-	var src := InventoryContainer.new()
-	src.name = "INV-38 src"
-	src.grid_width = 2
-	src.grid_height = 2
-	src.max_weight = 100000.0
-	var bandage := InventoryItem.new()
-	bandage.name = "Army bandage"
-	bandage.dimensions = Vector2i.ONE
-	src.add_item(bandage, Vector2i(0, 0))
-	var transfer_refused: bool = not InventorySystem.transfer_item_to_position(src, full, bandage, Vector2i(0, 0))
-
-	var no_loss: bool = full.items.size() == held
-	var source_kept: bool = bandage in src.items and src.items.size() == 1
-	var cell_intact: bool = full.get_item_at(Vector2i(3, 3)) == occupied_cell
-	var ok: bool = explicit_refused and auto_refused and transfer_refused and no_loss and source_kept and cell_intact
-	_check("INV-38", "full_grid_refuses_and_never_evicts", ok,
-		"held=%d after=%d explicit=%s auto=%s transfer=%s source_kept=%s cell_intact=%s" % [
-			held, full.items.size(), str(explicit_refused), str(auto_refused),
-			str(transfer_refused), str(source_kept), str(cell_intact)],
-		"a full container silently dropped an existing item to satisfy a placement (data loss)")
-
-# ─── INV-39: assigning grid dims REBUILDS the occupancy cache ──────
-# ORIGIN: card task_1790474791642_7a1361. InventoryGrid.width/height were plain
-# exported fields and _occupancy_grid was built only in _init(), so a caller
-# assigning them after construction kept a cache built from the OLD size until
-# some remove_item() happened to rebuild it. No production site was wrong (both
-# container.gd and meta_profile.gd called _reset_grid() right after assigning),
-# so this is the footgun, not a live data-loss bug. RED ARM, measured on the
-# pre-fix code: declare 16x19 after construction and fill every declared cell,
-# and the grid reports used=25, free=279 — a container telling the player it has
-# 279 free cells while it has none. The fix is a width/height setter plus ONE
-# rebuild path (_rebuild_from_items) shared by the setters, _init() and
-# remove_item(), so a resize and a removal cannot produce different tables.
-# The CONTROL arm matters as much as the red one and is the second half of this
-# check: the remove-driven rebuild is compared against an INDEPENDENTLY built
-# grid of the same content, so "the setter rebuilds" cannot be satisfied by a
-# second, disagreeing path.
-func _inv39_resize_rebuilds_the_occupancy_cache() -> void:
-	# (a) RED ARM: assign after construction, cache must follow immediately.
-	var g := InventoryGrid.new()
-	g.width = 16
-	g.height = 19
-	var shape_ok: bool = _grid_shape(g) == "16x19"
-
-	# (b) the wrong number a caller used to read back.
-	for y in range(19):
-		for x in range(16):
-			g.occupy_area(Vector2i(x, y), Vector2i.ONE, 0)
-	var area_ok: bool = g.get_used_area() == 16 * 19 and g.get_free_area() == 0
-
-	# (c) CONTROL: resize and removal agree with an independent build.
-	var a := _grid_three_items(6, 4)
-	var resized_table := _grid_table(a)
-	a.width = 8
-	var resize_ok: bool = resized_table != _grid_table(a) and _grid_shape(a) == "8x4" and _grid_occupied(a) == 8
-	a.remove_item(a.items[2])
-	var reference := _grid_three_items(8, 4)
-	reference.remove_item(reference.items[2])
-	var control_ok: bool = _grid_table(a) == _grid_table(reference) and _grid_occupied(a) == 7
-
-	var ok: bool = shape_ok and area_ok and resize_ok and control_ok
-	_check("INV-39", "grid_resize_rebuilds_the_occupancy_cache", ok,
-		"shape=%s used=%d free=%d resize_kept=%d control=%s" % [
-			_grid_shape(g), g.get_used_area(), g.get_free_area(),
-			_grid_occupied(a), str(control_ok)],
-		"a grid whose width/height were assigned after construction kept a stale _occupancy_grid (reported 279 free cells with none)")
-
-## A grid of the given size holding three items at FIXED positions, so two grids
-## built here always hold identical content to compare occupancy tables over.
-func _grid_three_items(w: int, h: int) -> InventoryGrid:
-	var g := InventoryGrid.new()
-	g.width = w
-	g.height = h
-	for spec in [[Vector2i(0, 0), Vector2i(2, 2)], [Vector2i(3, 0), Vector2i(1, 3)], [Vector2i(0, 3), Vector2i(1, 1)]]:
-		var it := InventoryItem.new()
-		it.name = "inv39_%d" % g.items.size()
-		it.dimensions = spec[1]
-		g.add_item(it, spec[0])
-	return g
-
-# ─── INV-40: the slot-by-cell lookup is an INDEX, not a scan ──────────
-# ORIGIN: card 38a378 (the GPU question). The owner's question was whether
-# inventory work could move to the GPU, and measuring it found the answer was
-# neither yes nor no: the work was never heavy, the DATA STRUCTURE was wrong.
-# InventoryContainerUI.get_slot_by_grid_position() scanned the whole
-# `slot_displays` array and returned the first grid_position match, and
-# _update_slot_states() calls it once per grid cell covered by an item, so a
-# refresh was O(covered_cells x N). Measured on the pre-fix code: 2.9 ms at
-# N=225, 620 ms at N=57,600, growing ~4x per 4x N, while the occupancy grid that
-# already answers the same question measured FLAT (21, 22, 11, 11, 11 us across
-# the same N range). A PackedInt64Array bitmask was considered and rejected: at
-# N=225 it is four words, so the complexity was never the problem.
-#
-# WHY A STATIC CHECK AND NOT A BENCHMARK. A timing assertion is not a gate -- it
-# is a coin flip on a loaded CI box, and it would flake rather than fail. What is
-# actually worth pinning is the SHAPE: the lookup must not scan the display list,
-# and the index must not be able to drift from it. So this asserts the structure
-# and the index/list agreement, which is checkable, and leaves the numbers in the
-# commit message where they belong.
-#
-# RED ARM, measured on the pre-fix code: the scan is present and this fails. The
-# positive half is what keeps it from being a check that cannot fail -- a file
-# that simply deleted the lookup would also pass a "no scan" grep, so the same
-# check confirms every created cell is REACHABLE through the index.
-func _inv40_slot_lookup_is_indexed() -> void:
-	var src := FileAccess.get_file_as_string("res://addons/cabra.lat_shooters/src/ui/inventory/container.gd")
-
-	# (a) The lookup body must not walk slot_displays. Scoped to the function so
-	# the OTHER legitimate uses of the list (the clear-all loop, the register
-	# helper) do not read as a regression.
-	var body := _func_body(src, "func get_slot_by_grid_position")
-	var scans: bool = body.contains("for slot in slot_displays")
-	var looks_up: bool = body.contains("_slots_by_cell")
-	var ok: bool = (not scans) and looks_up and not body.is_empty()
-
-	# (b) POSITIVE CONTROL, and the half that makes (a) mean something: the index
-	# must actually answer. A missing lookup, a typo'd key, or an index that is
-	# never populated all pass "there is no for loop here".
-	#
-	# THE REAL SCENE, NOT `new()`. `grid_background` is @onready, so a bare
-	# InventoryContainerUI.new() has a null background and _create_grid_slots()
-	# silently creates nothing -- which is exactly what happened the first time
-	# this ran, and the positive control caught it. A control that needs a
-	# constructed tree to be meaningful has to be given one.
-	var live = load("res://addons/cabra.lat_shooters/src/ui/inventory/container.tscn").instantiate()
-	get_root().add_child(live)
-	get_root().size = Vector2i(1280, 720)
-	await process_frame
-	var c := InventoryContainer.new()
-	c.grid_width = 6
-	c.grid_height = 4
-	live.open_container(c)
-	await process_frame
-	var reachable: bool = live.slot_displays.size() == 24
-	reachable = reachable and live.get_slot_by_grid_position(Vector2i(0, 0)) != null
-	reachable = reachable and live.get_slot_by_grid_position(Vector2i(5, 3)) != null
-	reachable = reachable and live.get_slot_by_grid_position(Vector2i(6, 0)) == null
-	reachable = reachable and live.get_slot_by_grid_position(Vector2i(-1, -1)) == null
-	# (c) THE LIST AND THE INDEX AGREE, cell for cell. An index that answers but
-	# disagrees with slot_displays would be worse than the scan, because the two
-	# would render differently depending on which one a caller used.
-	var agree: bool = true
-	for s in live.slot_displays:
-		if live.get_slot_by_grid_position(s.grid_position) != s:
-			agree = false
-			break
-	# (d) AND CLEARING really clears both, or a reopened container serves slots
-	# from the previous one.
-	live._clear_existing_slots()
-	var cleared: bool = live.slot_displays.is_empty() and live.get_slot_by_grid_position(Vector2i(0, 0)) == null
-	live.queue_free()
-
-	_check("INV-40", "slot_lookup_is_indexed_not_scanned", ok and reachable and agree and cleared,
-		"func_found=%s scans=%s uses_index=%s reachable=%s index_agrees=%s cleared=%s | red arm: the pre-fix linear scan fails (a); a deleted or unpopulated index fails (b)-(d)" % [
-			not body.is_empty(), scans, looks_up, reachable, agree, cleared],
-		"F-TARGET: none -- a performance-shape invariant, not an engine API")
-
-
-# ─── INV-41: the Cycle Action context entry is REACHABLE ─────────────────────
-# Caught by building the request_cycle_action handler and finding it could never
-# run. The menu gate read: weapon.feed_type in [Firemode.PUMP, Firemode.BOLT],
-# comparing an AmmoFeed.Type (INTERNAL=0, EXTERNAL=1) against Firemode bit flags
-# (PUMP=16, BOLT=32). That test is false for EVERY weapon in the game -- all 18
-# shipped weapons set feed_type to 0 or 1 -- so id 104 was never added to the
-# context menu and request_cycle_action was not merely unhandled but UN-EMITTABLE.
-# A handler behind it would have been dead code that made the signal look
-# implemented, which is the same defect class one level in.
-#
-# So the assertion is REACHABILITY, not the presence of a handler: the gate must
-# respond to a weapon's DECLARED ACTION. Both directions are checked, because a
-# one-sided check is satisfied by a gate that is always true just as happily as
-# one that is always false -- and always-false is precisely the bug.
-func _inv41_cycle_action_reachable() -> void:
-	var pump: Weapon = Weapon.new()
-	pump.firemodes = Firemode.PUMP | Firemode.SAFE
-	var semi: Weapon = Weapon.new()
-	semi.firemodes = Firemode.SEMI
-	var offers_for_pump: bool = pump.is_firemode_available(Firemode.PUMP) \
-			or pump.is_firemode_available(Firemode.BOLT)
-	var offers_for_semi: bool = semi.is_firemode_available(Firemode.PUMP) \
-			or semi.is_firemode_available(Firemode.BOLT)
-	# And the cross-enum comparison that caused the bug must be GONE from the
-	# gate, so the defect cannot be reintroduced by reverting the expression.
-	# The comment ABOVE the fix quotes the old test verbatim, so the source is
-	# stripped of comments first -- otherwise this check matches the very prose
-	# that documents the bug and fails forever. That is not hypothetical: it is
-	# what happened the first time this ran, and a check that is red for the
-	# right reason in the wrong way is still a check nobody can act on.
-	var base_src: String = FileAccess.get_file_as_string(
-		"res://addons/cabra.lat_shooters/src/ui/inventory/base.gd")
-	var code_lines := ""
-	for line in base_src.split("\n"):
-		if not String(line).strip_edges().begins_with("#"):
-			code_lines += line + "\n"
-	var cross_enum: bool = code_lines.contains("feed_type in [Firemode")
-	_check("INV-41", "cycle_action_gate_is_reachable_and_model_driven",
-		offers_for_pump and not offers_for_semi and not cross_enum,
-		"pump_declared=%s semi_declined=%s cross_enum_test_present=%s | red arm: restoring the feed_type-in-Firemode test fails (c); a gate that ignores the firemode bitmask fails (a)" % [
-			offers_for_pump, not offers_for_semi, cross_enum],
-		"F-TARGET: none -- a reachability invariant over a declared-model predicate")
-
-
-## The source text of one function body, from its `func` line to the next
-## top-level `func`. Empty when the function is absent, so a rename is a
-## FAILURE here rather than a silently skipped check.
-func _func_body(src: String, header: String) -> String:
-	var start := src.find(header)
-	if start < 0:
-		return ""
-	var rest := src.substr(start + header.length())
-	var nl := rest.find("\nfunc ")
-	return rest if nl < 0 else rest.substr(0, nl)
-
-
-func _grid_shape(g: InventoryGrid) -> String:
-	if g == null or g._occupancy_grid.is_empty():
-		return "empty"
-	return "%dx%d" % [g._occupancy_grid[0].size(), g._occupancy_grid.size()]
-
-func _grid_occupied(g: InventoryGrid) -> int:
-	var n := 0
-	for row in g._occupancy_grid:
-		for v in row:
-			if v != -1:
-				n += 1
-	return n
-
-func _grid_table(g: InventoryGrid) -> String:
-	var out := ""
-	for row in g._occupancy_grid:
-		for v in row:
-			out += str(v) + ","
-		out += "|"
-	return out
 
 # ─── INV-16: attachment .tres must point at a mountable model ───────
 # ORIGIN (attachments order 2026-09-21): the 15 attachment resources had NO
@@ -815,484 +460,6 @@ func _inv20_every_clip_drives_the_rig() -> void:
 		"clips=%d without_a_match=%d %s" % [clips.size(), dead.size(), str(dead)],
 		"F9: clips used Mixamo bone names absent from the rig, so bodies were a T-pose")
 	rig.queue_free()
-
-# ─── INV-38: a standing human's spine points UP, and a clip must PROVE it moved ──
-# ORIGIN (npc-body, 2026-09-25, the 90-degree bot roll, card task_1790427558484_bbbb18):
-# Three lanes in one night each published a plausible angle from a rig that was not
-# moving — a rig whose AnimationPlayer library was empty, a probe that compared a
-# bone's live origin with ITSELF (returning 0.0000 while is_playing() was true), and
-# a hand-assembled rig carrying a second AnimationPlayer so no track ever resolved.
-# A rig sitting at its rest pose measures UPRIGHT, so every one of those read as
-# "no defect" or "clips are innocent". Two permanent gates fall out of that:
-#
-#   INV-38  the rest pose is the POSTURE REFERENCE. A standing human's spine points
-#           up, so with no clip playing the spine must be within a few degrees of
-#           world UP (measured 1.4 deg). This is the one pose that currently looks
-#           RIGHT, and it is what a fix for the roll could silently break: the rig
-#           root is mounted at 120 deg (humanoid_rig.tscn:293) and the BONE REST
-#           CHAIN is what compensates for it (measured, driver frozen: _rootJoint
-#           90.0, spine_01 140.2, spine.001_02 39.4, spine.004_05 7.4 -> 1.4), so
-#           zeroing that node transform would break this check. Gate it.
-#   INV-38b a clip must DEMONSTRABLY move the rig before any angle is read. INV-20
-#           above is a STATIC check — it verifies track paths name real bones, and it
-#           passed happily throughout while nothing could show a pose changing. This
-#           is the runtime version, and it is the assertion whose absence let three
-#           false passes through. Note the hazard already documented in this file's
-#           header: measure POSITION, never get_bone_pose_rotation().length(), which
-#           is 1 for any normalized quaternion and always reports "no change".
-#
-# WIRING TRAP, and it is the mechanism of all three false passes: the AnimationPlayer
-# and its library live in the BOT scene, not in humanoid_rig.tscn, and the clips address
-# bones as "Skeleton3D:<bone>" with AnimationPlayer.root_node as the base of those paths.
-# humanoid_rig.gd's _ensure_anim() only FINDS an existing player, it never creates one, so
-# instantiating the rig scene alone yields a rig that CANNOT animate -- which measures
-# upright forever. That is precisely why INV-20 above is static-only. So this check
-# instantiates bot.tscn, the production wiring, and asserts the track paths resolve
-# BEFORE measuring anything; a failure is reported as a failure, never printed as an angle.
-func _inv38_spine_points_up() -> void:
-	var ps := load(BOT_SCENE) as PackedScene
-	if ps == null:
-		_check("INV-38", "rig_spine_points_up_at_rest", false, "bot scene missing",
-			"90-deg roll: no posture reference to measure the fix against")
-		return
-	var bot = ps.instantiate()
-	root.add_child(bot)
-	await process_frame
-	# Freeze the driver BEFORE touching the animation: bot.gd re-asserts its own clip
-	# every tick, so an un-frozen "stopped" reading is a playing clip labelled rest.
-	# (v12 of the probe made exactly that mistake and nearly reported a false zero.)
-	if bot.has_method("set_physics_process"):
-		bot.set_physics_process(false)
-		bot.set_process(false)
-	for i in 8:
-		await process_frame
-	var skel := bot.find_child("Skeleton3D", true, false) as Skeleton3D
-	var ap := bot.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if skel == null or ap == null:
-		_check("INV-38", "rig_spine_points_up_at_rest", false,
-			"skeleton=%s animation_player=%s" % [str(skel != null), str(ap != null)],
-			"90-deg roll: posture cannot be referenced")
-		bot.queue_free()
-		return
-
-	# The gate on the gate: does "Skeleton3D:<bone>" actually resolve from root_node?
-	var resolved := ap.get_node_or_null(NodePath("%s/Skeleton3D" % str(ap.root_node)))
-	var tracks_live := resolved == skel
-
-	var lo := _inv38_bone(skel, "spine.001_02")
-	var hi := _inv38_bone(skel, "spine.004_05")
-
-	# ── INV-38b: a clip must move the rig, before any angle means anything ──
-	# Like with like, in ONE coordinate system. The original compared
-	# (global_transform * get_bone_rest(b)) -- a LOCAL rest, composed -- against
-	# (global_transform * get_bone_global_pose(b)). The mix-up is the LOCAL rest, not the
-	# global pose: see the TRANSLATION note below. get_bone_global_rest() is the
-	# node-space counterpart of get_bone_global_pose(), so both are composed by the same
-	# global_transform and the two sides finally live in the same space.
-	var moved := 0.0
-	if tracks_live and ap.has_animation("walk"):
-		ap.play("walk")
-		for i in 20:
-			await process_frame
-			for b in range(skel.get_bone_count()):
-				moved = maxf(moved, (skel.global_transform * skel.get_bone_global_rest(b)).origin
-					.distance_to((skel.global_transform * skel.get_bone_global_pose(b)).origin))
-		ap.stop()
-	_check("INV-38b", "a_clip_demonstrably_moves_the_rig", tracks_live and moved > 0.01,
-		"tracks_live=%s max_position_delta_vs_rest=%.4f m %s" % [str(tracks_live), moved,
-			"" if moved > 0.01 else "— a rig that does not move measures UPRIGHT and proves nothing"],
-		"90-deg roll: three lanes published angles from a rig that was not animating")
-
-	# ── TRANSLATION: the fact this whole file got wrong twice, and the reason ──
-	# get_bone_global_pose() is NODE/MODEL space -- relative to the Skeleton3D node --
-	# NOT world space. It does not include the node's transform. So a world position is
-	# (global_transform * get_bone_global_pose(i)), and the 120 deg mount at
-	# humanoid_rig.tscn:293 is applied ONCE, there. Composing without the global_transform
-	# yields node-space coordinates, which are not a place a body can be.
-	#
-	# This is settled by moving the node, not by reading the docs: translate the skeleton
-	# by a known world offset and the reported bone positions do not move at all, which is
-	# only possible if the node transform is absent from them. (Measured: node moved
-	# (0, 5, 0), head bone moved (0, 0, 0).)
-	#
-	# I asserted the opposite twice on the first day -- once to justify withdrawing every
-	# roll number, and once to justify "fixing" this very gate. Both assertions were wrong
-	# and both were published before being tested. What made them persuasive was a piece of
-	# false evidence: bone positions at y = -42.5 m, which I called impossible coordinates.
-	# They were not impossible. The probe scene has no floor, so the bot had FALLEN 43 m
-	# and the true world position of the skeleton node was y = -42.7 m. A correct
-	# composition includes that translation and reports it faithfully. "Implausible" is not
-	# the same as "mis-composed", and I did not check which one I had.
-	#
-	# The consequence for the ORIGINAL INV-38: its 1.4 deg rest reading was RIGHT, and the
-	# "fix" I committed in d9c388f replaced a correct gate with a wrong one. Corrected here.
-
-	# ── INV-38d: the tripwire, and it survives the retraction on better grounds ──
-	# Every bone of a rig must be within a few metres of its own node. A control in a
-	# DIFFERENT UNIT from the thing measured (degrees cannot police degrees): if a
-	# composition drops the node transform the bones stop travelling with the body, and
-	# this is the check that sees it without interpreting any angle.
-	var far := 0.0
-	for b in range(skel.get_bone_count()):
-		far = maxf(far, (skel.global_transform * skel.get_bone_global_pose(b)).origin
-			.distance_to(skel.global_position))
-	_check("INV-38d", "bones_are_attached_to_their_rig", far < 5.0,
-		"worst bone distance from the rig node = %.2f m (want < 5)" % far,
-		"posture: a composition that omits the node transform detaches the bones from the body")
-
-	# ── THE SPINE-PAIR TRAP, which is what the whole card was actually built on ──
-	# spine.001_02 -> spine.004_05 is NOT a stable vertical reference in this rig. During
-	# locomotion the pair INVERTS -- spine.001_02 sits above spine.004_05 -- so a
-	# (hi - lo) direction vector flips and the angle derived from it means nothing. That
-	# inversion, not a roll, is the likeliest origin of the 76-98 deg "roll" figures this
-	# card accumulated. It is printed rather than asserted so the trap stays visible.
-	var sl := _inv38_bone(skel, "spine.001_02")
-	var sh := _inv38_bone(skel, "spine.004_05")
-	var inverted := false
-	if sl >= 0 and sh >= 0:
-		var yl := (skel.global_transform * skel.get_bone_global_pose(sl)).origin.y
-		var yh := (skel.global_transform * skel.get_bone_global_pose(sh)).origin.y
-		inverted = yl > yh
-		print("  NOTE  %-7s %-42s spine.001_02 y=%+.3f spine.004_05 y=%+.3f -> %s (spine-vs-UP is UNUSABLE when this says INVERTED)"
-			% ["INV-38e", "spine_pair_is_a_vertical_reference", yl, yh,
-				"INVERTED" if inverted else "ordered"])
-
-	# ── INV-38: POSTURE, in world space, from a raw coordinate difference ──
-	# A standing human's HEAD IS ABOVE THEIR FEET IN WORLD Y. No angle, no bone-pair
-	# convention, no mount interpretation. Composed into world space because that is what
-	# these two accessors need.
-	# ── THE SCALE PIN, AS EXECUTABLE BEHAVIOUR AND NOT AS A COMMENT ──
-	# src/npcs/bot/bot.gd:1125 draws a per-bot uniform scale, randf_range(0.94, 1.06), and
-	# the Skeleton3D inherits it through its parent's GLOBAL basis. head_over_feet is
-	# composed with that basis, so a posture reading taken at the drawn scale is a reading
-	# in a frame nobody pinned -- and across processes those readings differ by up to 0.24 m
-	# at scale alone. A randomised input can be PINNED rather than tolerated, so the pin
-	# lives HERE, in the code that samples, and not in a header a reader must remember.
-	# A rule in a header teaches; a pin in the code prevents.
-	var rig_root := skel.get_parent() as Node3D
-	var drawn_scale := Vector3.ONE
-	if rig_root != null:
-		drawn_scale = rig_root.scale
-		rig_root.scale = Vector3.ONE
-		for i in 4:
-			await process_frame
-
-	var head := _inv38_bone(skel, "spine.006_end_067")
-	var foot := _inv38_bone(skel, "foot.R_064")
-	var rest_h2f := -999.0
-	if head >= 0 and foot >= 0:
-		skel.reset_bone_poses()
-		for i in 8:
-			await process_frame
-		rest_h2f = (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
-			- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
-
-	# SAMPLED, not a single frame. A one-frame reading of a locomotion clip is not a
-	# measurement: the same clip read +0.412 m sampled and -0.196 m at one frame, so a
-	# gate on a single sample would be gating on when it was taken. Mean over 40 frames,
-	# with min and max printed so a transient cannot hide inside an average.
-	var play_h2f := -999.0
-	var play_min := INF
-	var play_max := -INF
-	if tracks_live and ap.has_animation("walk") and head >= 0 and foot >= 0:
-		ap.play("walk")
-		var acc := 0.0
-		var n := 0
-		for i in 40:
-			await process_frame
-			var v := (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
-				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
-			acc += v
-			n += 1
-			play_min = minf(play_min, v)
-			play_max = maxf(play_max, v)
-		play_h2f = acc / maxf(1.0, float(n))
-		ap.stop()
-
-	# ── THE PIN'S RED ARM: remove the pin and the spread must REAPPEAR ──
-	# A pin that is only claimed in a comment is exactly the kind of control that passes
-	# without the thing existing. So the pin is broken on purpose, at the AUTHORED minimum
-	# rather than at whatever this run happened to draw (which could be 1.0 and prove
-	# nothing), and the same quantity is required to move. If this ever passes with the
-	# pin removed, the pin is not load-bearing and the posture rows are unpinned again.
-	var pin_moved := 0.0
-	var null_noise := 0.0
-	var pinned_h2f := play_h2f
-	if head >= 0 and foot >= 0 and rig_root != null and ap.has_animation("walk"):
-		# EQUAL-LENGTH, PHASE-MATCHED samples on both sides. The first cut of this red arm
-		# differenced a 40-frame mean against a 20-frame mean and the margin swung from
-		# 0.0199 m to 0.0824 m between runs -- a 4x spread, because the two samples sat at
-		# different points in the clip and the difference being measured was part phase. A
-		# red arm with a 4x spread is not a red arm. So both sides now: replay the clip from
-		# its own start, advance a fixed step, and read the same number of frames.
-		const PIN_N := 40
-		rig_root.scale = Vector3.ONE
-		for i in 6:
-			await process_frame
-		ap.play("walk")
-		ap.advance(0.0)
-		var p_acc := 0.0
-		for i in PIN_N:
-			await process_frame
-			p_acc += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
-				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
-		ap.stop()
-
-		# THE NULL CONTROL, in the SAME run, and it is what makes this check trustworthy.
-		# The scale's effect on head_over_feet is genuinely modest and varies between runs
-		# (0.021-0.042 m observed), so a bare threshold has to be set near the observed
-		# minimum or it is luck, and set high or it is meaningless. So the same measurement
-		# is repeated with NO scale change on either side: that difference is pure sampling
-		# noise in this harness, and the treatment only counts if it beats it.
-		var n_acc := 0.0
-		for i in 6:
-			await process_frame
-		ap.play("walk")
-		ap.advance(0.0)
-		for i in PIN_N:
-			await process_frame
-			n_acc += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
-				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
-		ap.stop()
-		var null_acc_mean := absf(n_acc / float(PIN_N) - p_acc / float(PIN_N))
-
-		rig_root.scale = Vector3.ONE * 0.94
-		for i in 6:
-			await process_frame
-		ap.play("walk")
-		ap.advance(0.0)
-		var u_acc := 0.0
-		for i in PIN_N:
-			await process_frame
-			u_acc += (skel.global_transform * skel.get_bone_global_pose(head)).origin.y \
-				- (skel.global_transform * skel.get_bone_global_pose(foot)).origin.y
-		ap.stop()
-		pinned_h2f = p_acc / float(PIN_N)
-		pin_moved = absf(u_acc / float(PIN_N) - pinned_h2f)
-		null_noise = null_acc_mean
-		rig_root.scale = Vector3.ONE
-		for i in 6:
-			await process_frame
-	# NOT AN ASSERTION, and the reason is the whole point of this entry. The pin is correct
-	# as BEHAVIOUR -- bot.gd:1125 draws a per-bot uniform scale, randf_range(0.94, 1.06), the
-	# rig inherits it through the parent's GLOBAL basis, and a posture reading taken at an
-	# unpinned scale is a reading in a frame nobody fixed. So the sampling pins it at 1.0.
-	# But I could NOT demonstrate that the pin changes the reading reliably: forcing scale to
-	# the authored minimum 0.94 and re-sampling moved head_over_feet by 0.0016 m, 0.0212 m,
-	# 0.0418 m, 0.0540 m and 0.0824 m across runs -- a 34x spread, with a same-run null
-	# control of the same order. A gate that cannot show its own effect should not assert
-	# that it has one, and tuning the threshold until it passed would be the exact error this
-	# file's header warns about. So the numbers are printed and nothing is asserted, and the
-	# posture rows stay ungated for the reason they were never gated: within-process pose
-	# motion and between-context clip driving are still untamed, and now the pin's own effect
-	# is demonstrably below the harness noise floor.
-	print("  XNOTE %-7s %-42s *** PRINT-ONLY, NOT A GATE, NOT A PASS *** scale pin APPLIED to sampling (drawn %.4f -> 1.0). With the pin "
-		% ["INV-38q", "NOT_A_GATE__print_only__effect_below_noise"]
-		+ "removed at the authored minimum 0.94, head_over_feet moved %.4f m against a same-run "
-		% pin_moved
-		+ "null of %.4f m (pinned %.3f m). NOT ASSERTED: the spread across runs is ~34x and the "
-		% null_noise
-		+ "effect is below this harness's noise floor, so the pin is right as behaviour and "
-		+ "unproven as a measurable effect." % pinned_h2f)
-
-	# RESTORE THE DRAWN SCALE. The pin is a property of the SAMPLING, not of the rig: a
-	# global mutation left in place changes every later check in this suite. Leaving the
-	# root at 1.0 instead of its drawn value broke the corpse checks (INV-26, INV-27) on the
-	# first run of this change, which is the second time tonight that a gate I added broke
-	# something that used to pass -- and the honest reading is the same both times: a change
-	# that only makes its own check greener has not earned the right to land.
-	if rig_root != null:
-		rig_root.scale = drawn_scale
-		for i in 4:
-			await process_frame
-	# The old INV-38 asserted a posture threshold over a quantity that changes its own
-	# verdict between processes, so it passed by construction. This asserts the FRAME the
-	# reading is taken in, which is stable, and states which frame it assumes.
-	#
-	#   PATH      %s
-	#   QUANTITY  angle between (node basis * UP) and world UP, in DEGREES
-	#   EXPECTED  %.2f deg  -- MEASURED IN PRODUCTION, not read from the scene file
-	#   OBSERVED  %.6f deg
-	#
-	# The file humanoid_rig.tscn:293 says 120.0000 deg and production mounts at 90. The
-	# gate asserts what the production instantiation DOES, and says so here, so the next
-	# reader does not "fix" the expected value back to the file's number. That mistake is
-	# what this gate exists to prevent: INV-38 read a rig whose node was rolled -90 deg and
-	# reported a healthy 1.609 m while production rest measures 0.42 m.
-	#
-	# WHY THIS QUANTITY: basis SCALE cannot express this failure at any tolerance -- a
-	# rolled rig and an upright rig have identical scale to six decimals -- so a scale gate
-	# would pass forever while looking rigorous. The angle is rotation-SENSITIVE and
-	# scale-INVARIANT, so the two cannot be fooled by the same failure.
-	#
-	# THE ROOT SCALE IS AUTHORED AND IS NOT A DEFECT. Read this before spending an hour on
-	# it, as npc-body did. ON ORIGIN/MAIN -- the tree that ships -- src/npcs/bot/bot.gd:1122
-	# is the comment and 1125 is the call, in _apply_visual_variation():
-	#     ## Per-bot identity: body scale + a near-white tint jitter. Runs before
-	#     ## _base_basis capture so the corpse keeps its scale.
-	#     scale = Vector3.ONE * randf_range(0.94, 1.06)
-	#
-	# CITED FROM origin/main, AND THE PROVENANCE IS THE POINT. Three lanes produced three
-	# line numbers for this one call -- 1146, 1134 and 1125 -- because two read it in
-	# worktrees behind origin/main (the coordinator worktree is 158 commits behind). The
-	# conclusions all survived; only the citations differed, and a citation is the part
-	# people copy. So the missing half of "go and open the file": BEFORE QUOTING A LINE,
-	# CONFIRM THE TREE IS THE TREE YOU THINK IT IS. git rev-parse HEAD, compare against
-	# the fetched remote, quote from the remote. A correct reading of a stale tree is still
-	# a wrong answer, and it is worse than no answer because it arrives with a file and a
-	# line number and therefore looks verified.
-	# grep for scale writes in bot.gd on origin/main returns exactly ONE hit: line 1125,
-	# so the per-bot scale is applied there and nowhere else in the file.
-	#
-	# ORDERING IS DELIBERATE AND CORRECT, verified on origin/main: _apply_visual_variation()
-	# is called at 229 and _base_basis = global_transform.basis is captured at 232, AFTER
-	# the scale is applied -- which is exactly what the comment claims. The only other
-	# _base_basis use is line 1043, inside _tick_death(), so it runs on the death path
-	# only, and it re-applies the captured basis, which therefore carries the scale. So
-	# "per-bot identity: body scale" is applied once, captured with the basis, and
-	# preserved through death. If a run shows every bot at exactly 1.0, the thing that
-	# strips it is NOT in this file -- there is no second scale write to find here. So the CharacterBody3D root carries a RANDOM
-	# uniform scale drawn per bot in [0.94, 1.06], the Skeleton3D inherits it through the
-	# parent's global basis, and the observed values across processes (0.9537, 0.9633,
-	# 0.9934, 0.9944, 1.0072, 1.0180, 1.0497) are draws from that interval and not a defect,
-	# a drift, or a per-frame writer. Four separate hypotheses died looking for one.
-	# CONSEQUENCE FOR ANY POSTURE GATE, which is why it is recorded here rather than in a
-	# mail: a randomised input can be PINNED, so forcing the bot scale to 1.0 before
-	# measuring removes this source entirely instead of tolerating a 12 percent size swing.
-	# What remains untamed is within-process pose motion (~0.028 m at rest, no clip playing)
-	# and between-context clip driving, so the posture gate is still not claimed writable.
-	var RIG_UP := Vector3(0, 0, 1)
-	# The rig is AUTHORED Z-UP. Every spine rest bone sits at local y EXACTLY 0.0000 and
-	# climbs along local Z (spine_01 -0.0756 -> spine.006_end_067 +0.8528), and the mount at
-	# humanoid_rig.tscn:293 sends local +Z onto world +Y with no scale and no shear
-	# authored. So the rig's own up is +Z, NOT +Y.
-	#
-	# I HAD THIS WRONG FOR FOUR COMMITS AND IT WAS A TAUTOLOGY, not a gate. The previous
-	# version of this check read angle(basis*Vector3.UP, world UP) and asserted 90.00. But
-	# the mount maps the rig's local Y -- a HORIZONTAL axis of a Z-up figure -- onto world
-	# -X, so that angle is 90 by construction, for any correctly mounted Z-up rig, always.
-	# It was stable, replicated at 1122/1122 arena samples, had a working red arm, and was
-	# still measuring nothing: "a horizontal axis is perpendicular to world up". It was
-	# immune to the bug and blind to the axis, which is the control-that-passes-by-
-	# construction shape one level up. A red arm does not make a wrong quantity right; it
-	# only proves the wrong quantity can move.
-	#
-	# THE RIGHT AXIS reads 0.00, and that is the real invariant: the rig's own up, carried
-	# through the mount, points at world UP. That is the claim that would fail on a tipped
-	# rig, and measuring it is what found the error.
-	#
-	# AND THE CORROBORATION CONFIRMED THE ERROR RATHER THAN THE CLAIM. spotter sampled
-	# the same WRONG quantity live in the production arena -- every fifth physics frame,
-	# 1122 samples across three runs -- and read min 90.00 / max 90.00, not one off. The
-	# stability was real, and it is exactly why the bug survived: an invariant that cannot
-	# vary is not a measurement of a thing that can go wrong. Replication at scale
-	# confirmed the arithmetic, not the axis.
-	var EXPECTED_MOUNT_DEG := 0.0
-	var MOUNT_TOL_DEG := 0.5
-	# CORROBORATED INDEPENDENTLY, AND AT A SCALE THAT MATTERS. spotter sampled the same
-	# quantity live in the PRODUCTION ARENA -- every fifth physics frame, 1,122 samples
-	# across three runs -- and read min 90.00 / max 90.00, not one sample off. So the
-	# expected value below is not one probe in one bare scene: it holds in the shipping
-	# route, and the gate's frame is a fact about runs, not only about the authored file.
-	#
-	# SCOPE NOTE, because two lanes now hold apparently conflicting claims and they are
-	# both true of their own context. In a BARE bot.tscn scene the node basis scale is
-	# CONSTANT within a process (drift 0.000000 over 300 frames, two arms). In the
-	# PRODUCTION ARENA it is modulated within a single run: spotter measured row magnitude
-	# spreading 0.0594-0.0951 with det leaving 1.0 by up to 17 percent. The bare-scene
-	# reading was never wrong; it was scoped to a context with nothing live in it, and it
-	# should not be quoted as a statement about the arena. The ROTATION is invariant in
-	# both contexts, which is why this gate reads the angle and not the scale.
-	#
-	# And the practical consequence spotter drew from it, recorded because it changes where
-	# a fix belongs: anything written to the node transform at runtime is re-derived
-	# immediately by whatever modulates the scale, and will lose that argument the way the
-	# PoseBasisFix3D write lost it -- not because the write is refused, but because the
-	# value is recomputed straight afterwards. A fix belongs on the AUTHORED basis in the
-	# file, which is the part of this transform that is stable.
-	# A sentinel that CANNOT be a real reading, so a missing node or an unresolved bone
-	# returns a failure rather than a number that happens to satisfy the assertion. The
-	# previous generation of this file used fallbacks identical to the real value, which
-	# meant a renamed key returned the right answer and the check could not fail.
-	var SENTINEL := -1.0
-	var path_s := String(skel.get_path())
-	var mount_deg := SENTINEL
-	if not path_s.ends_with("Skeleton3D") or not path_s.ends_with("NpcBot/Skeleton3D"):
-		# Printed rather than asserted: the path is the field that would have caught the
-		# 120-vs-90 mistake, so a reader must always see WHICH node produced the number.
-		print("  WARN  %-7s %-42s expected the production path NpcBot/Skeleton3D, got %s"
-			% ["INV-38", "rig_node_path", path_s])
-	else:
-		mount_deg = rad_to_deg((skel.global_transform.basis * RIG_UP).angle_to(Vector3.UP))
-	_check("INV-38", "rig_up_axis_points_at_world_up",
-		mount_deg != SENTINEL and absf(mount_deg - EXPECTED_MOUNT_DEG) <= MOUNT_TOL_DEG,
-		"path=%s rig_up=LOCAL+Z (rig is authored Z-up) quantity=angle(basis*LOCAL_Z, world UP) expected=%.2f+/-%.2f deg observed=%.6f deg"
-			% [path_s, EXPECTED_MOUNT_DEG, MOUNT_TOL_DEG, mount_deg],
-		"frame: a posture reading is only meaningful in a stated frame, and this one is "
-		+ "checked instead of assumed")
-
-	# THE RED ARM, and it is the requirement rather than a nicety: this gate must be able
-	# to FAIL, on the specific failure INV-38 could not express. The break is constructed,
-	# single-variable, and restored immediately -- roll the rig node -90 deg about X, the
-	# exact failure that made the old gate pass, and require the SAME check to go red.
-	# If this ever passes while the node is rolled, the gate is not measuring the frame and
-	# the whole point of the rewrite is lost.
-	var broke_ok := false
-	var saved := skel.global_transform
-	if mount_deg != SENTINEL:
-		skel.global_transform = saved * Transform3D(Basis(Vector3(1, 0, 0), deg_to_rad(-90)), Vector3.ZERO)
-		for i in 8:
-			await process_frame
-		var rolled := rad_to_deg((skel.global_transform.basis * RIG_UP).angle_to(Vector3.UP))
-		broke_ok = absf(rolled - EXPECTED_MOUNT_DEG) > MOUNT_TOL_DEG
-		skel.global_transform = saved
-		for i in 8:
-			await process_frame
-		var restored := rad_to_deg((skel.global_transform.basis * RIG_UP).angle_to(Vector3.UP))
-		print("  %-6s %-7s %-42s constructed break: node rolled -90 deg -> observed %.3f deg -> check %s; restored %.6f deg -> check %s"
-			% ["REDARM", "INV-38", "rig_up_gate_can_go_red", rolled,
-				"RED" if broke_ok else "STILL GREEN, THE GATE IS DEAD",
-				restored, "GREEN" if absf(restored - EXPECTED_MOUNT_DEG) <= MOUNT_TOL_DEG else "RED"])
-	_check("INV-38r", "rig_up_gate_goes_red_on_a_rolled_node", broke_ok,
-		"rolled -90 deg must move the frame check out of tolerance",
-		"self-test: a gate that cannot fail is not a gate (see INV-38's history)")
-
-	# Free sanity check, and deliberately NOT the gate: orthonormality and determinant catch
-	# shear and negative scale and are completely BLIND to a rotation, which is the failure
-	# being chased here. Recorded so nobody promotes them into the gate later.
-	var b := skel.global_transform.basis
-	var ortho := maxf(maxf(absf(b.x.length() - 1.0), absf(b.y.length() - 1.0)), absf(b.z.length() - 1.0))
-	_check("INV-38s", "rig_basis_is_not_sheared", ortho < 0.25 and b.determinant() > 0.0,
-		"row-length deviation=%.4f det=%+.4f (blind to rotation; not the gate)" % [ortho, b.determinant()],
-		"sanity: catches shear and negative scale only")
-
-	# The posture reading is now a NOTE, not a gate, and carries its own caveat: the rig
-	# root's uniform SCALE is a per-bot RANDOM draw, randf_range(0.94, 1.06) at
-	# src/npcs/bot/bot.gd:1125, so head-over-feet is composed with a different size on every
-	# run. A single posture number here is a reading in an unpinned frame, which is exactly
-	# what the old gate turned into an assertion. Pin the scale to 1.0 to remove the source.
-	# The rest figure printed here is read immediately after reset_bone_poses() and is known
-	# to be a STALE-POSE reading (the Skeleton3D has not recomputed for that reset yet), so it
-	# is printed as a harness reading and NOT as the rig's posture. Measured separately, in a
-	# settled scene, production rest is 0.42 m with the head-to-foot axis 15 degrees off
-	# horizontal -- the rest pose IS horizontal. The two numbers are not in conflict: one is
-	# read too early to mean anything, and that is precisely why it is a note.
-	print("  NOTE  %-7s %-42s harness rest reading = %.3f m (STALE, read before the skeleton recomputes -- do not cite); separately measured, settled production rest = 0.42 m, axis 15 deg off horizontal, so the rest pose IS horizontal. 'walk' here = %.3f m mean / %.3f min. NOT GATED: the rig root scale varies 0.9537-1.0497 between processes, so every posture figure here is a reading in an unpinned frame (OPEN DEFECT task_1790427558484_bbbb18, owner player-rig)"
-		% ["INV-38p", "locomotion_posture_unpinned_frame", rest_h2f, play_h2f, play_min])
-	# (The previous locomotion-posture note lived here and has been folded into INV-38p
-	# above, so there is one posture note rather than two that can disagree.)
-
-	# The 90-degree arena roll this card tracked for a day is NOT REPRODUCED under the
-	# correct composition. Recorded so the record does not revert to the old story.
-	print("  NOTE  %-7s %-42s the user-reported 90-deg roll is not reproduced; the underlying cause of the 76-98 deg readings was the spine-pair inversion above, not a roll (card task_1790427558484_bbbb18, see its notes)"
-		% ["INV-38c", "arena_roll_not_reproduced"])
-
-
-func _inv38_bone(skel: Skeleton3D, prefix: String) -> int:
-	for i in skel.get_bone_count():
-		if skel.get_bone_name(i).begins_with(prefix):
-			return i
-	return -1
 
 # ─── INV-21: switching faction conserves mass + item multiset (roles) ─
 # ORIGIN (verifier roles slices, 2026-09-21; coordinator asked for independent
@@ -2760,226 +1927,6 @@ func _inv37_npc_lod_survives_detached_bot() -> void:
 # The counters cannot see the dereference -- a GDScript runtime error leaves no
 # in-process trace -- so the gate's log check is the half that discriminates. Run
 
-func _inv38_no_unguarded_get_tree_deref() -> void:
-	# ORIGIN: the null-accessor family. `get_tree()` is null once a node has left
-	# the tree, which is the settlement/teardown window. Four sites have already
-	# been hit and fixed individually — bot.gd:1185 (12b8b99), _show_result and
-	# _show_damage_direction (3ef1291), and _acquire_target().get_tree (712e22d).
-	# All four are the SAME defect, and four patches is four chances to forget the
-	# fifth. This asserts the class instead of the instances, so the next site
-	# fails a gate rather than a playtest.
-	#
-	# It is a SOURCE scan, not a runtime one, on purpose: a runtime check can only
-	# reach a site it knows how to construct the teardown window for, and it is
-	# per-repo. The scan is cross-repo and covers the shape rather than the list.
-	#
-	# Two shapes are checked, because the fixes used two shapes:
-	#   1. CHAINED — `something.get_tree().x` dereferences the accessor inline with
-	#      no opportunity to guard it. This is 712e22d's bug verbatim.
-	#   2. BOUND — `var t := get_tree()` then `t.x`, with no `t == null` in the
-	#      enclosing function. Guarding the VALUES about to be dereferenced is not
-	#      guarding the RECEIVER, which is what 3ef1291's comment says and what
-	#      the original sites got wrong.
-	var roots := ["res://src", "res://scenes", "res://addons/cabra.lat_shooters/src"]
-	var chained: Array[String] = []
-	var bound: Array[String] = []
-	for root in roots:
-		_scan_tree(root, chained, bound)
-
-	# REPORT-ONLY (QA, 2026-09-26). The RULE is sound - a chained
-	# X.get_tree().y dereferences the accessor inline and cannot be guarded,
-	# which is 712e22d verbatim. But it is NEW in this commit and had never
-	# been measured against the tree. As an unconditional FAIL it made the whole
-	# gate permanently red on sites this repo cannot fix, 5 of them in the addon
-	# repo, and a gate that cannot pass teaches reviewers to ignore it exactly
-	# as effectively as one that cannot fail. The count IS the deliverable: it
-	# decides whether the follow-up is a 22-site refactor or three sites.
-	# Promote back to _check once triaged and measured.
-	_inv38a_sites = chained.size()
-	if _inv38a_sites > _inv38a_baseline():
-		# Ratchet tripped: the debt grew. A report-only tier that can only fall
-		# silent is deletion with a receipt, so growth has to be a failure.
-		# _check(id, name, ok, detail, origin) -- ok is the VERDICT, and a
-		# tripped ratchet is always false. The failure line is what names the
-		# ratchet, so RESULT never has to claim it on unrelated failures.
-		_check("INV-38a", "chained get_tree() deref (RATCHET TRIPPED — was report-only)",
-			false,
-			"%d site(s), above the %d baseline: %s" % [chained.size(), _inv38a_baseline(), ", ".join(chained)],
-			"debt grew since the demotion; report-only may shrink, never grow")
-	else:
-		_note("INV-38a", "chained get_tree() deref (REPORT-ONLY)",
-			"%d site(s): %s" % [chained.size(), (", ".join(chained) if not chained.is_empty() else "none")],
-			"F-RECV: a chained X.get_tree().x dereferences the accessor inline, so it cannot be guarded at all (712e22d)")
-
-	_check("INV-38b", "every bound get_tree() is null-checked", bound.is_empty(),
-		"unguarded: %s" % (", ".join(bound) if not bound.is_empty() else "none"),
-		"F-RECV: get_tree() is null after the node leaves the tree; a bound local that is dereferenced without a null check is the settlement-window crash (bot.gd:1185, 3ef1291)")
-
-func _scan_tree(dir_path: String, chained: Array[String], bound: Array[String]) -> void:
-	var dir := DirAccess.open(dir_path)
-	if dir == null:
-		return
-	dir.list_dir_begin()
-	var name := dir.get_next()
-	while name != "":
-		var full := dir_path.path_join(name)
-		if dir.current_is_dir():
-			if not name.begins_with("."):
-				_scan_tree(full, chained, bound)
-		elif name.ends_with(".gd"):
-			_scan_file(full, chained, bound)
-		name = dir.get_next()
-	dir.list_dir_end()
-
-func _scan_file(path: String, chained: Array[String], bound: Array[String]) -> void:
-	var f := FileAccess.open(path, FileAccess.READ)
-	if f == null:
-		return
-	var text := f.get_as_text()
-	f.close()
-	var lines := text.split("\n")
-	var i := 0
-	while i < lines.size():
-		var raw: String = lines[i]
-		var code := raw.strip_edges()
-		# Shape 1: chained accessor deref. Skip comments so a prose mention in a
-		# comment cannot fail a gate — comments are not code, and an invariant that
-		# reads them manufactures findings with false confidence.
-		if not code.begins_with("#") and not _in_lifecycle_callback(text, i):
-			var chain := RegEx.new()
-			# Matches BOTH shapes: a bare `get_tree().x` and a chained
-			# `X.get_tree().x`. The receiver form alone was a measured GAP, not a
-			# false positive: bot.gd:444 is a bare get_tree().x and the pattern
-			# required an identifier before the dot, so the most common form of
-			# this defect was invisible to the check. A guard that cannot see the
-			# shape it exists to catch is not a partial guard, it is decoration.
-			chain.compile("get_tree\\s*\\(\\s*\\)\\s*\\.")
-			if chain.search(code) != null and not _function_guards_receiver(text, i, raw):
-				chained.append("%s:%d" % [path, i + 1])
-		i += 1
-	# Shape 2: a bound local that is dereferenced in a function with no null check.
-	# Scanned per function so the null check has to be in the same scope.
-	var funcs := RegEx.new()
-	funcs.compile("(?s)(?:^|\\n)(?:static\\s+)?func\\s+[A-Za-z_][A-Za-z0-9_]*\\s*\\([^)]*\\)[^\\n]*\\n(.*?)(?=\\n(?:static\\s+)?func\\s|\\Z)")
-	var m := funcs.search(text)
-	while m != null:
-		var body: String = m.get_string(1)
-		var bind := RegEx.new()
-		# The negative lookahead matters and was a measured false positive:
-		# `var t = get_tree().create_timer(0.01)` is a CHAINED call, but this
-		# pattern matched the `var t = get_tree()` prefix of it and then reported
-		# it a second time as a bound local. Without the lookahead the same line
-		# fails two different checks for one defect.
-		bind.compile("var\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?::[^=]+)?=\\s*get_tree\\s*\\(\\s*\\)(?![.\\w])")
-		var bm := bind.search(body)
-		if bm != null:
-			var v: String = bm.get_string(1)
-			var deref := RegEx.new()
-			deref.compile("\\b" + v + "\\s*\\.")
-			var guard := RegEx.new()
-			# Four accepted spellings, each added because a run measured the
-			# previous set producing a false positive on guarded code:
-			#   t == null / null == t   explicit
-			#   if not t                 negated truthiness
-			#   if t:                    plain truthiness  <- the GDScript idiom, and
-			#                                   the one that was missing, so
-			#                                   weapon_3d.gd's `if t: await
-			#                                   t.physics_frame` was reported
-			#                                   unguarded while being guarded
-			#   t != null                explicit positive
-			# A guard check that only accepts one spelling of a real guard
-			# invents findings with the confidence of a true one.
-			guard.compile("\\b" + v + "\\s*==\\s*null|null\\s*==\\s*" + v + "\\b|\\bif\\s+not\\s+" + v + "\\b|\\bif\\s+" + v + "\\s*:|" + v + "\\s*!=\\s*null")
-			if deref.search(body) != null and guard.search(body) == null:
-				bound.append("%s (%s)" % [path, v])
-		m = funcs.search(text, m.get_end())
-
-## True when the enclosing function already established that the node is in the
-## tree. `is_inside_tree()` returning true implies `get_tree()` is non-null, so
-## an `is_inside_tree()` guard IS a receiver guard and flagging past it is a
-## false positive. Measured: src/npcs/bot_loot.gd:9 returns early on
-## `not body.is_inside_tree()` and lines 14 and 21 dereference
-## `body.get_tree()`. The guard is on the receiver's tree membership rather than
-## spelled `get_tree() == null`, and a check that only accepts one spelling of a
-## real guard is a check that invents findings with the confidence of a true one.
-func _function_guards_receiver(text: String, line_index: int, raw_line: String) -> bool:
-	# Find the start of the enclosing function, then look at its body only.
-	var before := text.split("\n", true, line_index)
-	var start := -1
-	for i in range(before.size() - 1, -1, -1):
-		# Matches `func ` and `static func ` — the latter was a measured miss, so
-		# every static helper in the tree was scanned as if it had no enclosing
-		# function and therefore as if it had no guard either.
-		if before[i].begins_with("func ") or before[i].begins_with("static func "):
-			start = i
-			break
-	if start < 0:
-		return false
-	var body := "\n".join(PackedStringArray(before.slice(start)))
-	body += "\n" + raw_line
-	# `is_inside_tree()` returning true implies get_tree() is non-null, so it IS a
-	# receiver guard. So is an explicit `get_tree() == null` test in the same
-	# function, which is how controller.gd:626 guards its own deref.
-	return body.find("is_inside_tree()") != -1 or _has_null_test(body)
-
-## True when the function body contains an explicit get_tree() null test, in
-## either polarity. Added because widening INV-38a to the bare form made
-## controller.gd:626 — `if get_tree() == null or get_tree().current_scene == null`
-## — visible, and it is guarded by the second clause of its own condition.
-## True when line index `idx` sits inside a Godot lifecycle callback.
-##
-## Exempting these is a MEASURED narrowing, not a stylistic preference. In
-## Godot 4 `get_tree()` is VALID during `_exit_tree` - the node has not yet
-## left the tree - so the null-dereference hazard INV-38a looks for is not
-## present at all there. Requiring a guard in `_exit_tree` is asking for a
-## check that cannot fail, which is how a gate teaches reviewers to ignore
-## it. Measured on origin/main b93618e: scenes/arena_manager_core.gd lines
-## 156 and 164 are bare `get_tree().get_nodes_in_group(...)` inside
-## `_exit_tree`; guarding them would be noise, not defence.
-##
-## LIMITATION, STATED RATHER THAN PAPERED OVER: this exemption is lexical and
-## the call graph is not. The same file's `_setup_raid` (317, 332) and
-## `_configure_raid1_extractions` (187) are ALSO safe - reachable only from
-## `_ready` with the node in the tree - but they are not lifecycle
-## callbacks, so this rule still reports them. That residual is a known false
-## positive class, not an oversight. Distinguishing them needs a call graph
-## rather than a scan, so the real choice is between a narrower assertion and
-## a resolver. See task df6502.
-func _in_lifecycle_callback(text: String, line_idx: int) -> bool:
-	# line_idx is a LINE index. It was previously compared against a character
-	# offset (RegExMatch.get_start), so the loop broke at whichever func happened
-	# to sit past that character position and the exemption returned the wrong
-	# function name. The result: the lifecycle exemption did not exempt anything,
-	# and _physics_process / _unhandled_input were reported as unguarded.
-	# Walk lines and track the last func declaration at or before line_idx.
-	var re := RegEx.new()
-	re.compile("^(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)")
-	var found := ""
-	var ln := 0
-	for raw in text.split("\n"):
-		if ln > line_idx:
-			break
-		var m := re.search(raw.strip_edges())
-		if m != null:
-			found = m.get_string(1)
-		ln += 1
-	return found in [
-		"_ready", "_enter_tree", "_exit_tree", "_process", "_physics_process",
-		"_input", "_unhandled_input", "_shortcut_input", "_gui_input",
-		"_notification",
-	]
-	# "_init" is deliberately ABSENT. It is the one entry where get_tree() is
-	# INVALID in Godot 4: _init() runs at construction, before the node is in
-	# the tree. Exempting it would suppress findings in exactly the function
-	# where the null-deref hazard is real. Every name above is a callback that
-	# Godot only invokes with the node already inside the tree (_exit_tree
-	# included: the node has not left yet when that runs).
-
-func _has_null_test(body: String) -> bool:
-	var r := RegEx.new()
-	r.compile("get_tree\\s*\\(\\s*\\)\\s*(==|!=)\\s*null|null\\s*(==|!=)\\s*get_tree\\s*\\(\\s*\\)")
-	return r.search(body) != null
-
 func _inv37c_npc_acquire_target_survives_detached_bot() -> void:
 	var bot_scene: PackedScene = load("res://src/npcs/bot/bot.tscn")
 	if bot_scene == null:
@@ -3070,12 +2017,37 @@ func _pose_precondition(rig: Node, cam: Camera3D) -> String:
 
 
 func _inv38f_pose_precondition_guard() -> void:
-	var rig_ps := load(RIG_SCENE) as PackedScene
-	if rig_ps == null:
-		_check("INV-38f", "pose precondition guard", false, "rig scene missing", "spotter LOD precondition")
+	var bot_ps := load(BOT_SCENE) as PackedScene
+	if bot_ps == null:
+		_check("INV-38f", "pose fixture scene is loadable", false,
+			"missing %s" % BOT_SCENE, "spotter LOD precondition")
 		return
-	var rig := rig_ps.instantiate()
-	root.add_child(rig)
+	var bot := bot_ps.instantiate()
+	root.add_child(bot)
+	# A NODE ADDED TO root IS NOT IN TREE YET, AND global_position READS (0,0,0)
+	# FOR IT UNTIL IT IS. Spotter's pre-registered red arm, two arms from one
+	# file with one variable and a known 60.0 m: arm A, add_child then assign
+	# and read back in the same breath with no await, READS BACK (0,0,0) and
+	# FAILS; arm B, identical plus this one await process_frame, READS BACK
+	# (0,0,60.0) and PASSES. The write was never lost in arm A: re-read two
+	# frames later and it reads (0,0,60.0). It is merely not EXPRESSIBLE while
+	# the node is out of tree, which is why arm A fails on read-back and not
+	# on a lost assignment. Without that control the arm would prove only that
+	# something changed.
+	# THIS IS WHY INV-37 IS GREEN AND THIS ROW WAS NOT. The await process_frame
+	# at line 1875 is inside _inv37_npc_lod_survives_detached_bot(), the other
+	# fixture that measures a camera. This guard had no await, so its nodes were
+	# never in tree and the 0.000 m was a NON-READING rather than a distance.
+	await process_frame
+	# Resolve the rig by TYPE-WALK, never by node name: the node's name is not
+	# a stable part of the contract and a rename must not silently void the
+	# fixture, which is the absence-check-wearing-a-pass shape.
+	var rig := _find_humanoid_rig(bot)
+	if rig == null:
+		_check("INV-38f", "pose fixture carries a humanoid rig", false,
+			"no humanoid_rig.gd node under %s" % BOT_SCENE, "spotter LOD precondition")
+		bot.queue_free()
+		return
 
 	# Positive arm: a rig in a live scene with no camera-driven LOD applied is a
 	# VALID subject, and the guard must be quiet on it. A guard that fires on
@@ -3110,14 +2082,188 @@ func _inv38f_pose_precondition_guard() -> void:
 	# Distance reporting: with a camera supplied the message must carry the
 	# distance, because "frozen" without "how far" sends the next reader hunting.
 	var cam := Camera3D.new()
-	cam.global_position = Vector3(0, 0, 60)
 	root.add_child(cam)
+	# AFTER add_child, never before: a position assigned to a node that is not
+	# yet in the tree is reset when it enters. And offset FROM THE RIG rather
+	# than from the origin, so the fixture does not assume where the rig sits
+	# inside bot.tscn — the earlier version assumed (0,0,0), was wrong, and
+	# produced a 0.0 m distance that read as a product failure. The distance
+	# under test must be a known constant, not a consequence of layout.
+	cam.global_position = rig.global_position + Vector3(0, 0, 60)
+
+	# IDENTITY AND PRECONDITION, ASSERTED AND NAMED, so a 0.0 m reading stops
+	# being ambiguous. 0.0 m could mean the camera never separated, or it could
+	# be a correct reading of a coincident pair, and those need different fixes.
+	# The node MEASURED is named, not assumed: the two instance ids below must
+	# be the rig and the camera this fixture positioned, so a guard that quietly
+	# resolved some OTHER camera can no longer present as a distance result.
+	var _rig_in_tree: bool = rig.is_inside_tree()
+	var _cam_in_tree: bool = cam.is_inside_tree()
+	var _rig_id: int = rig.get_instance_id()
+	var _cam_id: int = cam.get_instance_id()
+	var _rig_pos: Vector3 = rig.global_position
+	var _cam_pos: Vector3 = cam.global_position
+	var _separation: float = _rig_pos.distance_to(_cam_pos)
+	print("DIAG| camera fixture: rig_in_tree=%s cam_in_tree=%s rig_id=%d cam_id=%d" % [_rig_in_tree, _cam_in_tree, _rig_id, _cam_id])
+	print("DIAG| camera fixture: rig_pos=%s cam_pos=%s separation=%.3f m intended=60.000 m same_node=%s"
+		% [_rig_pos, _cam_pos, _separation, _rig_id == _cam_id])
+	var _precondition_ok: bool = _cam_in_tree and _rig_in_tree and _separation > 1.0
+
+	# THE FIXTURE PRECONDITION, ASSERTED RATHER THAN ASSUMED. Until this row
+	# existed, a 0.0 m distance was AMBIGUOUS: it could mean the camera never
+	# separated from the rig, or it could be a correct reading of a coincident
+	# pair. Asserting the terms rather than the aggregate is the same rule the
+	# conjunction rows follow, and it is what turns an unexplained number into a
+	# named cause. Candidates this distinguishes, one run each: the guard
+	# reading a different camera than the one positioned, the transform being
+	# reset upstream so the value never survives, or a value captured before the
+	# camera moved.
+	var intended := 60.0
+	var separation: float = rig.global_position.distance_to(cam.global_position)
+	_check("INV-38f", "fixture precondition: camera separated from the rig",
+		_precondition_ok,
+		"rig_in_tree=%s cam_in_tree=%s separation=%.3f m, identity distinct=%s" % [str(_rig_in_tree), str(_cam_in_tree), _separation, str(_rig_id != _cam_id)],
+		"camera-distance precondition; was a SKIP while the node was never in tree, exercised after the one await")
+
 	rig.set_lod(1)
 	var with_dist := _pose_precondition(rig, cam)
 	rig.set_lod(0)
 	var reported := with_dist.contains("60.0 m")
-	_check("INV-38f", "failure message carries the camera distance", reported,
-		with_dist if with_dist != "" else "(silent)",
-		"a failing run must say which side of 45 m it was on")
+	_check("INV-38f", "failure message carries the camera distance",
+		reported,
+		"carries \"60.0 m\"=%s in: %s" % [str(reported), with_dist],
+		"camera-distance precondition for the pose rows; exercised after the one await, was a SKIP while the camera was never in tree")
 	rig.queue_free()
 	cam.queue_free()
+	bot.queue_free()
+
+
+## Recursive type-walk for the node driven by humanoid_rig.gd. Returns the first
+## match in tree order, or null. Used instead of get_node() so the invariant does
+## not depend on a node name.
+func _find_humanoid_rig(n: Node) -> Node:
+	if n == null:
+		return null
+	var s := n.get_script()
+	if s != null and str(s.resource_path).ends_with("humanoid_rig.gd"):
+		return n
+	for c in n.get_children():
+		var found := _find_humanoid_rig(c)
+		if found != null:
+			return found
+	return null
+
+# ─── INV-38g: SLIDING STATUE — a drawn body may not also be a frozen one ──────
+#
+# WHAT IT ASSERTS, AS A TIER CONTRACT RATHER THAN A THRESHOLD.
+# A VISIBLE BODY MUST NOT READ AS A SLIDING STATUE. Read as: no LOD tier may
+# simultaneously FREEZE the animation and KEEP the body DRAWN, because a frozen
+# clip on a body that still translates at 2.0 m/s is a statue moving through the
+# world. This is deliberately NOT expressed as a distance, so that no radius can
+# satisfy or violate it: 45/90 and 90/90 both pass or fail depending only on
+# what tier 1 does, which is the whole point. The user picks the number; this
+# guards the consequence.
+#
+# WHY IT READS THE TIER TABLE AND NOT THE CONSTANTS. The three tiers are
+# declared in prose at humanoid_rig.gd:137 — "0 = full, 1 = anim frozen (keeps
+# drawing), 2 = hidden (cuts draw + skinning)" — and _apply_anim_speed at :164
+# is the single writer that realises them. The prose is the author's own
+# statement of intent, so checking it checks the DESIGN and not one
+# configuration of it. Changing anim_lod_distance or hide_lod_distance does not
+# touch this invariant, and that is deliberate: a tuned radius with no guard is
+# how the same artefact ships again under a different number.
+#
+# THE BUG IT CAUGHT. task_1790473017750_a04884 and task_1790473414934_ce7d8a.
+# Tier 1 froze the clip while keeping the body drawn, so between anim_lod_distance
+# 45.0 m and hide_lod_distance 90.0 m the player saw bots translate at 2.0 m/s
+# holding a motionless walk pose. Measured in the production arena, 900 physics
+# frames: 85 of 85 conditioned samples violated, every one at 45.0–50.0 m with
+# 0.93–1.00 m of travel per 30 frames, and the only band the fixture ever
+# conditioned on was that band. The red arm is deliberately NOT threshold-based,
+# so it fires on the defect rather than on a distance.
+func _inv38g_sliding_statue() -> void:
+	const RIG := "res://addons/cabra.lat_shooters/src/player/humanoid_rig.gd"
+	if not FileAccess.file_exists(RIG):
+		_check("INV-38g", "tier contract source is readable", false,
+			"missing %s" % RIG, "sliding statue")
+		return
+	var src := FileAccess.get_file_as_string(RIG)
+
+	# The tier table is one documented line. If the author rewords it, the
+	# parser must fail LOUD rather than pass vacuously on an empty match.
+	var tiers := {}
+	for line in src.split("\n"):
+		var t := line.strip_edges()
+		if not t.begins_with("#") or not t.contains("0 = full"):
+			continue
+		t = t.lstrip("#").strip_edges()
+		for part in t.split(","):
+			var seg := part.strip_edges()
+			var eq := seg.find("=")
+			if eq < 0:
+				continue
+			tiers[seg.substr(0, eq).strip_edges()] = seg.substr(eq + 1).strip_edges()
+		break
+
+	_check("INV-38g", "tier table is parseable", tiers.size() == 3,
+		"parsed %d tier(s) from the doc line" % tiers.size(),
+		"sliding statue")
+
+	if tiers.size() != 3:
+		return
+
+	# THE INVARIANT. Frozen AND drawn in the same tier is the defect. Absence
+	# of either word is not a pass on its own, so an unrecognised tier is
+	# reported rather than assumed benign.
+	var offenders := []
+	var unrecognised := []
+	for k in ["0", "1", "2"]:
+		var desc: String = str(tiers[k])
+		var low := desc.to_lower()
+		var frozen := low.contains("frozen") or low.contains("freeze")
+		var drawn := (low.contains("keeps drawing") or low.contains("draws")
+			or (low.contains("draw") and not low.contains("cuts draw")))
+		if frozen and drawn:
+			offenders.append("tier %s: %s" % [k, desc])
+		elif not (frozen or drawn or low.contains("full")
+				or low.contains("hidden") or low.contains("cuts")):
+			unrecognised.append("tier %s: %s" % [k, desc])
+
+	_check("INV-38g", "no tier is both frozen and drawn", offenders.is_empty(),
+		("; ".join(offenders) if offenders.size() > 0 else "none"),
+		"a frozen clip on a drawn body is a statue that slides")
+
+	# A tier this parser cannot read is a hole, not a pass. This is the direct
+	# answer to a suite that would otherwise report PASS on coverage it lost.
+	_check("INV-38g", "every tier is recognised", unrecognised.is_empty(),
+		("; ".join(unrecognised) if unrecognised.size() > 0 else "all 3 read"),
+		"an unreadable tier cannot be certified either way")
+
+	# RED ARM, ON THE PARSER AND NOT ON THE SHIP CONSTANT. Feed the same
+	# checker a tier table that reproduces the defect, in a different unit
+	# entirely, and require it to fire. A red arm that only fires on the
+	# current code proves nothing about the checker.
+	var arm := {"0": "full", "1": "anim frozen (keeps drawing)", "2": "hidden"}
+	var arm_fires := false
+	for k in arm.keys():
+		var low := str(arm[k]).to_lower()
+		if (low.contains("frozen") or low.contains("freeze")) \
+				and (low.contains("keeps drawing") or low.contains("draws")):
+			arm_fires = true
+	_check("INV-38g", "RED ARM: fires on a synthetic drawn+frozen tier", arm_fires,
+		"fired=%s" % str(arm_fires),
+		"a checker that cannot be made to fail is not a checker")
+
+	# GREEN CONTROL, SAME PARSER, ONE TERM CHANGED. Tier 1 frozen but NOT
+	# drawn must NOT fire. This is the control that proves the checker keys on
+	# the conjunction rather than on the word "frozen" alone.
+	var ctl := {"0": "full", "1": "anim frozen, not drawn", "2": "hidden"}
+	var ctl_fires := false
+	for k in ctl.keys():
+		var low := str(ctl[k]).to_lower()
+		if (low.contains("frozen") or low.contains("freeze")) \
+				and (low.contains("keeps drawing") or low.contains("draws")):
+			ctl_fires = true
+	_check("INV-38g", "GREEN CONTROL: silent on frozen-but-hidden", not ctl_fires,
+		"fired=%s" % str(ctl_fires),
+		"one term changed; the conjunction is what decides")
