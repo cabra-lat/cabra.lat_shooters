@@ -52,6 +52,17 @@ var _self_path := ""
 
 func _initialize() -> void:
 	_self_path = get_script().resource_path
+	# === CONSTRUCTED NEGATIVE CONTROL (throwaway branch, never merged) ===
+	# Announces the break and scopes it: this harness, this branch, this run.
+	# It emulates a raise inside check_scripts' OWN top-level function. The
+	# process stays ALIVE (so the run cannot be mistaken for a parse error or
+	# an early exit), prints a line-anchored SCRIPT ERROR, and never returns,
+	# so quit() is never reached and the 600s budget is the only thing that
+	# would otherwise end it.
+	print("SCRIPT ERROR: Constructed control — raise in check_scripts' own top-level function.")
+	while true:
+		OS.delay_msec(200)
+	# === END CONSTRUCTED NEGATIVE CONTROL ===
 	print("=== check_scripts: project-wide GDScript parse gate ===")
 	for root in ROOTS:
 		_walk(root)
