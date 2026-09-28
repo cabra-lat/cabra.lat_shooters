@@ -1807,19 +1807,49 @@ func _inv15_listing_fee_floor() -> void:
 # disagreement into 24 clips would be indistinguishable from a correction afterwards.
 const _INV46_RIG := "res://addons/cabra.lat_shooters/src/player/scenes/humanoid_rig.tscn"
 const _INV46_GLB := "res://assets/models/player_model/psx_character_rigged.glb"
+const _INV46_BONES := 87
+
+## THRESHOLDS ARE UNCHANGED, AND ARE NOW KNOWN TO DESCRIBE THE BUG. DELIBERATELY.
+##
+## median < 30, maximum > 120, and a minority over 90 were fitted to the angles the
+## TRANSPOSED parser produced. They are not a loose bound that a correct parse happens
+## to brush against -- they are a DESCRIPTION of the defect, so a correct parse will not
+## satisfy them and neither will a genuine fix. Re-tuning them to whatever the corrected
+## numbers produce would refit the same bug with better arithmetic and would make "the
+## bimodality is a property of the parse" true of the replacement too.
+##
+## So they are left exactly as they are and this check is EXPECTED TO GO RED. That red is
+## the correct verdict, not a regression, and it is not to be tuned away. What this row
+## should ASSERT is a separate decision belonging to whoever owns the rest-source
+## question -- it may be a different phenomenon entirely once the parse is honest, and
+## re-deriving it is not something the commit that deletes a parser should also do.
+const _INV46_MEDIAN_MAX := 30.0
+const _INV46_PEAK_MIN := 120.0
+const _INV46_SPIKE_MIN := 1
+const _INV46_SPIKE_MAX := 44
 
 func _inv46_rest_sources_disagree_as_a_spike_not_an_offset() -> void:
-	var rest := _inv46_table("bones", "name", "rest")
-	var bind := _inv46_table("bind", "name", "pose")
-	if rest.size() != 87 or bind.size() != 87:
+	# BOTH SIDES NOW COME FROM THE ENGINE. `rest` is the authored rig read through a
+	# Skeleton3D the engine instantiated; `gs` below is the authoring export read the
+	# same way. The old first argument was a hand-parsed text table, and the parse WAS
+	# the defect.
+	#
+	# The old second guard, which required a separate `bind` table, is gone because the
+	# hazard it guarded against is now structural rather than merely unlikely:
+	# `bind/N/bone` was -1 for every entry, so the two tables could only be joined by
+	# NAME, and a correct name join was something the parser had to be trusted to
+	# perform. The join is now get_bone_name() on both skeletons -- there is no index,
+	# and nothing to misalign.
+	var rest := _inv46_engine_rest(_INV46_RIG)
+	if rest.size() != _INV46_BONES:
 		_check("INV-46", "rest_sources_disagree_as_a_spike", false,
-			"rest=%d bind=%d (expected 87 each)" % [rest.size(), bind.size()],
-			"a rest table that is not 87 entries means the rig changed shape, so every other reading here is void")
+			"rest=%d (expected %d)" % [rest.size(), _INV46_BONES],
+			"a rig that is not %d bones means the rig changed shape, so every other reading here is void" % _INV46_BONES)
 		return
-	if not rest.has("spine_01") or not bind.has("spine_01"):
+	if not rest.has("spine_01"):
 		_check("INV-46", "rest_sources_disagree_as_a_spike", false,
-			"spine_01 rest=%s bind=%s" % [str(rest.has("spine_01")), str(bind.has("spine_01"))],
-			"the two tables must join BY NAME; bind/N/bone is -1 for every entry and index alignment is a coincidence")
+			"spine_01 absent from the engine rest",
+			"the bone this investigation is about is not in the rig the engine loaded")
 		return
 	var glb: PackedScene = load(_INV46_GLB) as PackedScene
 	if glb == null:
@@ -1857,51 +1887,44 @@ func _inv46_rest_sources_disagree_as_a_spike_not_an_offset() -> void:
 			spike += 1
 	# A CONSTANT frame offset pushes every bone the same way, so the median would be high
 	# too. This is the falsifier. A minority spike leaves the median ordinary.
-	var not_an_offset: bool = median < 30.0 and maximum > 120.0
-	var is_a_minority: bool = spike > 0 and spike < 44
+	var not_an_offset: bool = median < _INV46_MEDIAN_MAX and maximum > _INV46_PEAK_MIN
+	var is_a_minority: bool = spike > _INV46_SPIKE_MIN and spike < _INV46_SPIKE_MAX
 	var ok: bool = not_an_offset and is_a_minority
 	_check("INV-46", "rest_sources_disagree_as_a_spike", ok,
 		"n=%d median=%.4f max=%.4f spike_over_90=%d constant_offset=%s" % [
 			angles.size(), median, maximum, spike, str(not not_an_offset)],
 		"if the two candidate rests are reconciled, the disagreement was a single frame offset and the re-bake baked it in; a collapsed median here means 24 clips were rewritten against one rest while two others disagreed")
 
-func _inv46_table(prefix: String, nkey: String, vkey: String) -> Dictionary:
-	var d: Dictionary = {}
-	var f := FileAccess.open(_INV46_RIG, FileAccess.READ)
-	if f == null:
-		return d
-	var nm := ""
-	var val := Transform3D.IDENTITY
-	var hn := false
-	var hv := false
-	while not f.eof_reached():
-		var line := f.get_line().strip_edges()
-		if line.begins_with(prefix + "/") and "/" + nkey + " = " in line:
-			if hn and hv:
-				d[nm] = val
-			# The two tables write names differently: bones/ uses "spine_01" and bind/ uses
-			# &"spine_01". Stripping the ampersand unconditionally mangles one side, which
-			# cost two runs and looked exactly like a missing bone.
-			var t := line.split(" = ", true, 1)[1].strip_edges()
-			if t.begins_with("&"):
-				t = t.substr(1)
-			nm = t.trim_prefix("\"").trim_suffix("\"")
-			hn = true
-			hv = false
-		elif line.begins_with(prefix + "/") and "/" + vkey + " = " in line:
-			val = _inv46_tf(line.split(" = ", true, 1)[1])
-			hv = true
-	if hn and hv:
-		d[nm] = val
-	return d
-
-func _inv46_tf(s: String) -> Transform3D:
-	var v: Array = []
-	for tok in s.trim_prefix("Transform3D(").trim_suffix(")").split(","):
-		v.append(float(tok))
-	return Transform3D(
-		Basis(Vector3(v[0], v[1], v[2]), Vector3(v[3], v[4], v[5]), Vector3(v[6], v[7], v[8])),
-		Vector3(v[9], v[10], v[11]))
+## Bone name -> rest Transform3D, built by the ENGINE from a scene it loaded.
+##
+## This replaces a hand-written text parser. That parser read `bones/N/rest =
+## Transform3D(...)` out of the rig's .tscn and rebuilt the transform as
+## `Basis(Vector3(v[0],v[1],v[2]), Vector3(v[3],v[4],v[5]), Vector3(v[6],v[7],v[8]))`.
+## The three-Vector Basis constructor takes its arguments as AXES, i.e. COLUMNS, while
+## the .tscn serialisation is ROW-MAJOR -- so consecutive triples are rows being fed
+## where columns go, and every angle this check measured was a transposed angle. The
+## origin round-tripped perfectly under the wrong reading, which is precisely why it hid:
+## a parser that gets the translation right and the rotation wrong looks like a working
+## parser, and a transpose preserves the magnitude of a rotation and flips only its sign.
+##
+## NO COLUMN SWAP, and no str_to_var, deliberately. Both were measured against
+## get_bone_rest on this rig and both leave a 0.039565 deg residual on foot.L_059 while
+## being exact on the other four sampled bones -- the same near-identity-bone trap that
+## hid the transpose, because a bone whose rest is close to identity cannot show it. A
+## corrected parser is still a parser the next reader can transpose. The engine's own
+## answer cannot be, and there is nothing left here to get wrong.
+func _inv46_engine_rest(scene_path: String) -> Dictionary:
+	var out: Dictionary = {}
+	var ps: PackedScene = load(scene_path) as PackedScene
+	if ps == null:
+		return out
+	var node: Node = ps.instantiate()
+	var sk: Skeleton3D = _inv46_skel(node)
+	if sk != null:
+		for i in range(sk.get_bone_count()):
+			out[str(sk.get_bone_name(i))] = sk.get_bone_rest(i)
+	node.free()
+	return out
 
 func _inv46_angle(a: Quaternion, b: Quaternion) -> float:
 	# |q| is the chord distance; its half-angle is the rotation angle. Folding on abs()
