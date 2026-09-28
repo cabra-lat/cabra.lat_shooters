@@ -3076,6 +3076,7 @@ func _inv38f_pose_precondition_guard() -> void:
 		return
 	var rig := rig_ps.instantiate()
 	root.add_child(rig)
+	await process_frame  # INV-38f: global_transform is not expressible until the node is in the tree
 
 	# Positive arm: a rig in a live scene with no camera-driven LOD applied is a
 	# VALID subject, and the guard must be quiet on it. A guard that fires on
