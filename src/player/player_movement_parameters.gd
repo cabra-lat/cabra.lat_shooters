@@ -111,14 +111,29 @@ func resolve(
   # Sign convention is owned by the CONSUMER, not by these files:
   # controller.gd reads parameters.lean_direction into _lean_dir, documented
   # there as -1 right, +1 left, and uses peek_target = -_lean_dir * OFFSET.
-  for _lkey in ["not_leaning", "leaningleft", "leaningright"]:
-    var _ls: PlayerMovementParameters = instantiate_local(
-        load(LEANING_DIR + _lkey + ".tres"))
-    if _ls != null and String(_ls.state_id) == leaning_state:
-      result.lean_direction = _ls.lean_direction
-      if String(_ls.state_id) != "NotLeaning":
-        result.speed = config.lean_speed
-      break
+  #
+  # The directory is ENUMERATED, not named. A hardcoded list of three keys made
+  # adding a state a two-place edit where neither place fails when the other is
+  # missed, so a fourth authored state would exist, be authorable, and be
+  # unreachable. Content the selector cannot address is not authored data.
+  # An undeclared state is LOUD, not a silent no-op returning a plausible result.
+  var _lean_matched := false
+  for _lf in DirAccess.get_files_at(LEANING_DIR):
+    if not _lf.ends_with(".tres"):
+      continue
+    var _ls: PlayerMovementParameters = instantiate_local(load(LEANING_DIR + _lf))
+    if _ls == null or String(_ls.state_id) != leaning_state:
+      continue
+    result.lean_direction = _ls.lean_direction
+    if String(_ls.state_id) != "NotLeaning":
+      result.speed = config.lean_speed
+    _lean_matched = true
+    break
+  if not _lean_matched:
+    push_warning(
+      "PlayerMovementParameters.resolve: no authored leaning state declares '%s'. "
+      % leaning_state
+      + "Add a .tres with that state_id under %s." % LEANING_DIR)
 
   match aiming_state:
     "Aiming":
