@@ -82,9 +82,14 @@ func _initialize() -> void:
 		for b in bare:
 			print(b)
 
+	# The count below is 2 CHECKS, both of which print above: the gate variable
+	# is present and build-derived, and every print statement sits behind it. It is
+	# written as a literal so the harness states its OWN floor rather than a
+	# neighbouring row's, and it is printed in both the PASS and FAIL paths so
+	# countChecks() can read it. Card task_1790474085894_2f12c9.
 	if failures > 0:
-		print("RESULT: FAIL (%d check(s) failed)" % failures)
+		print("RESULT: FAIL (%d check(s) failed) %d checks" % [failures, 2])
 		quit(1)
 		return
-	print("RESULT: PASS (grid.gd has no unguarded print; the gate is present and build-derived)")
+	print("RESULT: PASS (grid.gd has no unguarded print; the gate is present and build-derived) 2 checks")
 	quit(0)
