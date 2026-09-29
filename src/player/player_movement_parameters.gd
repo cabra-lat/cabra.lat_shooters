@@ -117,6 +117,24 @@ func resolve(
   # missed, so a fourth authored state would exist, be authorable, and be
   # unreachable. Content the selector cannot address is not authored data.
   # An undeclared state is LOUD, not a silent no-op returning a plausible result.
+  #
+  # SCOPE, WRITTEN DOWN ON PURPOSE SO THE NEXT PERSON SEES IT HERE. This
+  # selector is the LEANING axis ONLY. The other three axes still select by
+  # string literal in code: match moving_state, match aiming_state, and
+  # crouching_state TWICE. The asymmetry is a choice, not an oversight - the
+  # leaning axis was the safe first cut because it is the only one whose arms
+  # set lean_direction rather than pulling config values, so neither the
+  # config-freeze hazard nor the EYE_STAND default-arm override applies to it.
+  # THE HAZARD THIS CREATES, STATED PLAINLY: adding a state to moving_state,
+  # aiming_state or crouching_state is STILL a two-place edit, in code and in
+  # its graph, and neither place fails when the other is missed. Migrating those
+  # three axes is a separate card, not a quiet extension of this one.
+  # KNOWN AND DELIBERATELY NOT CHANGED: crouching_state is matched twice in
+  # this function, at the speed/head_bobbing arm and again at the final
+  # camera_height/collider_factor arm. Same values, behaviour unaffected, and
+  # folding them into one arm would be a behaviour change rather than a
+  # refactor, so it does not belong in a behaviour-preserving pass. It is
+  # flagged as a maintenance hazard: one axis, two literal ladders to keep in step.
   var _lean_matched := false
   for _lf in DirAccess.get_files_at(LEANING_DIR):
     if not _lf.ends_with(".tres"):
