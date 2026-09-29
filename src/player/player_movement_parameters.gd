@@ -69,6 +69,22 @@ func resolve(
     leaning_state: String,
     condition_multiplier: float,
     stamina_fov_multiplier: float) -> void:
+  # GUARD, FIRST STATEMENT, BEFORE THE config NULL CHECK ON PURPOSE.
+  # This class writes into itself: the ladder below assigns speed, camera_fov,
+  # collider_factor and the rest onto `result`, which is `self`. If `self` is a
+  # load() result it is the SHARED cached .tres asset, so resolving it edits the
+  # authored state on disk-facing memory for every other holder of that resource.
+  # The only safe construction is instantiate_local(), whose duplicate() clears
+  # resource_path. An empty resource_path is therefore the signature of a private
+  # copy and a non-empty one is the signature of a shared asset, and one string
+  # test separates them.
+  #
+  # Placed before `if config == null` because otherwise a null-config call skips
+  # the guard entirely, and a null-config call is the one most likely to be wrong.
+  assert(resource_path.is_empty(),
+    "resolve() called on a shared cached resource (%s). Construct through "
+    % resource_path
+    + "PlayerMovementParameters.instantiate_local(), never resolve() a load() result.")
   if config == null:
     return
   # The ladder below still selects by state NAME rather than by resource. That is
